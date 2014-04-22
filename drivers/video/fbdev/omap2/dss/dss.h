@@ -245,7 +245,7 @@ int sdi_init_platform_driver(void) __init;
 void sdi_uninit_platform_driver(void) __exit;
 
 int sdi_init_port(struct platform_device *pdev, struct device_node *port) __init;
-void sdi_uninit_port(void) __exit;
+void sdi_uninit_port(void);
 
 /* DSI */
 
@@ -359,7 +359,7 @@ int dpi_init_platform_driver(void) __init;
 void dpi_uninit_platform_driver(void) __exit;
 
 int dpi_init_port(struct platform_device *pdev, struct device_node *port) __init;
-void dpi_uninit_port(void) __exit;
+void dpi_uninit_port(struct platform_device *pdev, struct device_node *port);
 
 /* DISPC */
 int dispc_init_platform_driver(void) __init;

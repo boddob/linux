@@ -65,12 +65,18 @@ struct dss_reg {
 
 static int dss_runtime_get(void);
 static void dss_runtime_put(void);
+static int __init dss_init_ports(struct platform_device *pdev);
+static int __init dss_init_ports_omap34xx(struct platform_device *pdev);
+static void dss_uninit_ports(struct platform_device *pdev);
+static void dss_uninit_ports_omap34xx(struct platform_device *pdev);
 
 struct dss_features {
 	u8 fck_div_max;
 	u8 dss_fck_multiplier;
 	const char *parent_clk_name;
 	int (*dpi_select_source)(enum omap_channel channel);
+	int (*init_ports)(struct platform_device *pdev);
+	void (*uninit_ports)(struct platform_device *pdev);
 };
 
 static struct {
@@ -698,6 +704,8 @@ static const struct dss_features omap24xx_dss_feats __initconst = {
 	.dss_fck_multiplier	=	2,
 	.parent_clk_name	=	"core_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+	.init_ports		=	&dss_init_ports,
+	.uninit_ports		=	&dss_uninit_ports,
 };
 
 static const struct dss_features omap34xx_dss_feats __initconst = {
@@ -705,6 +713,8 @@ static const struct dss_features omap34xx_dss_feats __initconst = {
 	.dss_fck_multiplier	=	2,
 	.parent_clk_name	=	"dpll4_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+	.init_ports		=	&dss_init_ports_omap34xx,
+	.uninit_ports		=	&dss_uninit_ports_omap34xx,
 };
 
 static const struct dss_features omap3630_dss_feats __initconst = {
@@ -712,6 +722,8 @@ static const struct dss_features omap3630_dss_feats __initconst = {
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll4_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+	.init_ports		=	&dss_init_ports,
+	.uninit_ports		=	&dss_uninit_ports,
 };
 
 static const struct dss_features omap44xx_dss_feats __initconst = {
@@ -719,6 +731,8 @@ static const struct dss_features omap44xx_dss_feats __initconst = {
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap4,
+	.init_ports		=	&dss_init_ports,
+	.uninit_ports		=	&dss_uninit_ports,
 };
 
 static const struct dss_features omap54xx_dss_feats __initconst = {
@@ -726,6 +740,8 @@ static const struct dss_features omap54xx_dss_feats __initconst = {
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap5,
+	.init_ports		=	&dss_init_ports,
+	.uninit_ports		=	&dss_uninit_ports,
 };
 
 static int __init dss_init_features(struct platform_device *pdev)
@@ -774,7 +790,7 @@ static int __init dss_init_features(struct platform_device *pdev)
 	return 0;
 }
 
-static int __init dss_init_ports(struct platform_device *pdev)
+static int __init dss_init_ports_omap34xx(struct platform_device *pdev)
 {
 	struct device_node *parent = pdev->dev.of_node;
 	struct device_node *port;
@@ -809,15 +825,75 @@ static int __init dss_init_ports(struct platform_device *pdev)
 	return 0;
 }
 
-static void dss_uninit_ports(void)
+static int __init dss_init_ports(struct platform_device *pdev)
 {
+	struct device_node *parent = pdev->dev.of_node;
+	struct device_node *port;
+
+	if (parent == NULL)
+		return 0;
+
+	port = omapdss_of_get_next_port(parent, NULL);
+	if (!port)
+		return 0;
+
+	do {
 #ifdef CONFIG_OMAP2_DSS_DPI
-	dpi_uninit_port();
+			dpi_init_port(pdev, port);
+#endif
+	} while ((port = omapdss_of_get_next_port(parent, port)) != NULL);
+
+	return 0;
+}
+
+static void dss_uninit_ports_omap34xx(struct platform_device *pdev)
+{
+	struct device_node *parent = pdev->dev.of_node;
+	struct device_node *port;
+	int r;
+
+	if (parent == NULL)
+		return;
+
+	port = omapdss_of_get_next_port(parent, NULL);
+	if (!port)
+		return;
+
+	do {
+		u32 reg;
+
+		r = of_property_read_u32(port, "reg", &reg);
+		if (r)
+			reg = 0;
+
+#ifdef CONFIG_OMAP2_DSS_DPI
+		if (reg == 0)
+			dpi_uninit_port(pdev, port);
 #endif
 
 #ifdef CONFIG_OMAP2_DSS_SDI
-	sdi_uninit_port();
+		if (reg == 1)
+			sdi_uninit_port();
 #endif
+	} while ((port = omapdss_of_get_next_port(parent, port)) != NULL);
+}
+
+static void dss_uninit_ports(struct platform_device *pdev)
+{
+	struct device_node *parent = pdev->dev.of_node;
+	struct device_node *port;
+
+	if (parent == NULL)
+		return;
+
+	port = omapdss_of_get_next_port(parent, NULL);
+	if (!port)
+		return;
+	do {
+#ifdef CONFIG_OMAP2_DSS_DPI
+			dpi_uninit_port(pdev, port);
+#endif
+	} while ((port = omapdss_of_get_next_port(parent, port)) != NULL);
 }
 
 /* DSS HW IP initialisation */
@@ -878,7 +954,7 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 	dss.lcd_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
 	dss.lcd_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
 
-	dss_init_ports(pdev);
+	dss.feat->init_ports(pdev);
 
 	rev = dss_read_reg(DSS_REVISION);
 	printk(KERN_INFO "OMAP DSS rev %d.%d\n",
@@ -899,7 +975,7 @@ err_setup_clocks:
 
 static int __exit omap_dsshw_remove(struct platform_device *pdev)
 {
-	dss_uninit_ports();
+	dss.feat->uninit_ports(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 

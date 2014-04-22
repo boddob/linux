@@ -424,7 +424,7 @@ err_datapairs:
 	return r;
 }
 
-void __exit sdi_uninit_port(void)
+void sdi_uninit_port(void)
 {
 	if (!sdi.port_initialized)
 		return;

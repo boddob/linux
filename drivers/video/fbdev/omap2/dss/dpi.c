@@ -765,7 +765,7 @@ err_datalines:
 	return r;
 }
 
-void __exit dpi_uninit_port(void)
+void dpi_uninit_port(struct platform_device *pdev, struct device_node *port)
 {
 	if (!dpi.port_initialized)
 		return;
