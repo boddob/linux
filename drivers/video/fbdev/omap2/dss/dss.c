@@ -790,6 +790,12 @@ static int __init dss_init_features(struct platform_device *pdev)
 	return 0;
 }
 
+/* of_node pointer for the DSS parent node */
+struct device_node *dss_device_node(void)
+{
+	return dss.pdev->dev.of_node;
+}
+
 static int __init dss_init_ports_omap34xx(struct platform_device *pdev)
 {
 	struct device_node *parent = pdev->dev.of_node;

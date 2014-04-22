@@ -144,6 +144,21 @@ struct omap_dss_device *omap_dss_find_output_by_node(struct device_node *node)
 }
 EXPORT_SYMBOL(omap_dss_find_output_by_node);
 
+struct omap_dss_device
+		*omap_dss_find_output_by_node_and_reg(struct device_node *node,
+		u32 reg)
+{
+	struct omap_dss_device *out;
+
+	list_for_each_entry(out, &output_list, list) {
+		if (out->dev->of_node == node && out->reg == reg)
+			return omap_dss_get_device(out);
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(omap_dss_find_output_by_node_and_reg);
+
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {
 	while (dssdev->src)

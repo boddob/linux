@@ -19,6 +19,7 @@
 #include <linux/seq_file.h>
 
 #include <video/omapdss.h>
+#include "dss.h"
 
 struct device_node *
 omapdss_of_get_next_port(const struct device_node *parent,
@@ -142,12 +143,44 @@ omapdss_of_find_source_for_first_ep(struct device_node *node)
 
 	src_node = omapdss_of_get_remote_device_node(ep);
 
-	of_node_put(ep);
-
-	if (!src_node)
+	if (!src_node) {
+		of_node_put(ep);
 		return ERR_PTR(-EINVAL);
+	}
 
-	src = omap_dss_find_output_by_node(src_node);
+	/*
+	 * TODO: Find a better solution for this.
+	 *
+	 * DPI and SDI outputs share the same DSS device node. In order to find
+	 * the correct omap_dss_device output, we need to match the reg-id
+	 * property of the DPI/SDI port.
+	 *
+	 * For the special case of device_node being the parent DSS device, make
+	 * sure we check for both device_node and reg-id to get the correct
+	 * source
+	 */
+	if (src_node == dss_device_node()) {
+		struct device_node *src_port;
+		u32 reg;
+		int r;
+
+		src_port = of_parse_phandle(ep, "remote-endpoint", 0);
+
+		/* the parent of the endpoint is always the port node */
+		src_port = of_get_next_parent(src_port);
+
+		r = of_property_read_u32(src_port, "reg", &reg);
+		if (r)
+			reg = 0;
+
+		of_node_put(src_port);
+
+		src = omap_dss_find_output_by_node_and_reg(src_node, reg);
+	} else {
+		src = omap_dss_find_output_by_node(src_node);
+	}
+
+	of_node_put(ep);
 
 	of_node_put(src_node);
 
