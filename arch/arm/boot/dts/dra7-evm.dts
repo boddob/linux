@@ -270,6 +270,15 @@
 	bus-width = <8>;
 };
 
+&dss {
+	status = "ok";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+};
+
 &cpu0 {
 	cpu0-supply = <&smps123_reg>;
 };
