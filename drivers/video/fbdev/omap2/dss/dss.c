@@ -624,6 +624,26 @@ static int dss_dpi_select_source_omap5(int id, enum omap_channel channel)
 	return 0;
 }
 
+static int dss_dpi_select_source_dra7xx(int id, enum omap_channel channel)
+{
+	switch (id) {
+	case 0:
+		return dss_dpi_select_source_omap5(id, channel);
+	case 1:
+		if (channel != OMAP_DSS_CHANNEL_LCD2)
+			return -EINVAL;
+		break;
+	case 2:
+		if (channel != OMAP_DSS_CHANNEL_LCD3)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int dss_dpi_select_source(int id, enum omap_channel channel)
 {
 	return dss.feat->dpi_select_source(id, channel);
@@ -744,6 +764,15 @@ static const struct dss_features omap54xx_dss_feats __initconst = {
 	.uninit_ports		=	&dss_uninit_ports,
 };
 
+static const struct dss_features dra7xx_dss_feats __initconst = {
+	.fck_div_max		=	64,
+	.dss_fck_multiplier	=	1,
+	.parent_clk_name	=	"dpll_per_x2_ck",
+	.dpi_select_source	=	&dss_dpi_select_source_dra7xx,
+	.init_ports		=	&dss_init_ports,
+	.uninit_ports		=	&dss_uninit_ports,
+};
+
 static int __init dss_init_features(struct platform_device *pdev)
 {
 	const struct dss_features *src;
@@ -777,8 +806,11 @@ static int __init dss_init_features(struct platform_device *pdev)
 		break;
 
 	case OMAPDSS_VER_OMAP5:
-	case OMAPDSS_VER_DRA7xx:
 		src = &omap54xx_dss_feats;
+		break;
+
+	case OMAPDSS_VER_DRA7xx:
+		src = &dra7xx_dss_feats;
 		break;
 
 	default:
