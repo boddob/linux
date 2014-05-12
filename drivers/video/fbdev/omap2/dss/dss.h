@@ -300,12 +300,6 @@ void dsi_dump_clocks(struct seq_file *s);
 void dsi_irq_handler(void);
 u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 
-bool dsi_hsdiv_calc(struct platform_device *dsidev, unsigned long pll,
-		unsigned long out_min, pll_hsdiv_calc_func func, void *data);
-bool dsi_pll_calc(struct platform_device *dsidev,
-		unsigned long pll_min, unsigned long pll_max,
-		pll_calc_func func, void *data);
-
 unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev);
 int dsi_pll_set_clock_div(struct platform_device *dsidev,
 		struct dsi_clock_info *cinfo);
@@ -315,6 +309,7 @@ void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes);
 void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev);
 void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev);
 struct platform_device *dsi_get_dsidev_from_id(int module);
+struct pll_data *dsi_get_pll_data_from_id(int module);
 #else
 static inline int dsi_runtime_get(struct platform_device *dsidev)
 {
@@ -359,24 +354,9 @@ static inline struct platform_device *dsi_get_dsidev_from_id(int module)
 {
 	return NULL;
 }
-
-static inline unsigned long dsi_get_pll_clkin(struct platform_device *dsidev)
+static inline struct pll_data *dsi_get_pll_data_from_id(int module)
 {
-	return 0;
-}
-
-static inline bool dsi_hsdiv_calc(struct platform_device *dsidev,
-		unsigned long pll, unsigned long out_min,
-		pll_hsdiv_calc_func func, void *data)
-{
-	return false;
-}
-
-static inline bool dsi_pll_calc(struct platform_device *dsidev,
-		unsigned long pll_min, unsigned long pll_max,
-		pll_calc_func func, void *data)
-{
-	return false;
+	return NULL;
 }
 
 #endif

@@ -264,7 +264,7 @@ struct dsi_isr_tables {
 #define HSDIV_DSI	1
 
 struct dsi_clk_calc_ctx {
-	struct platform_device *dsidev;
+	struct pll_data *pll;
 
 	/* inputs */
 
@@ -420,6 +420,14 @@ struct platform_device *dsi_get_dsidev_from_id(int module)
 	out = omap_dss_get_output(id);
 
 	return out ? to_platform_device(out->dev) : NULL;
+}
+
+struct pll_data *dsi_get_pll_data_from_id(int module)
+{
+	struct platform_device *pdev = dsi_get_dsidev_from_id(module);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(pdev);
+
+	return dsi->pll;
 }
 
 static inline void dsi_write_reg(struct platform_device *dsidev,
@@ -1351,34 +1359,6 @@ static int dsi_pll_power(struct platform_device *dsidev,
 	}
 
 	return 0;
-}
-
-bool dsi_hsdiv_calc(struct platform_device *dsidev, unsigned long pll,
-		unsigned long out_min, pll_hsdiv_calc_func func, void *data)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	unsigned long out_max;
-
-	out_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
-
-	return pll_hsdiv_calc(dsi->pll, pll, out_min, out_max, func, data);
-}
-
-bool dsi_pll_calc(struct platform_device *dsidev, unsigned long pll_min,
-		unsigned long pll_max, pll_calc_func func, void *data)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	return pll_calc(dsi->pll, pll_min, pll_max, func, data);
-}
-
-/* calculate clock rates using dividers in cinfo */
-static int dsi_calc_clock_rates(struct platform_device *dsidev,
-		struct dsi_clock_info *cinfo)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	return pll_calc_and_check_clock_rates(dsi->pll, &cinfo->pll_params);
 }
 
 static void dsi_pll_calc_dsi_fck(struct dsi_clock_info *cinfo)
@@ -4228,7 +4208,8 @@ static int dsi_configure_dsi_clocks(struct platform_device *dsidev)
 
 	cinfo = dsi->user_dsi_cinfo;
 
-	r = dsi_calc_clock_rates(dsidev, &cinfo);
+	/* calculate clock rates using dividers in cinfo */
+	r = pll_calc_and_check_clock_rates(dsi->pll, &cinfo.pll_params);
 	if (r) {
 		DSSERR("Failed to calc dsi clocks\n");
 		return r;
@@ -4510,6 +4491,7 @@ static bool dsi_cm_calc_hsdiv_cb(int regm_dispc, unsigned long dispc,
 static bool dsi_cm_calc_pll_cb(int regn, int regm, unsigned long fint,
 		unsigned long pll, void *data)
 {
+	unsigned long out_max;
 	struct dsi_clk_calc_ctx *ctx = data;
 
 	ctx->dsi_cinfo.pll_params.regn = regn;
@@ -4517,8 +4499,10 @@ static bool dsi_cm_calc_pll_cb(int regn, int regm, unsigned long fint,
 	ctx->dsi_cinfo.pll_params.fint = fint;
 	ctx->dsi_cinfo.pll_params.clkout1 = pll;
 
-	return dsi_hsdiv_calc(ctx->dsidev, pll, ctx->req_pck_min,
-			dsi_cm_calc_hsdiv_cb, ctx);
+	out_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+
+	return pll_hsdiv_calc(ctx->pll, pll, ctx->req_pck_min,
+			out_max, dsi_cm_calc_hsdiv_cb, ctx);
 }
 
 static bool dsi_cm_calc(struct dsi_data *dsi,
@@ -4543,7 +4527,7 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 	txbyteclk = pck * bitspp / 8 / ndl;
 
 	memset(ctx, 0, sizeof(*ctx));
-	ctx->dsidev = dsi->pdev;
+	ctx->pll = dsi->pll;
 	ctx->config = cfg;
 	ctx->req_pck_min = pck;
 	ctx->req_pck_nom = pck;
@@ -4552,13 +4536,12 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 	pll_min = max(cfg->hs_clk_min * 4, txbyteclk * 4 * 4);
 	pll_max = cfg->hs_clk_max * 4;
 
-	return dsi_pll_calc(dsi->pdev, pll_min, pll_max,
-			dsi_cm_calc_pll_cb, ctx);
+	return pll_calc(dsi->pll, pll_min, pll_max, dsi_cm_calc_pll_cb, ctx);
 }
 
 static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(ctx->dsidev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(ctx->pll->pdev);
 	const struct omap_dss_dsi_config *cfg = ctx->config;
 	int bitspp = dsi_get_pixel_size(cfg->pixel_format);
 	int ndl = dsi->num_lanes_used - 1;
@@ -4803,6 +4786,7 @@ static bool dsi_vm_calc_hsdiv_cb(int regm_dispc, unsigned long dispc,
 static bool dsi_vm_calc_pll_cb(int regn, int regm, unsigned long fint,
 		unsigned long pll, void *data)
 {
+	unsigned long out_max;
 	struct dsi_clk_calc_ctx *ctx = data;
 
 	ctx->dsi_cinfo.pll_params.regn = regn;
@@ -4810,8 +4794,10 @@ static bool dsi_vm_calc_pll_cb(int regn, int regm, unsigned long fint,
 	ctx->dsi_cinfo.pll_params.fint = fint;
 	ctx->dsi_cinfo.pll_params.clkout1 = pll;
 
-	return dsi_hsdiv_calc(ctx->dsidev, pll, ctx->req_pck_min,
-			dsi_vm_calc_hsdiv_cb, ctx);
+	out_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+
+	return pll_hsdiv_calc(ctx->pll, pll, ctx->req_pck_min,
+			out_max, dsi_vm_calc_hsdiv_cb, ctx);
 }
 
 static bool dsi_vm_calc(struct dsi_data *dsi,
@@ -4826,7 +4812,7 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 	unsigned long byteclk_min;
 
 	memset(ctx, 0, sizeof(*ctx));
-	ctx->dsidev = dsi->pdev;
+	ctx->pll = dsi->pll;
 	ctx->config = cfg;
 
 	/* these limits should come from the panel driver */
@@ -4847,8 +4833,7 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 		pll_max = byteclk_max * 4 * 4;
 	}
 
-	return dsi_pll_calc(dsi->pdev, pll_min, pll_max,
-			dsi_vm_calc_pll_cb, ctx);
+	return pll_calc(dsi->pll, pll_min, pll_max, dsi_vm_calc_pll_cb, ctx);
 }
 
 static int dsi_set_config(struct omap_dss_device *dssdev,
