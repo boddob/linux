@@ -283,6 +283,8 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 struct device_node *dss_device_node(void);
 
 /* DSS DPLL */
+struct pll_data *dss_dpll_get_pll_data(int id);
+void dss_dpll_set_control_mux(enum omap_channel channel, int id);
 int dss_dpll_init(struct platform_device *pdev);
 
 /* SDI */

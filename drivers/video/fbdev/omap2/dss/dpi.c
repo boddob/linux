@@ -132,6 +132,22 @@ static struct pll_data *dpi_get_pll_data(enum omap_channel channel)
 			return NULL;
 		}
 
+	case OMAPDSS_VER_DRA7xx:
+		switch (channel) {
+		case OMAP_DSS_CHANNEL_LCD:
+			dss_dpll_set_control_mux(channel, 0);
+			return dss_dpll_get_pll_data(0);
+
+		case OMAP_DSS_CHANNEL_LCD2:
+			dss_dpll_set_control_mux(channel, 0);
+			return dss_dpll_get_pll_data(0);
+
+		case OMAP_DSS_CHANNEL_LCD3:
+			dss_dpll_set_control_mux(channel, 1);
+			return dss_dpll_get_pll_data(1);
+		default:
+			return NULL;
+	}
 	default:
 		return NULL;
 	}
