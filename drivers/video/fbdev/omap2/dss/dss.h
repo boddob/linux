@@ -146,6 +146,13 @@ struct dsi_clock_info {
 	u16 lp_clk_div;
 };
 
+struct pll_data;
+
+struct pll_ops {
+	int (*enable)(struct pll_data *pll);
+	void (*disable)(struct pll_data *pll);
+};
+
 struct pll_data {
 	void __iomem *base;
 
@@ -157,6 +164,8 @@ struct pll_data {
 	bool locked;
 
 	struct platform_device *pdev;
+
+	struct pll_ops *ops;
 };
 
 struct dss_lcd_mgr_config {
@@ -292,9 +301,6 @@ struct file_operations;
 int dsi_init_platform_driver(void) __init;
 void dsi_uninit_platform_driver(void) __exit;
 
-int dsi_runtime_get(struct platform_device *dsidev);
-void dsi_runtime_put(struct platform_device *dsidev);
-
 void dsi_dump_clocks(struct seq_file *s);
 
 void dsi_irq_handler(void);
@@ -303,21 +309,11 @@ u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev);
 int dsi_pll_set_clock_div(struct platform_device *dsidev,
 		struct dsi_clock_info *cinfo);
-int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
-		bool enable_hsdiv);
-void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes);
 void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev);
 void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev);
 struct platform_device *dsi_get_dsidev_from_id(int module);
 struct pll_data *dsi_get_pll_data_from_id(int module);
 #else
-static inline int dsi_runtime_get(struct platform_device *dsidev)
-{
-	return 0;
-}
-static inline void dsi_runtime_put(struct platform_device *dsidev)
-{
-}
 static inline u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
 {
 	WARN("%s: DSI not compiled in, returning pixel_size as 0\n", __func__);
@@ -333,16 +329,6 @@ static inline int dsi_pll_set_clock_div(struct platform_device *dsidev,
 {
 	WARN("%s: DSI not compiled in\n", __func__);
 	return -ENODEV;
-}
-static inline int dsi_pll_init(struct platform_device *dsidev,
-		bool enable_hsclk, bool enable_hsdiv)
-{
-	WARN("%s: DSI not compiled in\n", __func__);
-	return -ENODEV;
-}
-static inline void dsi_pll_uninit(struct platform_device *dsidev,
-		bool disconnect_lanes)
-{
 }
 static inline void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev)
 {
@@ -375,7 +361,8 @@ bool pll_calc(struct pll_data *pll, unsigned long clkout_min,
 int pll_calc_and_check_clock_rates(struct pll_data *pll,
 		struct pll_params *params);
 int pll_set_clock_div(struct pll_data *pll, struct pll_params *params);
-struct pll_data *pll_create(struct platform_device *pdev, u32 offset);
+struct pll_data *pll_create(struct platform_device *pdev, u32 offset,
+		struct pll_ops *ops);
 
 /* DPI */
 int dpi_init_platform_driver(void) __init;

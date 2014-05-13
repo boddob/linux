@@ -395,6 +395,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	struct omap_dss_device *out = &dpi->output;
+	struct pll_data *pll = dpi->pll;
 	int r;
 
 	mutex_lock(&dpi->lock);
@@ -425,14 +426,10 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_src_sel;
 
-	if (dpi->pll) {
-		r = dsi_runtime_get(dpi->pll->pdev);
+	if (pll) {
+		r = pll->ops->enable(pll);
 		if (r)
-			goto err_get_dsi;
-
-		r = dsi_pll_init(dpi->pll->pdev, 0, 1);
-		if (r)
-			goto err_dsi_pll_init;
+			goto err_pll_enable;
 	}
 
 	r = dpi_set_mode(dpi);
@@ -453,12 +450,9 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 err_mgr_enable:
 err_set_mode:
-	if (dpi->pll)
-		dsi_pll_uninit(dpi->pll->pdev, true);
-err_dsi_pll_init:
-	if (dpi->pll)
-		dsi_runtime_put(dpi->pll->pdev);
-err_get_dsi:
+	if (pll)
+		pll->ops->disable(pll);
+err_pll_enable:
 err_src_sel:
 	dispc_runtime_put();
 err_get_dispc:
@@ -482,8 +476,7 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 
 	if (dpi->pll) {
 		dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);
-		dsi_pll_uninit(dpi->pll->pdev, true);
-		dsi_runtime_put(dpi->pll->pdev);
+		dpi->pll->ops->disable(dpi->pll);
 	}
 
 	dispc_runtime_put();
@@ -577,19 +570,11 @@ static int dpi_verify_pll(struct pll_data *pll)
 	int r;
 
 	/* do initial setup with the PLL to see if it is operational */
-
-	r = dsi_runtime_get(pll->pdev);
+	r = pll->ops->enable(pll);
 	if (r)
 		return r;
 
-	r = dsi_pll_init(pll->pdev, 0, 1);
-	if (r) {
-		dsi_runtime_put(pll->pdev);
-		return r;
-	}
-
-	dsi_pll_uninit(pll->pdev, true);
-	dsi_runtime_put(pll->pdev);
+	pll->ops->disable(pll);
 
 	return 0;
 }

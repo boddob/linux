@@ -412,7 +412,8 @@ static int __init pll_init_features(struct pll_data *pll)
 	return 0;
 }
 
-struct pll_data *pll_create(struct platform_device *pdev, u32 offset)
+struct pll_data *pll_create(struct platform_device *pdev, u32 offset,
+		struct pll_ops *ops)
 {
 	struct resource *res, temp_res;
 	struct pll_data *pll;
@@ -448,6 +449,8 @@ struct pll_data *pll_create(struct platform_device *pdev, u32 offset)
 		DSSERR("can't get sys_clk\n");
 		return ERR_PTR(-ENODEV);
 	}
+
+	pll->ops = ops;
 
 	r = pll_init_features(pll);
 	if (r)

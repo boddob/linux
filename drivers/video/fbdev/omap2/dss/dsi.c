@@ -1129,7 +1129,7 @@ static u32 dsi_get_errors(struct platform_device *dsidev)
 	return e;
 }
 
-int dsi_runtime_get(struct platform_device *dsidev)
+static int dsi_runtime_get(struct platform_device *dsidev)
 {
 	int r;
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -1141,7 +1141,7 @@ int dsi_runtime_get(struct platform_device *dsidev)
 	return r < 0 ? r : 0;
 }
 
-void dsi_runtime_put(struct platform_device *dsidev)
+static void dsi_runtime_put(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int r;
@@ -1417,7 +1417,7 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 	return pll_set_clock_div(dsi->pll, &cinfo->pll_params);
 }
 
-int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
+static int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 		bool enable_hsdiv)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -1491,7 +1491,7 @@ err0:
 	return r;
 }
 
-void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes)
+static void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
@@ -5116,6 +5116,37 @@ static const struct omapdss_dsi_ops dsi_ops = {
 	.set_max_rx_packet_size = dsi_vc_set_max_rx_packet_size,
 };
 
+static int dsi_enable_pll(struct pll_data *pll)
+{
+	struct platform_device *dsidev = pll->pdev;
+	int r;
+
+	r = dsi_runtime_get(dsidev);
+	if (r)
+		return r;
+
+	r = dsi_pll_init(dsidev, 0, 1);
+	if (r) {
+		dsi_runtime_put(dsidev);
+		return r;
+	}
+
+	return 0;
+}
+
+static void dsi_disable_pll(struct pll_data *pll)
+{
+	struct platform_device *dsidev = pll->pdev;
+
+	dsi_pll_uninit(dsidev, true);
+	dsi_runtime_put(dsidev);
+}
+
+struct pll_ops dsi_pll_ops = {
+	.enable	= dsi_enable_pll,
+	.disable = dsi_disable_pll,
+};
+
 static void dsi_init_output(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -5278,7 +5309,7 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 		return -ENOMEM;
 	}
 
-	dsi->pll = pll_create(dsidev, DSI_PLL_OFFSET);
+	dsi->pll = pll_create(dsidev, DSI_PLL_OFFSET, &dsi_pll_ops);
 	if (!dsi->pll) {
 		DSSERR("can't create PLL instance\n");
 		return -EINVAL;;
