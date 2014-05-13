@@ -792,11 +792,19 @@
 
 		dss: dss@58000000 {
 			compatible = "ti,omap4-dss";
-			reg = <0x58000000 0x80>;
+			reg = <0x58000000 0x80>,
+			      <0x58004054 0x4>,
+			      <0x58004300 0x20>,
+			      <0x58009054 0x4>,
+			      <0x58009300 0x20>;
+			reg-names = "dss", "pll1_clkctrl", "pll1",
+				    "pll2_clkctrl", "pll2";
 			status = "disabled";
 			ti,hwmods = "dss_core";
-			clocks = <&dss_dss_clk>;
-			clock-names = "fck";
+			clocks = <&dss_dss_clk>,
+				 <&dss_video1_clk>,
+				 <&dss_video2_clk>;
+			clock-names = "fck", "video1_clk", "video2_clk";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
