@@ -53,6 +53,11 @@ static inline void clk_ctrl_write(int id, u32 val)
 	__raw_writel(val, dpll.clk_ctrl[id]);
 }
 
+struct pll_data *dss_dpll_get_pll_data(int id)
+{
+	return dpll.pll[id];
+}
+
 static void dss_dpll_disable_scp_clk(int id)
 {
 	unsigned *refcount;
@@ -168,6 +173,49 @@ static struct pll_ops dss_dpll_ops = {
 	.disable = dss_dpll_disable,
 };
 
+
+void dss_dpll_set_control_mux(enum omap_channel channel, int id)
+{
+	u8 shift, val;
+
+	if (channel == OMAP_DSS_CHANNEL_LCD) {
+		shift = 3;
+
+		switch (id) {
+		case 0:
+			val = 0; break;
+		default:
+			DSSERR("error in mux config for LCD\n");
+			return;
+		}
+	} else if (channel == OMAP_DSS_CHANNEL_LCD2) {
+		shift = 5;
+
+                switch (id) {
+		case 0:
+			val = 0; break;
+		case 1:
+			val = 1; break;
+		default:
+			DSSERR("error in mux config for LCD2\n");
+			return;
+		}
+	} else {
+		shift = 7;
+
+		switch (id) {
+		case 0:
+			val = 1; break;
+		case 1:
+			val = 0; break;
+		default:
+			DSSERR("error in mux config for LCD3\n");
+			return;
+		}
+	}
+
+	regmap_update_bits(dpll.syscon, DSS_PLL_CONTROL_OFF, 0x3 << shift, val);
+}
 
 int dss_dpll_init(struct platform_device *pdev)
 {
