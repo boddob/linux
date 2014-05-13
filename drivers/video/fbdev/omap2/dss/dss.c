@@ -63,8 +63,6 @@ struct dss_reg {
 #define REG_FLD_MOD(idx, val, start, end) \
 	dss_write_reg(idx, FLD_MOD(dss_read_reg(idx), val, start, end))
 
-static int dss_runtime_get(void);
-static void dss_runtime_put(void);
 static int __init dss_init_ports(struct platform_device *pdev);
 static int __init dss_init_ports_omap34xx(struct platform_device *pdev);
 static void dss_uninit_ports(struct platform_device *pdev);
@@ -77,6 +75,7 @@ struct dss_features {
 	int (*dpi_select_source)(int id, enum omap_channel channel);
 	int (*init_ports)(struct platform_device *pdev);
 	void (*uninit_ports)(struct platform_device *pdev);
+	bool dss_dplls;
 };
 
 static struct {
@@ -94,6 +93,7 @@ static struct {
 	enum omap_dss_clk_source dsi_clk_source[MAX_NUM_DSI];
 	enum omap_dss_clk_source dispc_clk_source;
 	enum omap_dss_clk_source lcd_clk_source[MAX_DSS_LCD_MANAGERS];
+
 
 	bool		ctx_valid;
 	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
@@ -682,7 +682,7 @@ static void dss_put_clocks(void)
 		clk_put(dss.parent_clk);
 }
 
-static int dss_runtime_get(void)
+int dss_runtime_get(void)
 {
 	int r;
 
@@ -693,7 +693,7 @@ static int dss_runtime_get(void)
 	return r < 0 ? r : 0;
 }
 
-static void dss_runtime_put(void)
+void dss_runtime_put(void)
 {
 	int r;
 
@@ -771,6 +771,7 @@ static const struct dss_features dra7xx_dss_feats __initconst = {
 	.dpi_select_source	=	&dss_dpi_select_source_dra7xx,
 	.init_ports		=	&dss_init_ports,
 	.uninit_ports		=	&dss_uninit_ports,
+	.dss_dplls		=	true,
 };
 
 static int __init dss_init_features(struct platform_device *pdev)
@@ -1003,8 +1004,15 @@ static int __init omap_dsshw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("dss", dss_dump_regs);
 
+	if (dss.feat->dss_dplls) {
+		r = dss_dpll_init(pdev);
+		if (r)
+			goto err_pll_init;
+	}
+
 	return 0;
 
+err_pll_init:
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
 err_setup_clocks:
