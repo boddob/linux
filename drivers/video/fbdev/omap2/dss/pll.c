@@ -412,8 +412,9 @@ static int __init pll_init_features(struct pll_data *pll)
 	return 0;
 }
 
-struct pll_data *pll_create(struct platform_device *pdev, u32 offset,
-		struct pll_ops *ops)
+struct pll_data *pll_create(struct platform_device *pdev,
+		const char *res_name, const char *clk_name,
+		u32 offset, struct pll_ops *ops)
 {
 	struct resource *res, temp_res;
 	struct pll_data *pll;
@@ -425,7 +426,7 @@ struct pll_data *pll_create(struct platform_device *pdev, u32 offset,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, res_name);
 	if (!res) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (!res) {
@@ -444,9 +445,9 @@ struct pll_data *pll_create(struct platform_device *pdev, u32 offset,
 		return pll->base;
 	}
 
-	pll->clkin = devm_clk_get(&pdev->dev, "sys_clk");
+	pll->clkin = devm_clk_get(&pdev->dev, clk_name);
 	if (IS_ERR(pll->clkin)) {
-		DSSERR("can't get sys_clk\n");
+		DSSERR("can't get clock %s\n", clk_name);
 		return ERR_PTR(-ENODEV);
 	}
 

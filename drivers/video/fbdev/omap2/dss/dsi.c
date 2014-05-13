@@ -5309,7 +5309,7 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 		return -ENOMEM;
 	}
 
-	dsi->pll = pll_create(dsidev, DSI_PLL_OFFSET, &dsi_pll_ops);
+	dsi->pll = pll_create(dsidev, "pll", "sys_clk", DSI_PLL_OFFSET, &dsi_pll_ops);
 	if (!dsi->pll) {
 		DSSERR("can't create PLL instance\n");
 		return -EINVAL;;

@@ -361,8 +361,9 @@ bool pll_calc(struct pll_data *pll, unsigned long clkout_min,
 int pll_calc_and_check_clock_rates(struct pll_data *pll,
 		struct pll_params *params);
 int pll_set_clock_div(struct pll_data *pll, struct pll_params *params);
-struct pll_data *pll_create(struct platform_device *pdev, u32 offset,
-		struct pll_ops *ops);
+struct pll_data *pll_create(struct platform_device *pdev,
+		const char *res_name, const char *clk_name,
+		u32 offset, struct pll_ops *ops);
 
 /* DPI */
 int dpi_init_platform_driver(void) __init;
