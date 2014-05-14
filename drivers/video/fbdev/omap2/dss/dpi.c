@@ -317,6 +317,8 @@ static int dpi_set_pll_clk(struct dpi_data *dpi, enum omap_channel channel,
 	if (!ok)
 		return -EINVAL;
 
+	ctx.dsi_cinfo.pll_params.hsdiv_enabled[0] = true;
+
 	r = pll_set_clock_div(dpi->pll, &ctx.dsi_cinfo.pll_params);
 	if (r)
 		return r;

@@ -369,6 +369,11 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 	struct platform_device *dsidev;
 	int b, ix, pos;
 
+	b = clk_src == OMAP_DSS_CLK_SRC_FCK ? 0 : 1;
+	REG_FLD_MOD(DSS_CONTROL, b, 0, 0);
+
+	return;
+
 	if (!dss_has_feature(FEAT_LCD_CLK_SRC)) {
 		dss_select_dispc_clk_source(clk_src);
 		return;

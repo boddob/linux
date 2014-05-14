@@ -97,13 +97,27 @@ static int dss_dpll_power(int id, int state)
 static void ctrl_pll_enable(int id, bool enable)
 {
 	regmap_update_bits(dpll.syscon, DSS_PLL_CONTROL_OFF,
-		!enable, 1 << id);
+		1 << id, !enable);
 }
 
 static int dss_dpll_enable(struct pll_data *pll)
 {
 	int r;
 	int id = pll == dpll.pll[0] ? 0 : 1;
+
+	if (!dpll.pll_reg) {
+		struct regulator *reg;
+
+		reg = devm_regulator_get(&pll->pdev->dev, "vdda_video");
+
+		if (IS_ERR(reg)) {
+			if (PTR_ERR(reg) != -EPROBE_DEFER)
+				DSSERR("can't get DPLL VDDA regulator\n");
+			return PTR_ERR(reg);
+		}
+
+		dpll.pll_reg = reg;
+	}
 
 	r = dss_runtime_get();
 	if (r)
@@ -200,7 +214,7 @@ void dss_dpll_set_control_mux(enum omap_channel channel, int id)
 		}
 	}
 
-	regmap_update_bits(dpll.syscon, DSS_PLL_CONTROL_OFF, val, 0x3 << shift);
+	regmap_update_bits(dpll.syscon, DSS_PLL_CONTROL_OFF, 0x3 << shift, val);
 }
 
 int dss_dpll_init(struct platform_device *pdev)
@@ -210,16 +224,21 @@ int dss_dpll_init(struct platform_device *pdev)
 
 	dpll.syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (!dpll.syscon) {
+		dev_err(&pdev->dev, "failed to get regmap\n");
 		return -ENODEV;
 	}
 
+#if 0
 	dpll.pll_reg = devm_regulator_get(&pdev->dev, "vdda_video");
-	if (IS_ERR(dpll.pll_reg)) {
+	if (!dpll.pll_reg) {
+		printk("reg err\n");
 		return -ENODEV;
 	}
+#endif
 
 	dpll.pll[0] = pll_create(pdev, "pll1", "video1_clk", 0, &dss_dpll_ops);
 	if (!dpll.pll[0]) {
+		dev_err(&pdev->dev, "failed to create PLL1 instance\n");
 		return -ENODEV;
 	}
 
@@ -237,6 +256,7 @@ int dss_dpll_init(struct platform_device *pdev)
 
 	dpll.pll[1] = pll_create(pdev, "pll2", "video2_clk", 0, &dss_dpll_ops);
 	if (!dpll.pll[1]) {
+		dev_err(&pdev->dev, "failed to create PLL2 instance\n");
 		return -ENODEV;
 	}
 

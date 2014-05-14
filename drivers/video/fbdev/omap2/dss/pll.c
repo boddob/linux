@@ -7,6 +7,7 @@
 #include <linux/platform_device.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
 
@@ -62,6 +63,7 @@ static inline u32 pll_read_reg(void __iomem *base_addr, const u16 idx)
 #define REG_GET(base, idx, start, end) \
 	FLD_GET(pll_read_reg(base, idx), start, end)
 
+#if 0
 static inline int wait_for_bit_change(void __iomem *base_addr,
 		const u32 idx, int b2, int b1, u32 val)
 {
@@ -72,6 +74,51 @@ static inline int wait_for_bit_change(void __iomem *base_addr,
 		udelay(1);
 	}
 	return v;
+}
+#endif
+
+static inline int wait_for_bit_change(void __iomem *base, const u16 offset, int bitnum, int value)
+{
+	unsigned long timeout;
+	ktime_t wait;
+	int t;
+
+	/* first busyloop to see if the bit changes right away */
+	t = 100;
+	while (t-- > 0) {
+		if (REG_GET(base, offset, bitnum, bitnum) == value)
+			return value;
+	}
+
+	/* then loop for 500ms, sleeping for 1ms in between */
+	timeout = jiffies + msecs_to_jiffies(500);
+	while (time_before(jiffies, timeout)) {
+		if (REG_GET(base, offset, bitnum, bitnum) == value)
+			return value;
+
+		wait = ns_to_ktime(1000 * 1000);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_hrtimeout(&wait, HRTIMER_MODE_REL);
+	}
+
+	return !value;
+}
+
+void pll_dump(struct pll_data *pll)
+{
+#define DUMPPLL(r) printk(KERN_ERR "%-35s %08x\n", #r,\
+		pll_read_reg(pll->base, r))
+
+	DUMPPLL(PLL_CONTROL);
+	DUMPPLL(PLL_STATUS);
+	DUMPPLL(PLL_GO);
+	DUMPPLL(PLL_CONFIGURATION1);
+	DUMPPLL(PLL_CONFIGURATION2);
+	DUMPPLL(PLL_CONFIGURATION3);
+	DUMPPLL(PLL_SSC_CONFIGURATION1);
+	DUMPPLL(PLL_SSC_CONFIGURATION2);
+	DUMPPLL(PLL_CONFIGURATION4);
+#undef DUMPPLL
 }
 
 unsigned long pll_get_clkin(struct pll_data *pll)
@@ -96,7 +143,7 @@ int pll_wait_hsdiv_active(struct pll_data *pll, int index)
 		return 0;
 	};
 
-	if (wait_for_bit_change(pll->base, PLL_STATUS, bit, bit, 1) != 1)
+	if (wait_for_bit_change(pll->base, PLL_STATUS, bit, 1) != 1)
 		return -EINVAL;
 
 	return 0;
@@ -105,7 +152,7 @@ int pll_wait_hsdiv_active(struct pll_data *pll, int index)
 int pll_wait_reset(struct pll_data *pll)
 {
 
-	if (wait_for_bit_change(pll->base, PLL_STATUS, 0, 0, 1) != 1) {
+	if (wait_for_bit_change(pll->base, PLL_STATUS, 0, 1) != 1) {
 		DSSERR("PLL not coming out of reset.\n");
 		return -ENODEV;
 	}
@@ -123,7 +170,7 @@ void pll_enable_clock(struct pll_data *pll, bool enable)
 	}
 
 	if (enable && pll->locked) {
-		if (wait_for_bit_change(pll->base, PLL_STATUS, 1, 1, 1) != 1)
+		if (wait_for_bit_change(pll->base, PLL_STATUS, 1, 1) != 1)
 			DSSERR("cannot lock PLL when enabling clocks\n");
 	}
 }
@@ -181,8 +228,11 @@ bool pll_hsdiv_calc(struct pll_data *pll, unsigned long clkout,
 	for (regm = regm_start; regm <= regm_stop; ++regm) {
 		hsdiv_out = clkout / regm;
 
-		if (func(regm, hsdiv_out, data))
+		if (func(regm, hsdiv_out, data)) {
+			printk("returning from hsdiv_calc m=%lu hsdiv_out=%lu\n",
+				regm, hsdiv_out);
 			return true;
+		}
 	}
 
 	return false;
@@ -220,8 +270,11 @@ bool pll_calc(struct pll_data *pll, unsigned long clkout_min,
 		for (regm = regm_start; regm <= regm_stop; ++regm) {
 			clkout = 2 * regm * fint;
 
-			if (func(regn, regm, fint, clkout, data))
+			if (func(regn, regm, fint, clkout, data)) {
+				printk("returning from pll_calc m=%lu n=%lu fint=%lu clkout %lu\n",
+					regn, regm, fint, clkout);
 				return true;
+			}
 		}
 	}
 
@@ -305,13 +358,13 @@ int pll_set_clock_div(struct pll_data *pll, struct pll_params *params)
 
 	REG_FLD_MOD(pll->base, PLL_GO, 1, 0, 0);	/* DSI_PLL_GO */
 
-	if (wait_for_bit_change(pll->base, PLL_GO, 0, 0, 0) != 0) {
+	if (wait_for_bit_change(pll->base, PLL_GO, 0, 0) != 0) {
 		DSSERR("dsi pll go bit not going down.\n");
 		r = -EIO;
 		goto err;
 	}
 
-	if (wait_for_bit_change(pll->base, PLL_STATUS, 1, 1, 1) != 1) {
+	if (wait_for_bit_change(pll->base, PLL_STATUS, 1, 1) != 1) {
 		DSSERR("cannot lock PLL\n");
 		r = -EIO;
 		goto err;
@@ -377,6 +430,12 @@ static struct pll_features omap54xx_pll_features = {
 	.dco_range1_max = 1500000000UL,
 	.dco_range2_min = 1250000000UL,
 	.dco_range2_max = 2500000000UL,
+	.regm_start = 20,
+	.regm_end = 9,
+	.regn_start = 8,
+	.regn_end = 1,
+	.regm_hsdiv_start = { 25, 30, 4, 9 },
+	.regm_hsdiv_end = { 21, 26, 0, 5 },
 	.freqsel = false,
 	.selffreqdco = true,
 	.refsel = true,
@@ -452,6 +511,7 @@ struct pll_data *pll_create(struct platform_device *pdev,
 	}
 
 	pll->ops = ops;
+	pll->pdev  = pdev;
 
 	r = pll_init_features(pll);
 	if (r)

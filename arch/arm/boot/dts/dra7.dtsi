@@ -159,6 +159,12 @@
 			reg = <0x4a002e00 0x7c>;
 		};
 
+
+		dra7_ctrl_core: tisysconcore@4a002000 {
+			compatible = "syscon";
+			reg = <0x4a002000 0x6d0>;
+		};
+
 		pbias_regulator: pbias_regulator {
 			compatible = "ti,pbias-omap";
 			reg = <0 0x4>;
@@ -805,6 +811,7 @@
 				 <&dss_video1_clk>,
 				 <&dss_video2_clk>;
 			clock-names = "fck", "video1_clk", "video2_clk";
+			syscon = <&dra7_ctrl_core>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;

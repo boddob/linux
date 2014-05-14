@@ -333,6 +333,8 @@
 &dss {
 	status = "ok";
 
+	vdda_video-supply = <&ldoln_reg>;
+
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;

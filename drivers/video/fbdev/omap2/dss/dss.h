@@ -355,6 +355,7 @@ static inline struct pll_data *dsi_get_pll_data_from_id(int module)
 
 #endif
 
+void pll_dump(struct pll_data *pll);
 unsigned long pll_get_hsdiv_rate(struct pll_data *pll, int index);
 unsigned long pll_get_clkin(struct pll_data *pll);
 int pll_wait_hsdiv_active(struct pll_data *pll, int index);
