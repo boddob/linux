@@ -337,6 +337,9 @@ static struct omap_hwmod omap54xx_dmic_hwmod = {
  * 'dss' class
  * display sub-system
  */
+
+static struct modulemode_shared dss_modulemode_ref;
+
 static struct omap_hwmod_class_sysconfig omap54xx_dss_sysc = {
 	.rev_offs	= 0x0000,
 	.syss_offs	= 0x0014,
@@ -364,9 +367,11 @@ static struct omap_hwmod omap54xx_dss_hwmod = {
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_DSS_DSS_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
+			.clkctrl_offs	= OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
+			.context_offs	= OMAP54XX_RM_DSS_DSS_CONTEXT_OFFSET,
+			.modulemode	= MODULEMODE_SWCTRL,
+			.flags		= HWMOD_OMAP4_MODULEMODE_SHARED,
+			.modulemode_ref	= &dss_modulemode_ref,
 		},
 	},
 	.opt_clks	= dss_opt_clks,
@@ -414,8 +419,11 @@ static struct omap_hwmod omap54xx_dss_dispc_hwmod = {
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+			.clkctrl_offs	= OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
+			.flags 		= HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT |
+					  HWMOD_OMAP4_MODULEMODE_SHARED,
+			.modulemode	= MODULEMODE_SWCTRL,
+			.modulemode_ref	= &dss_modulemode_ref,
 		},
 	},
 	.opt_clks	= dss_dispc_opt_clks,
@@ -456,8 +464,11 @@ static struct omap_hwmod omap54xx_dss_dsi1_a_hwmod = {
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+			.clkctrl_offs	= OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
+			.flags		= HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT |
+					  HWMOD_OMAP4_MODULEMODE_SHARED,
+			.modulemode	= MODULEMODE_SWCTRL,
+			.modulemode_ref	= &dss_modulemode_ref,
 		},
 	},
 	.opt_clks	= dss_dsi1_a_opt_clks,
@@ -476,8 +487,11 @@ static struct omap_hwmod omap54xx_dss_dsi1_c_hwmod = {
 	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+			.clkctrl_offs	= OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
+			.flags		= HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT |
+					  HWMOD_OMAP4_MODULEMODE_SHARED,
+			.modulemode	= MODULEMODE_SWCTRL,
+			.modulemode_ref	= &dss_modulemode_ref,
 		},
 	},
 	.opt_clks	= dss_dsi1_c_opt_clks,
@@ -515,8 +529,11 @@ static struct omap_hwmod omap54xx_dss_hdmi_hwmod = {
 	.main_clk	= "dss_48mhz_clk",
 	.prcm = {
 		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+			.clkctrl_offs	= OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
+			.flags		= HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT |
+					  HWMOD_OMAP4_MODULEMODE_SHARED,
+			.modulemode	= MODULEMODE_SWCTRL,
+			.modulemode_ref	= &dss_modulemode_ref,
 		},
 	},
 	.opt_clks	= dss_hdmi_opt_clks,
@@ -554,8 +571,11 @@ static struct omap_hwmod omap54xx_dss_rfbi_hwmod = {
 	.clkdm_name	= "dss_clkdm",
 	.prcm = {
 		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+			.clkctrl_offs	= OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
+			.flags		= HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT |
+					  HWMOD_OMAP4_MODULEMODE_SHARED,
+			.modulemode	= MODULEMODE_SWCTRL,
+			.modulemode_ref	= &dss_modulemode_ref,
 		},
 	},
 	.opt_clks	= dss_rfbi_opt_clks,
