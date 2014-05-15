@@ -432,13 +432,31 @@ struct omap_hwmod_omap2_prcm {
 };
 
 /*
+ * struct for managing modulemode field shared accross IP blocks
+ * @lock: spinlock to searilze enables/disables performed by different
+ *     hwmods sharing the same modulemode field
+ * @refcnt: keep a refcount of the enabled hwmods using this modulemode
+ *     field
+ * @registered: a flag to track whether the struct has been registered
+ */
+struct modulemode_shared {
+	spinlock_t	lock;
+	unsigned	refcnt;
+	bool		registered;
+};
+
+/*
  * Possible values for struct omap_hwmod_omap4_prcm.flags
  *
  * HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT: Some IP blocks don't have a PRCM
  *     module-level context loss register associated with them; this
  *     flag bit should be set in those cases
+ * HWMOD_OMAP4_MODULEMODE_SHARED: Some IP blocks belonging to the same
+ *     clock domain may have a shared MODULEMODE field; this flag bit
+ *     should be set in those cases
  */
 #define HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT		(1 << 0)
+#define HWMOD_OMAP4_MODULEMODE_SHARED		(1 << 1)
 
 /**
  * struct omap_hwmod_omap4_prcm - OMAP4-specific PRCM data
@@ -450,6 +468,7 @@ struct omap_hwmod_omap2_prcm {
  * @submodule_wkdep_bit: bit shift of the WKDEP range
  * @flags: PRCM register capabilities for this IP block
  * @modulemode: allowable modulemodes
+ * @modulemode_ref: pointer to modulemode struct shared by multiple hwmods
  * @context_lost_counter: Count of module level context lost
  *
  * If @lostcontext_mask is not defined, context loss check code uses
@@ -458,15 +477,16 @@ struct omap_hwmod_omap2_prcm {
  * more hwmods.
  */
 struct omap_hwmod_omap4_prcm {
-	u16		clkctrl_offs;
-	u16		rstctrl_offs;
-	u16		rstst_offs;
-	u16		context_offs;
-	u32		lostcontext_mask;
-	u8		submodule_wkdep_bit;
-	u8		modulemode;
-	u8		flags;
-	int		context_lost_counter;
+	u16				clkctrl_offs;
+	u16				rstctrl_offs;
+	u16				rstst_offs;
+	u16				context_offs;
+	u32				lostcontext_mask;
+	u8				submodule_wkdep_bit;
+	u8				modulemode;
+	struct modulemode_shared	*modulemode_ref;
+	u8				flags;
+	int				context_lost_counter;
 };
 
 

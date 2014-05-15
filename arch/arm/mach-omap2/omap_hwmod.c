@@ -973,17 +973,33 @@ static void _disable_optional_clocks(struct omap_hwmod *oh)
  */
 static void _omap4_enable_module(struct omap_hwmod *oh)
 {
+	unsigned long flags;
+	struct modulemode_shared *mmode = NULL;
+	bool enable = true;
+
 	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
 		return;
 
 	pr_debug("omap_hwmod: %s: %s: %d\n",
 		 oh->name, __func__, oh->prcm.omap4.modulemode);
 
-	omap4_cminst_module_enable(oh->prcm.omap4.modulemode,
-				   oh->clkdm->prcm_partition,
-				   oh->clkdm->cm_inst,
-				   oh->clkdm->clkdm_offs,
-				   oh->prcm.omap4.clkctrl_offs);
+	if (oh->prcm.omap4.flags & HWMOD_OMAP4_MODULEMODE_SHARED) {
+		mmode = oh->prcm.omap4.modulemode_ref;
+
+		spin_lock_irqsave(&mmode->lock, flags);
+
+		enable = mmode->refcnt++ == 0;
+	}
+
+	if (enable)
+		omap4_cminst_module_enable(oh->prcm.omap4.modulemode,
+					   oh->clkdm->prcm_partition,
+					   oh->clkdm->cm_inst,
+					   oh->clkdm->clkdm_offs,
+					   oh->prcm.omap4.clkctrl_offs);
+
+	if (mmode)
+		spin_unlock_irqrestore(&mmode->lock, flags);
 }
 
 /**
@@ -995,15 +1011,32 @@ static void _omap4_enable_module(struct omap_hwmod *oh)
  */
 static void _am33xx_enable_module(struct omap_hwmod *oh)
 {
+	unsigned long flags;
+	struct modulemode_shared *mmode = NULL;
+	bool enable = true;
+
 	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
 		return;
 
 	pr_debug("omap_hwmod: %s: %s: %d\n",
 		 oh->name, __func__, oh->prcm.omap4.modulemode);
 
-	am33xx_cm_module_enable(oh->prcm.omap4.modulemode, oh->clkdm->cm_inst,
-				oh->clkdm->clkdm_offs,
-				oh->prcm.omap4.clkctrl_offs);
+	if (oh->prcm.omap4.flags & HWMOD_OMAP4_MODULEMODE_SHARED) {
+		mmode = oh->prcm.omap4.modulemode_ref;
+
+		spin_lock_irqsave(&mmode->lock, flags);
+
+		enable = mmode->refcnt++ == 0;
+	}
+
+	if (enable)
+		am33xx_cm_module_enable(oh->prcm.omap4.modulemode,
+					oh->clkdm->cm_inst,
+					oh->clkdm->clkdm_offs,
+					oh->prcm.omap4.clkctrl_offs);
+
+	if (mmode)
+		spin_unlock_irqrestore(&mmode->lock, flags);
 }
 
 /**
@@ -1846,6 +1879,9 @@ static bool _are_any_hardreset_lines_asserted(struct omap_hwmod *oh)
 static int _omap4_disable_module(struct omap_hwmod *oh)
 {
 	int v;
+	unsigned long flags;
+	struct modulemode_shared *mmode = NULL;
+	bool disable = true;
 
 	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
 		return -EINVAL;
@@ -1859,15 +1895,30 @@ static int _omap4_disable_module(struct omap_hwmod *oh)
 
 	pr_debug("omap_hwmod: %s: %s\n", oh->name, __func__);
 
-	omap4_cminst_module_disable(oh->clkdm->prcm_partition,
+	if (oh->prcm.omap4.flags & HWMOD_OMAP4_MODULEMODE_SHARED) {
+		mmode = oh->prcm.omap4.modulemode_ref;
+
+		spin_lock_irqsave(&mmode->lock, flags);
+
+		WARN_ON(mmode->refcnt == 0);
+
+		disable = --mmode->refcnt == 0;
+	}
+
+	if (disable) {
+		omap4_cminst_module_disable(oh->clkdm->prcm_partition,
 				    oh->clkdm->cm_inst,
 				    oh->clkdm->clkdm_offs,
 				    oh->prcm.omap4.clkctrl_offs);
 
-	v = _omap4_wait_target_disable(oh);
-	if (v)
-		pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
-			oh->name);
+		v = _omap4_wait_target_disable(oh);
+		if (v)
+			pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
+				oh->name);
+	}
+
+	if (mmode)
+		spin_unlock_irqrestore(&mmode->lock, flags);
 
 	return 0;
 }
@@ -1882,6 +1933,9 @@ static int _omap4_disable_module(struct omap_hwmod *oh)
 static int _am33xx_disable_module(struct omap_hwmod *oh)
 {
 	int v;
+	unsigned long flags;
+	struct modulemode_shared *mmode = NULL;
+	bool disable = true;
 
 	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
 		return -EINVAL;
@@ -1891,13 +1945,28 @@ static int _am33xx_disable_module(struct omap_hwmod *oh)
 	if (_are_any_hardreset_lines_asserted(oh))
 		return 0;
 
-	am33xx_cm_module_disable(oh->clkdm->cm_inst, oh->clkdm->clkdm_offs,
-				 oh->prcm.omap4.clkctrl_offs);
+	if (oh->prcm.omap4.flags & HWMOD_OMAP4_MODULEMODE_SHARED) {
+		mmode = oh->prcm.omap4.modulemode_ref;
 
-	v = _am33xx_wait_target_disable(oh);
-	if (v)
-		pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
-			oh->name);
+		spin_lock_irqsave(&mmode->lock, flags);
+
+		WARN_ON(mmode->refcnt == 0);
+
+		disable = --mmode->refcnt == 0;
+	}
+
+	if (disable) {
+		am33xx_cm_module_disable(oh->clkdm->cm_inst, oh->clkdm->clkdm_offs,
+					 oh->prcm.omap4.clkctrl_offs);
+
+		v = _am33xx_wait_target_disable(oh);
+		if (v)
+			pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
+				oh->name);
+	}
+
+	if (mmode)
+		spin_unlock_irqrestore(&mmode->lock, flags);
 
 	return 0;
 }
@@ -2751,6 +2820,13 @@ static int __init _register(struct omap_hwmod *oh)
 	if (_lookup(oh->name))
 		return -EEXIST;
 
+	if (oh->prcm.omap4.flags & HWMOD_OMAP4_MODULEMODE_SHARED &&
+			!oh->prcm.omap4.modulemode_ref) {
+		pr_err("omap_hwmod: %s shares modulemode, but doesn't hold a ref to it\n",
+			oh->name);
+		return -EINVAL;
+	}
+
 	list_add_tail(&oh->node, &omap_hwmod_list);
 
 	INIT_LIST_HEAD(&oh->master_ports);
@@ -2758,6 +2834,15 @@ static int __init _register(struct omap_hwmod *oh)
 	spin_lock_init(&oh->_lock);
 
 	oh->_state = _HWMOD_STATE_REGISTERED;
+
+	if (oh->prcm.omap4.flags & HWMOD_OMAP4_MODULEMODE_SHARED) {
+		struct modulemode_shared *mmode = oh->prcm.omap4.modulemode_ref;
+
+		if (!mmode->registered) {
+			spin_lock_init(&mmode->lock);
+			mmode->registered = true;
+		}
+	}
 
 	/*
 	 * XXX Rather than doing a strcmp(), this should test a flag
