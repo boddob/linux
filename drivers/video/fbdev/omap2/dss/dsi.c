@@ -425,8 +425,9 @@ struct platform_device *dsi_get_dsidev_from_id(int module)
 	return out ? to_platform_device(out->dev) : NULL;
 }
 
-struct pll_data *dsi_get_pll_data_from_dsidev(struct platform_device *dsidev)
+struct pll_data *dsi_get_pll_data_from_id(int module)
 {
+	struct platform_device *dsidev = dsi_get_dsidev_from_id(module);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
 	return dsi->pll;
@@ -1131,7 +1132,7 @@ static u32 dsi_get_errors(struct platform_device *dsidev)
 	return e;
 }
 
-int dsi_runtime_get(struct platform_device *dsidev)
+static int dsi_runtime_get(struct platform_device *dsidev)
 {
 	int r;
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -1143,7 +1144,7 @@ int dsi_runtime_get(struct platform_device *dsidev)
 	return r < 0 ? r : 0;
 }
 
-void dsi_runtime_put(struct platform_device *dsidev)
+static void dsi_runtime_put(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int r;
@@ -1428,7 +1429,7 @@ static int dsi_pll_set_clock_div(struct platform_device *dsidev,
 	return r;
 }
 
-int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
+static int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 		bool enable_hsdiv)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -1503,7 +1504,8 @@ err0:
 	return r;
 }
 
-void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes)
+static void dsi_pll_uninit(struct platform_device *dsidev,
+	bool disconnect_lanes)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
@@ -5128,6 +5130,37 @@ static const struct omapdss_dsi_ops dsi_ops = {
 	.set_max_rx_packet_size = dsi_vc_set_max_rx_packet_size,
 };
 
+static int dsi_enable_pll(struct pll_data *pll)
+{
+	struct platform_device *dsidev = pll->pdev;
+	int r;
+
+	r = dsi_runtime_get(dsidev);
+	if (r)
+		return r;
+
+	r = dsi_pll_init(dsidev, 0, 1);
+	if (r) {
+		dsi_runtime_put(dsidev);
+		return r;
+	}
+
+	return 0;
+}
+
+static void dsi_disable_pll(struct pll_data *pll)
+{
+	struct platform_device *dsidev = pll->pdev;
+
+	dsi_pll_uninit(dsidev, true);
+	dsi_runtime_put(dsidev);
+}
+
+static struct pll_ops dsi_pll_ops = {
+	.enable	= dsi_enable_pll,
+	.disable = dsi_disable_pll,
+};
+
 static void dsi_init_output(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -5291,7 +5324,7 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 	}
 
 	dsi->pll = pll_create(dsidev, "pll", "sys_clk", DSS_PLL_TYPE_DSI,
-			NULL, DSI_PLL_OFFSET);
+			&dsi_pll_ops, DSI_PLL_OFFSET);
 	if (!dsi->pll) {
 		DSSERR("can't get DSI PLL\n");
 		return -ENODEV;
