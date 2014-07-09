@@ -200,6 +200,11 @@
 			ti,hwmods = "counter_32k";
 		};
 
+		dra7_ctrl_core: tisysconcore@4a002000 {
+			compatible = "syscon";
+			reg = <0x4a002000 0x6d0>;
+		};
+
 		dra7_ctrl_general: tisyscon@4a002e00 {
 			compatible = "syscon";
 			reg = <0x4a002e00 0x7c>;
@@ -1261,6 +1266,106 @@
 			ti,irqs-reserved = <0 1 2 3 5 6 131 132>;
 			ti,irqs-skip = <10 133 139 140>;
 			ti,irqs-safe-map = <0>;
+		};
+
+		mac: ethernet@4a100000 {
+			compatible = "ti,cpsw";
+			ti,hwmods = "gmac";
+			cpdma_channels = <8>;
+			ale_entries = <1024>;
+			bd_ram_size = <0x2000>;
+			no_bd_ram = <0>;
+			rx_descs = <64>;
+			mac_control = <0x20>;
+			slaves = <2>;
+			active_slave = <0>;
+			cpts_clock_mult = <0x80000000>;
+			cpts_clock_shift = <29>;
+			reg = <0x48484000 0x1000
+			       0x48485200 0xE00>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			/*
+			 * rx_thresh_pend
+			 * rx_pend
+			 * tx_pend
+			 * misc_pend
+			 */
+			interrupts = <GIC_SPI 334 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
+			ranges;
+			status = "disabled";
+
+			davinci_mdio: mdio@48485000 {
+				compatible = "ti,davinci_mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ti,hwmods = "davinci_mdio";
+				bus_freq = <1000000>;
+				reg = <0x48485000 0x100>;
+			};
+
+			cpsw_emac0: slave@48480200 {
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			cpsw_emac1: slave@48480300 {
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			phy_sel: cpsw-phy-sel@4a002554 {
+				compatible = "ti,dra7xx-cpsw-phy-sel";
+				reg= <0x4a002554 0x4>;
+				reg-names = "gmii-sel";
+			};
+		};
+
+		dss: dss@58000000 {
+			compatible = "ti,dra7-dss";
+			reg = <0x58000000 0x80>,
+			      <0x58004054 0x4>,
+			      <0x58004300 0x20>,
+			      <0x58009054 0x4>,
+			      <0x58009300 0x20>;
+			reg-names = "dss", "pll1_clkctrl", "pll1",
+				    "pll2_clkctrl", "pll2";
+			status = "disabled";
+			ti,hwmods = "dss_core";
+			clocks = <&dss_dss_clk>,
+				 <&dss_video1_clk>,
+				 <&dss_video2_clk>;
+			clock-names = "fck", "video1_clk", "video2_clk";
+			syscon = <&dra7_ctrl_core>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			dispc@58001000 {
+				compatible = "ti,dra7-dispc";
+				reg = <0x58001000 0x1000>;
+				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+				ti,hwmods = "dss_dispc";
+				clocks = <&dss_dss_clk>;
+				clock-names = "fck";
+			};
+
+			hdmi: encoder@58060000 {
+				compatible = "ti,dra7-hdmi";
+				reg = <0x58040000 0x200>,
+				      <0x58040200 0x80>,
+				      <0x58040300 0x80>,
+				      <0x58060000 0x19000>;
+				reg-names = "wp", "pll", "phy", "core";
+				interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+				ti,hwmods = "dss_hdmi";
+				clocks = <&dss_48mhz_clk>, <&dss_hdmi_clk>;
+				clock-names = "fck", "sys_clk";
+			};
 		};
 	};
 };
