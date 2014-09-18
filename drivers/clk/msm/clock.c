@@ -955,7 +955,10 @@ static int __init clock_late_init(void)
 	}
 
 	list_for_each_entry_safe(h, h_temp, &handoff_list, list) {
-		clk_disable_unprepare(h->clk);
+		if (strcmp("ipa_clk", h->clk->dbg_name) &&
+		    strcmp("bimc_msmbus_a_clk", h->clk->dbg_name)) {
+			clk_disable_unprepare(h->clk);
+		}
 		list_del(&h->list);
 		kfree(h);
 	}
