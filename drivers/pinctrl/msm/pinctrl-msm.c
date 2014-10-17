@@ -124,7 +124,7 @@ static void msm_pmx_prg_fn(struct pinctrl_dev *pctldev, unsigned selector,
 	}
 }
 
-static int msm_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
+static int msm_pmx_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 					unsigned group)
 {
 	msm_pmx_prg_fn(pctldev, selector, group, true);
@@ -152,7 +152,7 @@ static struct pinmux_ops msm_pmxops = {
 	.get_functions_count	= msm_pmx_functions_count,
 	.get_function_name	= msm_pmx_get_fname,
 	.get_function_groups	= msm_pmx_get_groups,
-	.enable			= msm_pmx_enable,
+	.set_mux		= msm_pmx_set_mux,
 	.gpio_request_enable	= msm_pmx_gpio_request,
 };
 
