@@ -81,6 +81,7 @@ struct msm_drm_private {
 	 * place to keep the edp instance.
 	 */
 	struct msm_edp *edp;
+	struct msm_dsi *dsi[2];
 
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;
@@ -235,6 +236,29 @@ void __init msm_edp_register(void);
 void __exit msm_edp_unregister(void);
 int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 		struct drm_encoder *encoder);
+
+enum msm_dsi_mode {
+	MSM_DSI_MODE_UNDEF = 0,
+	MSM_DSI_VIDEO_MODE,
+	MSM_DSI_CMD_MODE
+};
+struct msm_cmd_te_cfg {
+	uint32_t hw_vsync_mode;
+	uint32_t sync_cfg_height;
+	uint32_t vsync_init_val;
+	uint32_t sync_thres_start;
+	uint32_t sync_thres_cont;
+	uint32_t start_pos;
+	uint32_t rd_ptr_irq;
+	uint32_t refx100;
+	uint32_t vtotal;
+};
+struct msm_dsi;
+void __init msm_dsi_register(void);
+void __exit msm_dsi_unregister(void);
+int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
+		struct drm_encoder *encoder, enum msm_dsi_mode *dsi_mode);
+struct msm_cmd_te_cfg *msm_dsi_get_te_info(struct msm_dsi *msm_dsi);
 
 #ifdef CONFIG_DEBUG_FS
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);

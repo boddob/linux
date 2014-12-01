@@ -19,6 +19,15 @@ msm-y := \
 	edp/edp_connector.o \
 	edp/edp_ctrl.o \
 	edp/edp_phy.o \
+	dsi/dsi.o \
+	dsi/dsi_bridge.o \
+	dsi/dsi_connector.o \
+	dsi/dsi_host.o \
+	dsi/dsi_panel.o \
+	dsi/dsi_phy.o \
+	dsi/panel/jdi_qhd_dual_cmd.o \
+	dsi/panel/jdi_qhd_dual_video.o \
+	dsi/panel/jdi_1080_video.o \
 	mdp/mdp_format.o \
 	mdp/mdp_kms.o \
 	mdp/mdp4/mdp4_crtc.o \

@@ -7,6 +7,8 @@ config DRM_MSM
 	select REGULATOR
 	select DRM_KMS_HELPER
 	select DRM_PANEL
+	select DRM_MIPI_DSI
+	select VIDEOMODE_HELPERS
 	select SHMEM
 	select TMPFS
 	default y
