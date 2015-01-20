@@ -771,7 +771,7 @@ static int msm_register_irqchip(struct msm_pinctrl_dd *dd)
 	return 0;
 }
 
-int msm_pinctrl_probe(struct platform_device *pdev,
+int msm_pctrl_probe(struct platform_device *pdev,
 					struct msm_tlmm_desc *tlmm_info)
 {
 	struct msm_pinctrl_dd *dd;
@@ -803,7 +803,7 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	platform_set_drvdata(pdev, dd);
 	return 0;
 }
-EXPORT_SYMBOL(msm_pinctrl_probe);
+EXPORT_SYMBOL(msm_pctrl_probe);
 
 #ifdef CONFIG_USE_PINCTRL_IRQ
 struct irq_chip mpm_tlmm_irq_extn = {

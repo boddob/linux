@@ -976,7 +976,7 @@ static int msm_tlmm_probe(struct platform_device *pdev)
 		tlmm_pininfo[i].pintype_data = pintype_data[i];
 	tlmm_desc->pintypes = tlmm_pininfo;
 	tlmm_desc->num_pintypes = ARRAY_SIZE(tlmm_pininfo);
-	return msm_pinctrl_probe(pdev, tlmm_desc);
+	return msm_pctrl_probe(pdev, tlmm_desc);
 }
 
 static struct platform_driver msm_tlmm_drv = {

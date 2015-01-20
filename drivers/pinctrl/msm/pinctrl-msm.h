@@ -187,7 +187,7 @@ struct msm_tlmm_desc {
 };
 
 /* Common probe for all TLMM */
-int msm_pinctrl_probe(struct platform_device *pdev,
+int msm_pctrl_probe(struct platform_device *pdev,
 					struct msm_tlmm_desc *tlmm_info);
 #ifdef CONFIG_USE_PINCTRL_IRQ
 #ifdef CONFIG_PINCTRL_MSM_TLMM
