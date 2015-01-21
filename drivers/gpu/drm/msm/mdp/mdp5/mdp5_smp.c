@@ -75,6 +75,7 @@ struct mdp5_smp {
 	mdp5_smp_state_t state; /* to track smp allocation amongst pipes: */
 
 	struct mdp5_client_smp_state client_state[CID_MAX];
+	const int *cid_map;
 };
 
 static inline
@@ -232,6 +233,7 @@ static void update_smp_state(struct mdp5_smp *smp,
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	int cnt = smp->blk_cnt;
 	u32 blk, val;
+	int port = smp->cid_map[cid];
 
 	for_each_set_bit(blk, *assigned, cnt) {
 		int idx = blk / 3;
@@ -242,15 +244,15 @@ static void update_smp_state(struct mdp5_smp *smp,
 		switch (fld) {
 		case 0:
 			val &= ~MDP5_SMP_ALLOC_W_REG_CLIENT0__MASK;
-			val |= MDP5_SMP_ALLOC_W_REG_CLIENT0(cid);
+			val |= MDP5_SMP_ALLOC_W_REG_CLIENT0(port);
 			break;
 		case 1:
 			val &= ~MDP5_SMP_ALLOC_W_REG_CLIENT1__MASK;
-			val |= MDP5_SMP_ALLOC_W_REG_CLIENT1(cid);
+			val |= MDP5_SMP_ALLOC_W_REG_CLIENT1(port);
 			break;
 		case 2:
 			val &= ~MDP5_SMP_ALLOC_W_REG_CLIENT2__MASK;
-			val |= MDP5_SMP_ALLOC_W_REG_CLIENT2(cid);
+			val |= MDP5_SMP_ALLOC_W_REG_CLIENT2(port);
 			break;
 		}
 
@@ -325,6 +327,7 @@ struct mdp5_smp *mdp5_smp_init(struct drm_device *dev, const struct mdp5_smp_blo
 	smp->dev = dev;
 	smp->blk_cnt = cfg->mmb_count;
 	smp->blk_size = cfg->mmb_size;
+	smp->cid_map = cfg->cid_map;
 
 	/* statically tied MMBs cannot be re-allocated: */
 	bitmap_copy(smp->state, cfg->reserved_state, smp->blk_cnt);

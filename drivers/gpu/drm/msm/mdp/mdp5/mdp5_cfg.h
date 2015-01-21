@@ -49,6 +49,7 @@ struct mdp5_smp_block {
 	int mmb_size;			/* MMB: size in bytes */
 	mdp5_smp_state_t reserved_state;/* SMP MMBs statically allocated */
 	int reserved[MAX_CLIENTS];	/* # of MMBs allocated per client */
+	const int *cid_map;
 };
 
 struct mdp5_cfg_hw {

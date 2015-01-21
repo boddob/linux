@@ -19,6 +19,32 @@ struct mdp5_cfg_handler {
 	struct mdp5_cfg config;
 };
 
+const int mdp5_def_cid_map[] = {
+	[CID_UNUSED] = 0,
+	[CID_VIG0_Y] = 1,
+	[CID_VIG0_CR] = 2,
+	[CID_VIG0_CB] = 3,
+	[CID_VIG1_Y] = 4,
+	[CID_VIG1_CR] = 5,
+	[CID_VIG1_CB] = 6,
+	[CID_VIG2_Y] = 7,
+	[CID_VIG2_CR] = 8,
+	[CID_VIG2_CB] = 9,
+	[CID_DMA0_Y] = 10,
+	[CID_DMA0_CR] = 11,
+	[CID_DMA0_CB] = 12,
+	[CID_DMA1_Y] = 13,
+	[CID_DMA1_CR] = 14,
+	[CID_DMA1_CB] = 15,
+	[CID_RGB0] = 16,
+	[CID_RGB1] = 17,
+	[CID_RGB2] = 18,
+	[CID_VIG3_Y] = 19,
+	[CID_VIG3_CR] = 20,
+	[CID_VIG3_CB] = 21,
+	[CID_RGB2] = 22,
+};
+
 /* mdp5_cfg must be exposed (used in mdp5.xml.h) */
 const struct mdp5_cfg_hw *mdp5_cfg = NULL;
 
@@ -27,6 +53,7 @@ const struct mdp5_cfg_hw msm8x74_config = {
 	.smp = {
 		.mmb_count = 22,
 		.mmb_size = 4096,
+		.cid_map = mdp5_def_cid_map,
 	},
 	.ctl = {
 		.count = 5,
@@ -69,6 +96,7 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.smp = {
 		.mmb_count = 44,
 		.mmb_size = 8192,
+		.cid_map = mdp5_def_cid_map,
 		.reserved_state[0] = GENMASK(7, 0),	/* first 8 MMBs */
 		.reserved[CID_RGB0] = 2,
 		.reserved[CID_RGB1] = 2,
