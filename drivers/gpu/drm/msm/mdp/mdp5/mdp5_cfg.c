@@ -140,10 +140,75 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.max_clk = 320000000,
 };
 
+const int msm8x16_cid_map[] = {
+	[CID_UNUSED] = 0,
+	[CID_VIG0_Y] = 1,
+	[CID_VIG0_CR] = 2,
+	[CID_VIG0_CB] = 3,
+	[CID_DMA0_Y] = 4,
+	[CID_DMA0_CR] = 5,
+	[CID_DMA0_CB] = 6,
+	[CID_RGB0] = 7,
+	[CID_RGB1] = 8,
+};
+
+const struct mdp5_cfg_hw msm8x16_config = {
+	.name = "msm8x16",
+
+	.smp = {
+		.mmb_count = 8,
+		.mmb_size = 8192,
+		.cid_map = msm8x16_cid_map,
+	},
+
+	.ctl = {
+		.count = 5,
+		.base = { 0x2000, 0x2200,0x2400, 0x2600, 0x2800 },
+	},
+	.pipe_vig = {
+		.count = 1,
+		.base = { 0x5000, },
+	},
+
+	.pipe_rgb = {
+		.count = 2,
+		.base = { 0x15000,  0x17000 },
+	},
+
+	.pipe_dma = {
+		.count = 1,
+		.base = { 0x25000 }
+	},
+
+	.lm = {
+		.count = 2,
+		.base = { 0x45000, 0x48000 },
+		.nb_stages = 5,
+	},
+
+	.ctl = {
+		.count = 5,
+		.base = { 0x2000, 0x2200, 0x2400, 0x2600, 0x2800 },
+	},
+
+	.dspp = {
+		.count = 1,
+		.base = { 0x55000 },
+	},
+
+	.intf = {
+		.count = 1,
+		.base = { 0x6b800 },
+	},
+
+	.max_clk = 320000000,
+};
+
 static const struct mdp5_cfg_handler cfg_handlers[] = {
 	{ .revision = 0, .config = { .hw = &msm8x74_config } },
 	{ .revision = 2, .config = { .hw = &msm8x74_config } },
 	{ .revision = 3, .config = { .hw = &apq8084_config } },
+	{ .revision = 6, .config = { .hw = &msm8x16_config } },
 };
 
 
