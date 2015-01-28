@@ -98,6 +98,221 @@ static void bs_fini(struct mdp5_encoder *mdp5_encoder) {}
 static void bs_set(struct mdp5_encoder *mdp5_encoder, int idx) {}
 #endif
 
+/*
+ * Command mode encoder, used by DSI command mode path.
+ * Should move to a separate file, once global bandwidth
+ * functions are available.
+ */
+#define VSYNC_CLK_RATE 19200000
+static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
+					struct drm_display_mode *mode)
+{
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	struct device *dev = encoder->dev->dev;
+	u32 total_lines_x100, vclks_line, cfg;
+	long vsync_clk_speed;
+	int pp_id = GET_PING_PONG_ID(mdp5_crtc_get_lm(encoder->crtc));
+
+	if (IS_ERR_OR_NULL(mdp5_kms->vsync_clk)) {
+		dev_err(dev, "vsync_clk is not initialized\n");
+		return -EINVAL;
+	}
+
+	total_lines_x100 = mode->vtotal * mode->vrefresh;
+	if (!total_lines_x100) {
+		dev_err(dev, "%s: vtotal(%d) or vrefresh(%d) is 0\n",
+				__func__, mode->vtotal, mode->vrefresh);
+		return -EINVAL;
+	}
+
+	vsync_clk_speed = clk_round_rate(mdp5_kms->vsync_clk, VSYNC_CLK_RATE);
+	if (vsync_clk_speed <= 0) {
+		dev_err(dev, "vsync_clk round rate failed %ld\n",
+							vsync_clk_speed);
+		return -EINVAL;
+	}
+	vclks_line = vsync_clk_speed * 100 / total_lines_x100;
+
+	cfg = MDP5_PP_SYNC_CONFIG_VSYNC_COUNTER_EN
+		| MDP5_PP_SYNC_CONFIG_VSYNC_IN_EN;
+	cfg |= MDP5_PP_SYNC_CONFIG_VSYNC_COUNT(vclks_line);
+
+	mdp5_write(mdp5_kms, REG_MDP5_PP_SYNC_CONFIG_VSYNC(pp_id), cfg);
+	mdp5_write(mdp5_kms,
+		REG_MDP5_PP_SYNC_CONFIG_HEIGHT(pp_id), 0xfff0);
+	mdp5_write(mdp5_kms,
+		REG_MDP5_PP_VSYNC_INIT_VAL(pp_id), mode->vdisplay);
+	mdp5_write(mdp5_kms, REG_MDP5_PP_RD_PTR_IRQ(pp_id), mode->vdisplay + 1);
+	mdp5_write(mdp5_kms, REG_MDP5_PP_START_POS(pp_id), mode->vdisplay);
+	mdp5_write(mdp5_kms, REG_MDP5_PP_SYNC_THRESH(pp_id),
+			MDP5_PP_SYNC_THRESH_START(4) |
+			MDP5_PP_SYNC_THRESH_CONTINUE(4));
+
+	return 0;
+}
+
+static int pingpong_tearcheck_enable(struct drm_encoder *encoder)
+{
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	int pp_id = GET_PING_PONG_ID(mdp5_crtc_get_lm(encoder->crtc));
+	int ret;
+
+	ret = clk_set_rate(mdp5_kms->vsync_clk,
+		clk_round_rate(mdp5_kms->vsync_clk, VSYNC_CLK_RATE));
+	if (ret) {
+		dev_err(encoder->dev->dev,
+			"vsync_clk clk_set_rate failed, %d\n", ret);
+		return ret;
+	}
+	ret = clk_prepare_enable(mdp5_kms->vsync_clk);
+	if (ret) {
+		dev_err(encoder->dev->dev,
+			"vsync_clk clk_prepare_enable failed, %d\n", ret);
+		return ret;
+	}
+
+	mdp5_write(mdp5_kms, REG_MDP5_PP_TEAR_CHECK_EN(pp_id), 1);
+
+	return 0;
+}
+
+static void pingpong_tearcheck_disable(struct drm_encoder *encoder)
+{
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	int pp_id = GET_PING_PONG_ID(mdp5_crtc_get_lm(encoder->crtc));
+
+	mdp5_write(mdp5_kms, REG_MDP5_PP_TEAR_CHECK_EN(pp_id), 0);
+	clk_disable_unprepare(mdp5_kms->vsync_clk);
+}
+
+static void mdp5_cmd_encoder_destroy(struct drm_encoder *encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	bs_fini(mdp5_encoder);
+	drm_encoder_cleanup(encoder);
+	kfree(mdp5_encoder);
+}
+
+static const struct drm_encoder_funcs mdp5_cmd_encoder_funcs = {
+	.destroy = mdp5_cmd_encoder_destroy,
+};
+
+static bool mdp5_cmd_encoder_mode_fixup(struct drm_encoder *encoder,
+		const struct drm_display_mode *mode,
+		struct drm_display_mode *adjusted_mode)
+{
+	return true;
+}
+
+static void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
+		struct drm_display_mode *mode,
+		struct drm_display_mode *adjusted_mode)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+
+	mode = adjusted_mode;
+
+	DBG("set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
+			mode->base.id, mode->name,
+			mode->vrefresh, mode->clock,
+			mode->hdisplay, mode->hsync_start,
+			mode->hsync_end, mode->htotal,
+			mode->vdisplay, mode->vsync_start,
+			mode->vsync_end, mode->vtotal,
+			mode->type, mode->flags);
+	pingpong_tearcheck_setup(encoder, mode);
+	mdp5_crtc_set_intf(encoder->crtc, &mdp5_encoder->intf);
+}
+
+static void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	struct mdp5_ctl *ctl = mdp5_crtc_get_ctl(encoder->crtc);
+	struct mdp5_interface *intf = &mdp5_encoder->intf;
+	int lm = mdp5_crtc_get_lm(encoder->crtc);
+
+	if (WARN_ON(!mdp5_encoder->enabled))
+		return;
+
+	/* Wait for the last frame done */
+	mdp_irq_wait(&mdp5_kms->base, lm2ppdone(lm));
+	pingpong_tearcheck_disable(encoder);
+
+	mdp5_ctl_set_encoder_state(ctl, false);
+	mdp5_ctl_commit(ctl, mdp_ctl_flush_mask_encoder(intf));
+
+	bs_set(mdp5_encoder, 0);
+
+	mdp5_encoder->enabled = false;
+}
+
+static void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_ctl *ctl = mdp5_crtc_get_ctl(encoder->crtc);
+	struct mdp5_interface *intf = &mdp5_encoder->intf;
+
+	if (WARN_ON(mdp5_encoder->enabled))
+		return;
+
+	bs_set(mdp5_encoder, 1);
+	if (pingpong_tearcheck_enable(encoder))
+		return;
+
+	mdp5_ctl_commit(ctl, mdp_ctl_flush_mask_encoder(intf));
+
+	mdp5_ctl_set_encoder_state(ctl, true);
+
+	mdp5_encoder->enabled = true;
+}
+
+static const struct drm_encoder_helper_funcs mdp5_cmd_encoder_helper_funcs = {
+	.mode_fixup = mdp5_cmd_encoder_mode_fixup,
+	.mode_set = mdp5_cmd_encoder_mode_set,
+	.disable = mdp5_cmd_encoder_disable,
+	.enable = mdp5_cmd_encoder_enable,
+};
+
+int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
+					struct drm_encoder *slave_encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_kms *mdp5_kms;
+	int intf_num;
+	u32 data = 0;
+
+	if (!encoder || !slave_encoder)
+		return -EINVAL;
+
+	mdp5_kms = get_kms(encoder);
+	intf_num = mdp5_encoder->intf.num;
+
+	/* Switch slave encoder's trigger MUX, to use the master's
+	 * start signal for the slave encoder
+	 */
+	if (intf_num == 1)
+		data |= MDP5_SPLIT_DPL_UPPER_INTF2_SW_TRG_MUX;
+	else if (intf_num == 2)
+		data |= MDP5_SPLIT_DPL_UPPER_INTF1_SW_TRG_MUX;
+	else
+		return -EINVAL;
+
+	/* Smart Panel, Sync mode */
+	data |= MDP5_SPLIT_DPL_UPPER_SMART_PANEL;
+
+	/* Make sure clocks are on when connectors calling this function. */
+	mdp5_enable(mdp5_kms);
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, data);
+
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER,
+			MDP5_SPLIT_DPL_LOWER_SMART_PANEL);
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
+	mdp5_disable(mdp5_kms);
+
+	return 0;
+}
+
 static void mdp5_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
@@ -286,12 +501,59 @@ static const struct drm_encoder_helper_funcs mdp5_encoder_helper_funcs = {
 	.enable = mdp5_encoder_enable,
 };
 
+int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
+					struct drm_encoder *slave_encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_kms *mdp5_kms;
+	int intf_num;
+	u32 data = 0;
+
+	if (!encoder || !slave_encoder)
+		return -EINVAL;
+
+	mdp5_kms = get_kms(encoder);
+	intf_num = mdp5_encoder->intf.num;
+
+	mdp5_write(mdp5_kms, REG_MDP5_SPARE_0,
+		MDP5_SPARE_0_SPLIT_DPL_SINGLE_FLUSH_EN);
+
+	/* Switch slave encoder's TimingGen Sync mode,
+	 * to use the master's enable signal for the slave encoder.
+	 */
+	if (intf_num == 1)
+		data |= MDP5_SPLIT_DPL_LOWER_INTF2_TG_SYNC;
+	else if (intf_num == 2)
+		data |= MDP5_SPLIT_DPL_LOWER_INTF1_TG_SYNC;
+	else
+		return -EINVAL;
+
+	/* Make sure clocks are on when connectors calling this function. */
+	mdp5_enable(mdp5_kms);
+	/* Dumb Panel, Sync mode */
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, 0);
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER, data);
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
+	mdp5_disable(mdp5_kms);
+
+	return 0;
+}
+
 /* initialize encoder */
 struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 				struct mdp5_interface *intf)
 {
 	struct drm_encoder *encoder = NULL;
 	struct mdp5_encoder *mdp5_encoder;
+	const struct drm_encoder_funcs *funcs =
+		(intf->mode == MDP5_INTF_DSI_MODE_COMMAND) ?
+		(&mdp5_cmd_encoder_funcs) : (&mdp5_encoder_funcs);
+	const struct drm_encoder_helper_funcs *helper_funcs =
+		(intf->mode == MDP5_INTF_DSI_MODE_COMMAND) ?
+		(&mdp5_cmd_encoder_helper_funcs) : (&mdp5_encoder_helper_funcs);
+	int enc_type = (intf->type == INTF_DSI) ?
+		DRM_MODE_ENCODER_DSI : DRM_MODE_ENCODER_TMDS;
+
 	int ret;
 
 	mdp5_encoder = kzalloc(sizeof(*mdp5_encoder), GFP_KERNEL);
@@ -305,9 +567,9 @@ struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 
 	spin_lock_init(&mdp5_encoder->intf_lock);
 
-	drm_encoder_init(dev, encoder, &mdp5_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS);
-	drm_encoder_helper_add(encoder, &mdp5_encoder_helper_funcs);
+	drm_encoder_init(dev, encoder, funcs, enc_type);
+
+	drm_encoder_helper_add(encoder, helper_funcs);
 
 	bs_init(mdp5_encoder);
 

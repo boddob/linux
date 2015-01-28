@@ -159,10 +159,9 @@ static inline uint32_t intf2err(int intf_num)
 	}
 }
 
+#define GET_PING_PONG_ID(layer_mixer)	((layer_mixer == 5) ? 3 : layer_mixer)
 static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
 {
-#define GET_PING_PONG_ID(layer_mixer)	((layer_mixer == 5) ? 3 : layer_mixer)
-
 	/*
 	 * In case of DSI Command Mode, the Ping Pong's read pointer IRQ
 	 * acts as a Vblank signal. The Ping Pong buffer used is bound to
@@ -183,6 +182,11 @@ static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
 	case 3:  return MDP5_IRQ_INTF3_VSYNC;
 	default: return 0;
 	}
+}
+
+static inline uint32_t lm2ppdone(int lm)
+{
+	return MDP5_IRQ_PING_PONG_0_DONE << GET_PING_PONG_ID(lm);
 }
 
 int mdp5_disable(struct mdp5_kms *mdp5_kms);
@@ -236,6 +240,10 @@ void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf);
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, int id);
 
+int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
+					struct drm_encoder *slave_encoder);
+int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
+					struct drm_encoder *slave_encoder);
 struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 		struct mdp5_interface *intf);
 
