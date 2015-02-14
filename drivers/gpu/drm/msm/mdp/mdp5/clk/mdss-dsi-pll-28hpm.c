@@ -15,10 +15,8 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/iopoll.h>
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
-#include <linux/clk/msm-clk-generic.h>
 
 #include "mdss-pll.h"
 #include "mdss-dsi-pll.h"
@@ -69,218 +67,29 @@
 #define DSI_PLL_POLL_MAX_READS			10
 #define DSI_PLL_POLL_TIMEOUT_US			50
 
-static struct clk_div_ops fixed_2div_ops;
-static struct clk_ops byte_mux_clk_ops;
-static struct clk_ops pixel_clk_src_ops;
-static struct clk_ops byte_clk_src_ops;
-static struct clk_ops analog_postdiv_clk_ops;
-
-int set_byte_mux_sel(struct mux_clk *clk, int sel)
-{
-	struct mdss_pll_resources *dsi_pll_res = clk->priv;
-
-	pr_debug("byte mux set to %s mode\n", sel ? "indirect" : "direct");
-	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
-				DSI_PHY_PLL_UNIPHY_PLL_VREG_CFG, (sel << 1));
-
-	return 0;
-}
-
-int get_byte_mux_sel(struct mux_clk *clk)
-{
-	int mux_mode, rc;
-	struct mdss_pll_resources *dsi_pll_res = clk->priv;
-
-	rc = mdss_pll_resource_enable(dsi_pll_res, true);
-	if (rc) {
-		pr_err("Failed to enable mdss dsi pll resources\n");
-		return rc;
-	}
-
-	mux_mode = MDSS_PLL_REG_R(dsi_pll_res->pll_base,
-				DSI_PHY_PLL_UNIPHY_PLL_VREG_CFG) & BIT(1);
-
-	pr_debug("byte mux mode = %s", mux_mode ? "indirect" : "direct");
-	mdss_pll_resource_enable(dsi_pll_res, false);
-
-	return !!mux_mode;
-}
-
 static inline struct dsi_pll_vco_clk *to_vco_clk(struct clk_hw *hw)
 {
 	return container_of(hw, struct dsi_pll_vco_clk, hw);
 }
 
-int dsi_pll_div_prepare(struct clk_hw *hw)
-{
-	struct div_clk *div = to_div_clk(hw);
-	/* Restore the divider's value */
-	return div->ops->set_div(div, div->data.div);
-}
-
-int dsi_pll_mux_prepare(struct clk_hw *hw)
-{
-	struct mux_clk *mux = to_mux_clk(hw);
-	int num_parents = __clk_get_num_parents(hw->clk);
-	int i, rc, sel = 0;
-	struct mdss_pll_resources *dsi_pll_res = mux->priv;
-	struct clk *parent;
-
-	rc = mdss_pll_resource_enable(dsi_pll_res, true);
-	if (rc) {
-		pr_err("Failed to enable mdss dsi pll resources\n");
-		return rc;
-	}
-
-	parent = __clk_get_parent(hw->clk);
-	for (i = 0; i < num_parents; i++)
-		if (clk_get_parent_by_index(hw->clk, i) == parent) {
-			sel = mux->parent_map[i];
-			break;
-		}
-
-	if (i == num_parents) {
-		pr_err("Failed to select the parent clock\n");
-		rc = -EINVAL;
-		goto error;
-	}
-
-	/* Restore the mux source select value */
-	rc = mux->ops->set_mux_sel(mux, sel);
-
-error:
-	mdss_pll_resource_enable(dsi_pll_res, false);
-	return rc;
-}
-
-static int fixed_4div_set_div(struct div_clk *clk, int div)
-{
-	int rc;
-	struct mdss_pll_resources *dsi_pll_res = clk->priv;
-
-	rc = mdss_pll_resource_enable(dsi_pll_res, true);
-	if (rc) {
-		pr_err("Failed to enable mdss dsi pll resources\n");
-		return rc;
-	}
-
-	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
-				DSI_PHY_PLL_UNIPHY_PLL_POSTDIV2_CFG, (div - 1));
-
-	mdss_pll_resource_enable(dsi_pll_res, false);
-	return rc;
-}
-
-static int fixed_4div_get_div(struct div_clk *clk)
-{
-	int div = 0, rc;
-	struct mdss_pll_resources *dsi_pll_res = clk->priv;
-
-	rc = mdss_pll_resource_enable(dsi_pll_res, true);
-	if (rc) {
-		pr_err("Failed to enable mdss dsi pll resources\n");
-		return rc;
-	}
-
-	div = MDSS_PLL_REG_R(dsi_pll_res->pll_base,
-				DSI_PHY_PLL_UNIPHY_PLL_POSTDIV2_CFG);
-
-	mdss_pll_resource_enable(dsi_pll_res, false);
-	return div + 1;
-}
-
-static int digital_set_div(struct div_clk *clk, int div)
-{
-	int rc;
-	struct mdss_pll_resources *dsi_pll_res = clk->priv;
-
-	rc = mdss_pll_resource_enable(dsi_pll_res, true);
-	if (rc) {
-		pr_err("Failed to enable mdss dsi pll resources\n");
-		return rc;
-	}
-
-	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
-				DSI_PHY_PLL_UNIPHY_PLL_POSTDIV3_CFG, (div - 1));
-
-	mdss_pll_resource_enable(dsi_pll_res, false);
-	return rc;
-}
-
-static int digital_get_div(struct div_clk *clk)
-{
-	int div = 0, rc;
-	struct mdss_pll_resources *dsi_pll_res = clk->priv;
-
-	rc = mdss_pll_resource_enable(dsi_pll_res, true);
-	if (rc) {
-		pr_err("Failed to enable mdss dsi pll resources\n");
-		return rc;
-	}
-
-	div = MDSS_PLL_REG_R(dsi_pll_res->pll_base,
-					DSI_PHY_PLL_UNIPHY_PLL_POSTDIV3_CFG);
-
-	mdss_pll_resource_enable(dsi_pll_res, false);
-	return div + 1;
-}
-
-static int analog_set_div(struct div_clk *clk, int div)
-{
-	int rc;
-	struct mdss_pll_resources *dsi_pll_res = clk->priv;
-
-	rc = mdss_pll_resource_enable(dsi_pll_res, true);
-	if (rc) {
-		pr_err("Failed to enable mdss dsi pll resources\n");
-		return rc;
-	}
-
-	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
-				DSI_PHY_PLL_UNIPHY_PLL_POSTDIV1_CFG, div - 1);
-
-	mdss_pll_resource_enable(dsi_pll_res, false);
-	return rc;
-}
-
-static int analog_get_div(struct div_clk *clk)
-{
-	int div = 0, rc;
-	struct mdss_pll_resources *dsi_pll_res = clk->priv;
-
-	rc = mdss_pll_resource_enable(clk->priv, true);
-	if (rc) {
-		pr_err("Failed to enable mdss dsi pll resources\n");
-		return rc;
-	}
-
-	div = MDSS_PLL_REG_R(dsi_pll_res->pll_base,
-		DSI_PHY_PLL_UNIPHY_PLL_POSTDIV1_CFG) + 1;
-
-	mdss_pll_resource_enable(dsi_pll_res, false);
-
-	return div;
-}
-
 static int dsi_pll_lock_status(struct mdss_pll_resources *dsi_pll_res)
 {
 	u32 status;
-	int pll_locked;
+	int count;
 
 	/* poll for PLL ready status */
-	if (readl_poll_timeout_noirq((dsi_pll_res->pll_base +
-			DSI_PHY_PLL_UNIPHY_PLL_STATUS),
-			status,
-			((status & BIT(0)) == 1),
-			DSI_PLL_POLL_MAX_READS,
-			DSI_PLL_POLL_TIMEOUT_US)) {
-		pr_debug("DSI PLL status=%x failed to Lock\n", status);
-		pll_locked = 0;
-	} else {
-		pll_locked = 1;
+	for (count = DSI_PLL_POLL_MAX_READS; count > 0; count--) {
+		status = readl(dsi_pll_res->pll_base +
+				DSI_PHY_PLL_UNIPHY_PLL_STATUS);
+		if (status & BIT(0))
+			break;
+		udelay(DSI_PLL_POLL_TIMEOUT_US);
 	}
-
-	return pll_locked;
+	if (!(status & BIT(0))) {
+		pr_debug("DSI PLL status=%x failed to Lock\n", status);
+		return 0;
+	}
+	return 1;
 }
 
 static void dsi_pll_software_reset(struct mdss_pll_resources *dsi_pll_res)
@@ -654,32 +463,7 @@ static unsigned long vco_recalc_rate(struct clk_hw *hw,
 
 	return (unsigned long)vco_rate;
 }
-/*
-static enum handoff vco_handoff(struct clk_hw *hw)
-{
-	int rc;
-	enum handoff ret = HANDOFF_DISABLED_CLK;
-	struct dsi_pll_vco_clk *vco = to_vco_clk(hw);
-	struct mdss_pll_resources *dsi_pll_res = vco->priv;
 
-	rc = mdss_pll_resource_enable(dsi_pll_res, true);
-	if (rc) {
-		pr_err("Failed to enable mdss dsi pll resources\n");
-		return ret;
-	}
-
-	if (dsi_pll_lock_status(dsi_pll_res)) {
-		dsi_pll_res->handoff_resources = true;
-		dsi_pll_res->pll_on = true;
-		c->rate = vco_get_rate(hw);
-		ret = HANDOFF_ENABLED_CLK;
-	} else {
-		mdss_pll_resource_enable(dsi_pll_res, false);
-	}
-
-	return ret;
-}
-*/
 static int vco_prepare(struct clk_hw *hw)
 {
 	int rc = 0;
@@ -722,7 +506,7 @@ static void vco_unprepare(struct clk_hw *hw)
 
 /* Op structures */
 
-static struct clk_ops clk_ops_dsi_vco = {
+static const struct clk_ops clk_ops_dsi_vco = {
 	.set_rate = vco_set_rate,
 	.round_rate = vco_round_rate,
 	.recalc_rate = vco_recalc_rate,
@@ -731,26 +515,6 @@ static struct clk_ops clk_ops_dsi_vco = {
 	.is_enabled = dsi_pll_is_enabled,
 };
 
-
-static struct clk_div_ops fixed_4div_ops = {
-	.set_div = fixed_4div_set_div,
-	.get_div = fixed_4div_get_div,
-};
-
-static struct clk_div_ops analog_postdiv_ops = {
-	.set_div = analog_set_div,
-	.get_div = analog_get_div,
-};
-
-static struct clk_div_ops digital_postdiv_ops = {
-	.set_div = digital_set_div,
-	.get_div = digital_get_div,
-};
-
-static struct clk_mux_ops byte_mux_ops = {
-	.set_mux_sel = set_byte_mux_sel,
-	.get_mux_sel = get_byte_mux_sel,
-};
 
 static struct dsi_pll_vco_clk dsi_vco_clk_8974 = {
 	.ref_clk_rate = 19200000,
@@ -781,124 +545,42 @@ static struct dsi_pll_vco_clk dsi_vco_clk_8974 = {
 	},
 };
 
-static struct div_clk analog_postdiv_clk = {
-	.data = {
-		.max_div = 255,
-		.min_div = 1,
-	},
-	.ops = &analog_postdiv_ops,
-	.hw.init = &(struct clk_init_data){
-		.parent_names = (const char *[]){ "dsi_vco_clk" },
-		.num_parents = 1,
-		.name = "analog_postdiv_clk",
-		.ops = &analog_postdiv_clk_ops,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
-static struct div_clk indirect_path_div2_clk = {
-	.ops = &fixed_2div_ops,
-	.data = {
-		.div = 2,
-		.min_div = 2,
-		.max_div = 2,
-	},
-	.hw.init = &(struct clk_init_data){
-		.parent_names = (const char *[]){ "analog_postdiv_clk" },
-		.num_parents = 1,
-		.name = "indirect_path_div2_clk",
-		.ops = &clk_ops_div,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
-struct div_clk pixel_clk_src = {
-	.data = {
-		.max_div = 255,
-		.min_div = 1,
-	},
-	.ops = &digital_postdiv_ops,
-	.hw.init = &(struct clk_init_data){
-		.parent_names = (const char *[]){ "dsi_vco_clk" },
-		.num_parents = 1,
-		.name = "dsi0pll",
-		.ops = &pixel_clk_src_ops,
-	},
-};
-
-struct mux_clk byte_mux = {
-	.parent_map = (u8 []){ 0, 1 },
-	.ops = &byte_mux_ops,
-	.hw.init = &(struct clk_init_data){
-		.parent_names = (const char *[]){
-			"dsi_vco_clk",
-			"indirect_path_div2_clk"
-		},
-		.num_parents = 2,
-		.name = "byte_mux",
-		.ops = &byte_mux_clk_ops,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
-struct div_clk byte_clk_src = {
-	.ops = &fixed_4div_ops,
-	.data = {
-		.min_div = 4,
-		.max_div = 4,
-	},
-	.hw.init = &(struct clk_init_data){
-		.parent_names = (const char *[]){ "byte_mux" },
-		.num_parents = 1,
-		.name = "dsi0pllbyte",
-		.ops = &byte_clk_src_ops,
-		.flags = CLK_SET_RATE_PARENT,
-	},};
-
-#if 0
-static struct clk_lookup mdss_dsi_pllcc_8974[] = {
-	CLK_LOOKUP_OF("pixel_src", pixel_clk_src,
-						"fd8c0000.qcom,mmsscc-mdss"),
-	CLK_LOOKUP_OF("byte_src", byte_clk_src,
-						"fd8c0000.qcom,mmsscc-mdss"),
-};
-#endif
-
 int dsi_pll_clock_register(struct platform_device *pdev,
 				struct mdss_pll_resources *pll_res)
 {
 	if (!pll_res || !pll_res->pll_base) {
-		pr_err("Invalide input parameters\n");
+		pr_err("Invalid input parameters\n");
 		return -EPROBE_DEFER;
 	}
 
-	/* Set client data to mux, div and vco clocks */
-	byte_clk_src.priv = pll_res;
-	byte_mux.priv = pll_res;
-	pixel_clk_src.priv = pll_res;
-	indirect_path_div2_clk.priv = pll_res;
-	analog_postdiv_clk.priv = pll_res;
 	dsi_vco_clk_8974.priv = pll_res;
 
-	/* Set clock source operations */
-	pixel_clk_src_ops = clk_ops_div;
-	pixel_clk_src_ops.prepare = dsi_pll_div_prepare;
-
-	analog_postdiv_clk_ops = clk_ops_div;
-	analog_postdiv_clk_ops.prepare = dsi_pll_div_prepare;
-
-	byte_clk_src_ops = clk_ops_div;
-	byte_clk_src_ops.prepare = dsi_pll_div_prepare;
-
-	byte_mux_clk_ops = clk_ops_gen_mux;
-	byte_mux_clk_ops.prepare = dsi_pll_mux_prepare;
-
 	clk_register(&pdev->dev, &dsi_vco_clk_8974.hw);
-	clk_register(&pdev->dev, &analog_postdiv_clk.hw);
-	clk_register(&pdev->dev, &indirect_path_div2_clk.hw);
-	clk_register(&pdev->dev, &pixel_clk_src.hw);
-	clk_register(&pdev->dev, &byte_mux.hw);
-	clk_register(&pdev->dev, &byte_clk_src.hw);
+	clk_register_divider(&pdev->dev, "dsi_analog_postdiv_clk",
+			     "dsi_vco_clk", CLK_SET_RATE_PARENT,
+			     pll_res->pll_base +
+			     DSI_PHY_PLL_UNIPHY_PLL_POSTDIV1_CFG,
+			     0, 8, 0, NULL);
+	clk_register_fixed_factor(&pdev->dev, "dsi_indirect_path_div2_clk",
+				  "dsi_analog_postdiv_clk", CLK_SET_RATE_PARENT,
+				  1, 2);
+	clk_register_divider(&pdev->dev, "dsi0pll", "dsi_vco_clk",
+			     0, pll_res->pll_base +
+			     DSI_PHY_PLL_UNIPHY_PLL_POSTDIV3_CFG,
+			     0, 8, 0, NULL);
+	clk_register_mux(&pdev->dev, "dsi_byte_mux",
+			(const char *[]){
+				"dsi_vco_clk",
+				"dsi_indirect_path_div2_clk"
+			}, 2, CLK_SET_RATE_PARENT, pll_res->pll_base +
+			DSI_PHY_PLL_UNIPHY_PLL_VREG_CFG, 1, 2, 0, NULL);
+
+	/* Force postdiv2 to be div-4 */
+	writel_relaxed(3, pll_res->pll_base +
+				DSI_PHY_PLL_UNIPHY_PLL_POSTDIV2_CFG);
+	clk_register_fixed_factor(&pdev->dev, "dsi0pllbyte",
+				  "dsi_byte_mux", CLK_SET_RATE_PARENT,
+				  1, 4);
 
 	return 0;
 }
