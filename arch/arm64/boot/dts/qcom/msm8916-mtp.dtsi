@@ -348,6 +348,22 @@
 	qcom,platform-enable-gpio = <&msm_gpio 97 0>;
 	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
 	qcom,platform-bklight-en-gpio = <&msm_gpio 98 0>;
+
+	panel@0 {
+		reg = <0>;
+		compatible = "qcom,dsi_jdi_1080_video";
+		cell-index = <1>;
+
+		disp-enable-gpios = <&msm_gpio 97 0>;
+		reset-gpios = <&msm_gpio 25 0>;
+		bkl-en-gpios = <&msm_gpio 98 0>;
+
+		/* ? */
+		disp-te-gpios = <&msm_gpio 12 0>;
+
+		qcom,mdss-dsi-bl-pmic-pwm-frequency = <100>;
+		qcom,mdss-dsi-bl-pmic-bank-select = <0>;
+	};
 };
 
 &dsi_jdi_1080_vid {
