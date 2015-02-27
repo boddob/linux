@@ -64,6 +64,19 @@ struct msm_file_private {
 	int dummy;
 };
 
+/* A base data structure for all MDP sub devices */
+struct msm_drm_sub_dev {
+	/*
+	 * the encoders can be used by sub dev,
+	 * must be set before modeset_init
+	 */
+	unsigned int num_encoders;
+	struct drm_encoder *encoders[8];
+
+	int (*modeset_init)(struct msm_drm_sub_dev *base,
+		struct drm_device *dev);
+};
+
 struct msm_drm_private {
 
 	struct msm_kms *kms;
@@ -74,13 +87,13 @@ struct msm_drm_private {
 	/* possibly this should be in the kms component, but it is
 	 * shared by both mdp4 and mdp5..
 	 */
-	struct hdmi *hdmi;
+	struct msm_drm_sub_dev *hdmi;
 
 	/* eDP is for mdp5 only, but kms has not been created
 	 * when edp_bind() and edp_init() are called. Here is the only
 	 * place to keep the edp instance.
 	 */
-	struct msm_edp *edp;
+	struct msm_drm_sub_dev *edp;
 
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;
@@ -224,17 +237,11 @@ struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
 
-struct hdmi;
-int hdmi_modeset_init(struct hdmi *hdmi, struct drm_device *dev,
-		struct drm_encoder *encoder);
 void __init hdmi_register(void);
 void __exit hdmi_unregister(void);
 
-struct msm_edp;
 void __init msm_edp_register(void);
 void __exit msm_edp_unregister(void);
-int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
-		struct drm_encoder *encoder);
 
 #ifdef CONFIG_DEBUG_FS
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);

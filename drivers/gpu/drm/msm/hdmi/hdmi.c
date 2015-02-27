@@ -19,6 +19,9 @@
 #include <linux/of_irq.h>
 #include "hdmi.h"
 
+static int hdmi_modeset_init(struct msm_drm_sub_dev *base,
+		struct drm_device *dev);
+
 void hdmi_set_mode(struct hdmi *hdmi, bool power_on)
 {
 	uint32_t ctrl = 0;
@@ -197,6 +200,8 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 		goto fail;
 	}
 
+	hdmi->base.modeset_init = hdmi_modeset_init;
+
 	return hdmi;
 
 fail:
@@ -214,13 +219,19 @@ fail:
  * should be handled in hdmi_init() so that failure happens from
  * hdmi sub-device's probe.
  */
-int hdmi_modeset_init(struct hdmi *hdmi,
-		struct drm_device *dev, struct drm_encoder *encoder)
+static int hdmi_modeset_init(struct msm_drm_sub_dev *base,
+		struct drm_device *dev)
 {
+	struct hdmi *hdmi = container_of(base, struct hdmi, base);
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = hdmi->pdev;
+	struct drm_encoder *encoder;
 	int ret;
 
+	if (WARN_ON(base->num_encoders != 1))
+		return -EINVAL;
+
+	encoder = base->encoders[0];
 	hdmi->dev = dev;
 	hdmi->encoder = encoder;
 
@@ -437,7 +448,8 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	hdmi = hdmi_init(to_platform_device(dev));
 	if (IS_ERR(hdmi))
 		return PTR_ERR(hdmi);
-	priv->hdmi = hdmi;
+
+	priv->hdmi = &hdmi->base;
 
 	return 0;
 }
@@ -447,8 +459,10 @@ static void hdmi_unbind(struct device *dev, struct device *master,
 {
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct msm_drm_private *priv = drm->dev_private;
+
 	if (priv->hdmi) {
-		hdmi_destroy(priv->hdmi);
+		struct hdmi *hdmi = container_of(priv->hdmi, struct hdmi, base);
+		hdmi_destroy(hdmi);
 		priv->hdmi = NULL;
 	}
 }

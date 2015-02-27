@@ -31,6 +31,7 @@ struct edp_aux;
 struct edp_phy;
 
 struct msm_edp {
+	struct msm_drm_sub_dev base;
 	struct drm_device *dev;
 	struct platform_device *pdev;
 

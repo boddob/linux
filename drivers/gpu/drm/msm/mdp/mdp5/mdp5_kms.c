@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -161,8 +161,9 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 	return 0;
 }
 
-static int construct_encoder(struct mdp5_kms *mdp5_kms,
-		enum mdp5_intf_type intf_type, int intf_num)
+static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
+		enum mdp5_intf_type intf_type, int intf_num,
+		enum mdp5_intf_mode intf_mode)
 {
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
@@ -170,33 +171,19 @@ static int construct_encoder(struct mdp5_kms *mdp5_kms,
 	struct mdp5_interface intf = {
 			.num	= intf_num,
 			.type	= intf_type,
-			.mode	= MDP5_INTF_MODE_NONE,
+			.mode	= intf_mode,
 	};
-	int ret = 0;
 
 	encoder = mdp5_encoder_init(dev, &intf);
 	if (IS_ERR(encoder)) {
-		ret = PTR_ERR(encoder);
-		dev_err(dev->dev, "failed to construct encoder: %d\n", ret);
-		return ret;
+		dev_err(dev->dev, "failed to construct encoder\n");
+		return encoder;
 	}
 
 	encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
 	priv->encoders[priv->num_encoders++] = encoder;
 
-	if (intf_type == INTF_HDMI) {
-		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
-		if (ret)
-			dev_err(dev->dev, "failed to init HDMI: %d\n", ret);
-
-	} else if (intf_type == INTF_eDP) {
-		/* Construct bridge/connector for eDP: */
-		ret = msm_edp_modeset_init(priv->edp, dev, encoder);
-		if (ret)
-			dev_err(dev->dev, "failed to init eDP: %d\n", ret);
-	}
-
-	return ret;
+	return encoder;
 }
 
 static int modeset_init(struct mdp5_kms *mdp5_kms)
@@ -262,26 +249,39 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	/* Construct external display interfaces' encoders: */
 	for (i = 0; i < ARRAY_SIZE(hw_cfg->intfs); i++) {
 		enum mdp5_intf_type intf_type = hw_cfg->intfs[i];
+		enum mdp5_intf_mode intf_mode = MDP5_INTF_MODE_NONE;
+		struct msm_drm_sub_dev *sub_dev;
+		struct drm_encoder *encoder;
 
 		switch (intf_type) {
 		case INTF_DISABLED:
+			sub_dev = NULL;
 			break;
 		case INTF_eDP:
-			if (priv->edp)
-				ret = construct_encoder(mdp5_kms, INTF_eDP, i);
+			sub_dev = priv->edp;
 			break;
 		case INTF_HDMI:
-			if (priv->hdmi)
-				ret = construct_encoder(mdp5_kms, INTF_HDMI, i);
+			sub_dev = priv->hdmi;
 			break;
 		default:
 			dev_err(dev->dev, "unknown intf: %d\n", intf_type);
 			ret = -EINVAL;
-			break;
+			goto fail;
 		}
 
-		if (ret)
-			goto fail;
+		if (sub_dev) {
+			encoder = construct_encoder(mdp5_kms, intf_type,
+							i, intf_mode);
+			if (IS_ERR(encoder)) {
+				ret = PTR_ERR(encoder);
+				goto fail;
+			}
+
+			sub_dev->encoders[sub_dev->num_encoders++] = encoder;
+			ret = sub_dev->modeset_init(sub_dev, dev);
+			if (ret)
+				goto fail;
+		}
 	}
 
 	return 0;

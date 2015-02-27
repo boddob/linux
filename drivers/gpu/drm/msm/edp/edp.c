@@ -14,6 +14,9 @@
 #include <linux/of_irq.h>
 #include "edp.h"
 
+static int msm_edp_modeset_init(struct msm_drm_sub_dev *base,
+	struct drm_device *dev);
+
 static irqreturn_t edp_irq(int irq, void *dev_id)
 {
 	struct msm_edp *edp = dev_id;
@@ -63,6 +66,8 @@ static struct msm_edp *edp_init(struct platform_device *pdev)
 	if (ret)
 		goto fail;
 
+	edp->base.modeset_init = msm_edp_modeset_init;
+
 	return edp;
 
 fail:
@@ -82,7 +87,8 @@ static int edp_bind(struct device *dev, struct device *master, void *data)
 	edp = edp_init(to_platform_device(dev));
 	if (IS_ERR(edp))
 		return PTR_ERR(edp);
-	priv->edp = edp;
+
+	priv->edp = &edp->base;
 
 	return 0;
 }
@@ -144,13 +150,19 @@ void __exit msm_edp_unregister(void)
 }
 
 /* Second part of initialization, the drm/kms level modeset_init */
-int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
-				struct drm_encoder *encoder)
+static int msm_edp_modeset_init(struct msm_drm_sub_dev *base,
+	struct drm_device *dev)
 {
+	struct msm_edp *edp = container_of(base, struct msm_edp, base);
 	struct platform_device *pdev = edp->pdev;
 	struct msm_drm_private *priv = dev->dev_private;
+	struct drm_encoder *encoder;
 	int ret;
 
+	if (WARN_ON(base->num_encoders != 1))
+		return -EINVAL;
+
+	encoder = base->encoders[0];
 	edp->encoder = encoder;
 	edp->dev = dev;
 
