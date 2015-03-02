@@ -72,7 +72,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	mdp5_enable(mdp5_kms);
+	pm_runtime_get_sync(&mdp5_kms->pdev->dev);
 }
 
 static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
@@ -91,7 +91,7 @@ static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 		mdp5_plane_complete_commit(plane, plane_state);
 	}
 
-	mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(&mdp5_kms->pdev->dev);
 }
 
 static void mdp5_wait_for_crtc_commit_done(struct msm_kms *kms,
@@ -442,9 +442,9 @@ static void read_mdp_hw_revision(struct mdp5_kms *mdp5_kms,
 {
 	uint32_t version;
 
-	mdp5_enable(mdp5_kms);
+	pm_runtime_get_sync(&mdp5_kms->pdev->dev);
 	version = mdp5_read(mdp5_kms, REG_MDP5_HW_VERSION);
-	//mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(&mdp5_kms->pdev->dev);
 
 	*major = FIELD(version, MDP5_HW_VERSION_MAJOR);
 	*minor = FIELD(version, MDP5_HW_VERSION_MINOR);
@@ -759,7 +759,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	 * have left things on, in which case we'll start getting faults if
 	 * we don't disable):
 	 */
-	mdp5_enable(mdp5_kms);
+	pm_runtime_get_sync(&pdev->dev);
 	for (i = 0; i < MDP5_INTF_NUM_MAX; i++) {
 		if (mdp5_cfg_intf_is_virtual(config->hw->intf.connect[i]) ||
 				!config->hw->intf.base[i])
@@ -768,8 +768,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(i), 0x3);
 	}
-	/* TODO: Remove this after runtime pm adaptation */
-	//mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(&pdev->dev);
 	mdelay(16);
 
 	if (config->platform.iommu) {

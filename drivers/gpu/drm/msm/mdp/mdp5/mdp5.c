@@ -60,12 +60,41 @@ static const struct of_device_id dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dt_match);
 
+static int msm_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct mdp5_kms *mdp5_kms = platform_get_drvdata(pdev);
+
+	DBG("E");
+
+	mdp5_disable(mdp5_kms);
+
+	return 0;
+}
+
+static int msm_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct mdp5_kms *mdp5_kms = platform_get_drvdata(pdev);
+
+	DBG("E");
+
+	mdp5_enable(mdp5_kms);
+
+	return 0;
+}
+
+static const struct dev_pm_ops msm_pm_ops = {
+	SET_RUNTIME_PM_OPS(msm_runtime_suspend, msm_runtime_resume, NULL)
+};
+
 static struct platform_driver mdp_driver = {
 	.probe = mdp_dev_probe,
 	.remove = mdp_dev_remove,
 	.driver = {
 		.name = "msm_mdp",
 		.of_match_table = dt_match,
+		.pm = &msm_pm_ops,
 	},
 };
 

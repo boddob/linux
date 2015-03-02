@@ -36,10 +36,12 @@ static void mdp5_irq_error_handler(struct mdp_irq *irq, uint32_t irqstatus)
 void mdp5_irq_preinstall(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	mdp5_enable(mdp5_kms);
+	struct device *dev = &mdp5_kms->pdev->dev;
+
+	pm_runtime_get_sync(dev);
 	mdp5_write(mdp5_kms, REG_MDP5_INTR_CLEAR, 0xffffffff);
 	mdp5_write(mdp5_kms, REG_MDP5_INTR_EN, 0x00000000);
-	mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(dev);
 }
 
 int mdp5_irq_postinstall(struct msm_kms *kms)
@@ -62,9 +64,11 @@ int mdp5_irq_postinstall(struct msm_kms *kms)
 void mdp5_irq_uninstall(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	mdp5_enable(mdp5_kms);
+	struct device *dev = &mdp5_kms->pdev->dev;
+
+	pm_runtime_get_sync(dev);
 	mdp5_write(mdp5_kms, REG_MDP5_INTR_EN, 0x00000000);
-	mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(dev);
 }
 
 static void mdp5_irq_mdp(struct mdp_kms *mdp_kms)
