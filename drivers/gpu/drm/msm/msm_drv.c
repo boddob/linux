@@ -1051,8 +1051,39 @@ static int msm_pm_resume(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_PM_RUNTIME
+static int msm_runtime_suspend(struct device *dev)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = ddev->dev_private;
+	struct msm_kms *kms = priv->kms;
+
+	DBG("E");
+
+	if (!kms || !kms->funcs->pm_ctrl)
+		return 0;
+
+	return kms->funcs->pm_ctrl(kms, false);
+}
+
+static int msm_runtime_resume(struct device *dev)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = ddev->dev_private;
+	struct msm_kms *kms = priv->kms;
+
+	DBG("E");
+
+	if (!kms || !kms->funcs->pm_ctrl)
+		return 0;
+
+	return kms->funcs->pm_ctrl(kms, true);
+}
+#endif
+
 static const struct dev_pm_ops msm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(msm_pm_suspend, msm_pm_resume)
+	SET_RUNTIME_PM_OPS(msm_runtime_suspend, msm_runtime_resume, NULL)
 };
 
 /*

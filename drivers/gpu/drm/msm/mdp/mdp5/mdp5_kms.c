@@ -73,7 +73,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	mdp5_enable(mdp5_kms);
+	pm_runtime_get_sync(mdp5_kms->dev->dev);
 }
 
 static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
@@ -92,7 +92,7 @@ static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 		mdp5_plane_complete_commit(plane, plane_state);
 	}
 
-	mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(mdp5_kms->dev->dev);
 }
 
 static void mdp5_wait_for_crtc_commit_done(struct msm_kms *kms,
@@ -151,27 +151,6 @@ static void mdp5_destroy(struct msm_kms *kms)
 	kfree(mdp5_kms);
 }
 
-static const struct mdp_kms_funcs kms_funcs = {
-	.base = {
-		.hw_init         = mdp5_hw_init,
-		.irq_preinstall  = mdp5_irq_preinstall,
-		.irq_postinstall = mdp5_irq_postinstall,
-		.irq_uninstall   = mdp5_irq_uninstall,
-		.irq             = mdp5_irq,
-		.enable_vblank   = mdp5_enable_vblank,
-		.disable_vblank  = mdp5_disable_vblank,
-		.prepare_commit  = mdp5_prepare_commit,
-		.complete_commit = mdp5_complete_commit,
-		.wait_for_crtc_commit_done = mdp5_wait_for_crtc_commit_done,
-		.get_format      = mdp_get_format,
-		.round_pixclk    = mdp5_round_pixclk,
-		.set_split_display = mdp5_set_split_display,
-		.preclose        = mdp5_preclose,
-		.destroy         = mdp5_destroy,
-	},
-	.set_irqmask         = mdp5_set_irqmask,
-};
-
 static void mdp5_disable_bus_clocks(struct mdp5_kms *mdp5_kms)
 {
 	if (mdp5_kms->mmagic_mdss_axi_clk)
@@ -221,6 +200,46 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 		clk_prepare_enable(mdp5_kms->lut_clk);
 	if (mdp5_kms->iommu_clk)
 		clk_prepare_enable(mdp5_kms->iommu_clk);
+
+	return 0;
+}
+
+
+static int mdp5_pm_ctrl(struct msm_kms *kms, bool on)
+{
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+	struct drm_device *dev = mdp5_kms->dev;
+	int ret;
+
+	if (on)
+		mdp5_enable(mdp5_kms);
+	else
+		mdp5_disable(mdp5_kms);
+
+	return 0;
+}
+
+static const struct mdp_kms_funcs kms_funcs = {
+	.base = {
+		.hw_init         = mdp5_hw_init,
+		.irq_preinstall  = mdp5_irq_preinstall,
+		.irq_postinstall = mdp5_irq_postinstall,
+		.irq_uninstall   = mdp5_irq_uninstall,
+		.irq             = mdp5_irq,
+		.enable_vblank   = mdp5_enable_vblank,
+		.disable_vblank  = mdp5_disable_vblank,
+		.prepare_commit  = mdp5_prepare_commit,
+		.complete_commit = mdp5_complete_commit,
+		.wait_for_crtc_commit_done = mdp5_wait_for_crtc_commit_done,
+		.get_format      = mdp_get_format,
+		.round_pixclk    = mdp5_round_pixclk,
+		.set_split_display = mdp5_set_split_display,
+		.pm_ctrl        = mdp5_pm_ctrl,
+		.preclose        = mdp5_preclose,
+		.destroy         = mdp5_destroy,
+	},
+	.set_irqmask         = mdp5_set_irqmask,
+};
 
 	return 0;
 }
@@ -470,9 +489,9 @@ static void read_hw_revision(struct mdp5_kms *mdp5_kms,
 {
 	uint32_t version;
 
-	mdp5_enable(mdp5_kms);
+	mdp5_pm_ctrl(&mdp5_kms->base.base, true);
 	version = mdp5_read(mdp5_kms, REG_MDSS_HW_VERSION);
-	mdp5_disable(mdp5_kms);
+	mdp5_pm_ctrl(&mdp5_kms->base.base, false);
 
 	*major = FIELD(version, MDSS_HW_VERSION_MAJOR);
 	*minor = FIELD(version, MDSS_HW_VERSION_MINOR);
@@ -656,18 +675,6 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp5_kms->vdd = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR(mdp5_kms->vdd)) {
-		ret = PTR_ERR(mdp5_kms->vdd);
-		goto fail;
-	}
-
-	ret = regulator_enable(mdp5_kms->vdd);
-	if (ret) {
-		dev_err(dev->dev, "failed to enable regulator vdd: %d\n", ret);
-		goto fail;
-	}
-
 	/* mandatory clocks: */
 	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus_clk", true);
 	if (ret)
@@ -746,7 +753,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	 * have left things on, in which case we'll start getting faults if
 	 * we don't disable):
 	 */
-	mdp5_enable(mdp5_kms);
+	mdp5_pm_ctrl(kms, true);
 	for (i = 0; i < MDP5_INTF_NUM_MAX; i++) {
 		if (mdp5_cfg_intf_is_virtual(config->hw->intf.connect[i]) ||
 				!config->hw->intf.base[i])
@@ -755,8 +762,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(i), 0x3);
 	}
-	/* TODO: Remove this after runtime pm adaptation */
-	//mdp5_disable(mdp5_kms);
+	mdp5_pm_ctrl(kms, false);
 	mdelay(16);
 
 	if (config->platform.iommu) {

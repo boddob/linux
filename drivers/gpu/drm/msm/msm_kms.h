@@ -54,6 +54,8 @@ struct msm_kms_funcs {
 			struct drm_encoder *encoder,
 			struct drm_encoder *slave_encoder,
 			bool is_cmd_mode);
+	/* power management control */
+	int (*pm_ctrl)(struct msm_kms *kms, bool on);
 	/* cleanup: */
 	void (*preclose)(struct msm_kms *kms, struct drm_file *file);
 	void (*destroy)(struct msm_kms *kms);
