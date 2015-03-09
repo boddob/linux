@@ -97,14 +97,7 @@ source "drivers/gpu/drm/i915/Kconfig"
 
 source "drivers/gpu/drm/mga/Kconfig"
 
-config DRM_SIS
-	tristate "SiS video cards"
-	depends on DRM && AGP
-	depends on FB_SIS || FB_SIS=n
-	help
-	  Choose this option if you have a SiS 630 or compatible video
-          chipset. If M is selected the module will be called sis. AGP
-          support is required for this driver to work.
+source "drivers/gpu/drm/sis/Kconfig"
 
 config DRM_VIA
 	tristate "Via unichrome video cards"
