@@ -99,12 +99,7 @@ source "drivers/gpu/drm/mga/Kconfig"
 
 source "drivers/gpu/drm/sis/Kconfig"
 
-config DRM_VIA
-	tristate "Via unichrome video cards"
-	depends on DRM && PCI
-	help
-	  Choose this option if you have a Via unichrome or compatible video
-	  chipset. If M is selected the module will be called via.
+source "drivers/gpu/drm/via/Kconfig"
 
 config DRM_SAVAGE
 	tristate "Savage video cards"
