@@ -144,7 +144,8 @@ int mdp5_disable(struct mdp5_kms *mdp5_kms)
 	clk_disable_unprepare(mdp5_kms->ahb_clk);
 	clk_disable_unprepare(mdp5_kms->axi_clk);
 	clk_disable_unprepare(mdp5_kms->core_clk);
-	clk_disable_unprepare(mdp5_kms->lut_clk);
+	clk_disable_unprepare(mdp5_kms->vsync_clk);
+	//clk_disable_unprepare(mdp5_kms->lut_clk);
 
 	return 0;
 }
@@ -156,7 +157,8 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 	clk_prepare_enable(mdp5_kms->ahb_clk);
 	clk_prepare_enable(mdp5_kms->axi_clk);
 	clk_prepare_enable(mdp5_kms->core_clk);
-	clk_prepare_enable(mdp5_kms->lut_clk);
+	clk_prepare_enable(mdp5_kms->vsync_clk);
+	//clk_prepare_enable(mdp5_kms->lut_clk);
 
 	return 0;
 }
@@ -262,6 +264,26 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		}
 	}
 
+	if (priv->dsi) {
+		enum msm_dsi_mode mode;
+
+		encoder = mdp5_encoder_init(dev, 0, INTF_DSI);
+		if (IS_ERR(encoder)) {
+			dev_err(dev->dev, "failed to construct DSI encoder\n");
+			ret = PTR_ERR(encoder);
+			goto fail;
+		}
+
+		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
+		priv->encoders[priv->num_encoders++] = encoder;
+
+		ret = msm_dsi_modeset_init(priv->dsi[0], dev, encoder, &mode);
+		if (ret) {
+			dev_err(dev->dev, "dsi modesetinit failed\n");
+			goto fail;
+		}
+	}
+
 	return 0;
 
 fail:
@@ -333,6 +355,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
+#if 0
 	mdp5_kms->vdd = devm_regulator_get(&pdev->dev, "vdd");
 	if (IS_ERR(mdp5_kms->vdd)) {
 		ret = PTR_ERR(mdp5_kms->vdd);
@@ -344,6 +367,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		dev_err(dev->dev, "failed to enable regulator vdd: %d\n", ret);
 		goto fail;
 	}
+#endif
 
 	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus_clk");
 	if (ret)
@@ -351,15 +375,16 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	ret = get_clk(pdev, &mdp5_kms->ahb_clk, "iface_clk");
 	if (ret)
 		goto fail;
-	ret = get_clk(pdev, &mdp5_kms->src_clk, "core_clk_src");
+	ret = get_clk(pdev, &mdp5_kms->src_clk, "src_clk");
 	if (ret)
 		goto fail;
 	ret = get_clk(pdev, &mdp5_kms->core_clk, "core_clk");
 	if (ret)
 		goto fail;
-	ret = get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk");
-	if (ret)
-		goto fail;
+	//ret = get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk");
+	//if (ret)
+		//goto fail;
+
 	ret = get_clk(pdev, &mdp5_kms->vsync_clk, "vsync_clk");
 	if (ret)
 		goto fail;

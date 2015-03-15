@@ -19,14 +19,6 @@ struct dsi_bridge {
 };
 #define to_dsi_bridge(x) container_of(x, struct dsi_bridge, base)
 
-static void dsi_bridge_destroy(struct drm_bridge *bridge)
-{
-	struct dsi_bridge *dsi_bridge = to_dsi_bridge(bridge);
-	DBG("");
-	drm_bridge_cleanup(bridge);
-	kfree(dsi_bridge);
-}
-
 static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct dsi_bridge *dsi_bridge = to_dsi_bridge(bridge);
@@ -77,7 +69,6 @@ static const struct drm_bridge_funcs dsi_bridge_funcs = {
 		.disable = dsi_bridge_disable,
 		.post_disable = dsi_bridge_post_disable,
 		.mode_set = dsi_bridge_mode_set,
-		.destroy = dsi_bridge_destroy,
 };
 
 /* initialize bridge */
@@ -85,9 +76,10 @@ struct drm_bridge *dsi_bridge_init(struct msm_dsi *msm_dsi)
 {
 	struct drm_bridge *bridge = NULL;
 	struct dsi_bridge *dsi_bridge;
+	struct platform_device *pdev = msm_dsi->pdev;
 	int ret;
 
-	dsi_bridge = kzalloc(sizeof(*dsi_bridge), GFP_KERNEL);
+	dsi_bridge = devm_kzalloc(&pdev->dev, sizeof(*dsi_bridge), GFP_KERNEL);
 	if (!dsi_bridge) {
 		ret = -ENOMEM;
 		goto fail;
@@ -96,17 +88,15 @@ struct drm_bridge *dsi_bridge_init(struct msm_dsi *msm_dsi)
 	dsi_bridge->msm_dsi = msm_dsi;
 
 	bridge = &dsi_bridge->base;
+	bridge->funcs = &dsi_bridge_funcs;
 
-	ret = drm_bridge_init(msm_dsi->dev, bridge, &dsi_bridge_funcs);
+	ret = drm_bridge_attach(msm_dsi->dev, bridge);
 	if (ret)
 		goto fail;
 
 	return bridge;
 
 fail:
-	if (bridge)
-		dsi_bridge_destroy(bridge);
-
 	return ERR_PTR(ret);
 }
 

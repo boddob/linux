@@ -18,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of_gpio.h>
-#include <linux/qpnp/pwm.h>
 
 #include "drm_crtc.h"
 #include "msm_drv.h"

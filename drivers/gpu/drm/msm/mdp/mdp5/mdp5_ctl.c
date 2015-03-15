@@ -105,7 +105,7 @@ int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, int intf)
 	spin_lock_irqsave(&ctl->hw_lock, flags);
 	ctl_write(ctl, REG_MDP5_CTL_OP(ctl->id),
 			MDP5_CTL_OP_MODE(ctl->mode) |
-			MDP5_CTL_OP_INTF_NUM(intfnum[intf]));
+			MDP5_CTL_OP_INTF_NUM(intfnum[intf] + 1));
 	spin_unlock_irqrestore(&ctl->hw_lock, flags);
 
 	return 0;

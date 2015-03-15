@@ -15,11 +15,9 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
-#include <linux/qpnp/pin.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/leds.h>
-#include <linux/qpnp/pwm.h>
 #include <linux/err.h>
 
 #include <video/mipi_display.h>
@@ -49,6 +47,8 @@ static int dsi_panel_regulator_enable(struct msm_dsi_panel *msm_panel)
 {
 	struct regulator_bulk_data *supplies = msm_panel->supplies;
 	int ret;
+
+	return 0;
 
 	ret = regulator_set_voltage(
 			supplies[MSM_DSI_PANEL_SUPPLY_VDD].consumer,
@@ -119,6 +119,8 @@ static int dsi_panel_bklt_pwm(struct msm_dsi_panel *msm_panel, u32 level)
 	int ret;
 	u32 duty;
 
+	return 0;
+#if 0
 	if (msm_panel->pwm_bl == NULL) {
 		pr_err("%s: no PWM\n", __func__);
 		return -ENODEV;
@@ -133,7 +135,6 @@ static int dsi_panel_bklt_pwm(struct msm_dsi_panel *msm_panel, u32 level)
 	duty = mult_frac(level, msm_panel->pwm_period, msm_panel->bl_max);
 
 	DBG("level=%d duty=%d\n", level, duty);
-
 	ret = pwm_config(msm_panel->pwm_bl,
 			duty*1000, msm_panel->pwm_period*1000);
 	if (ret) {
@@ -146,7 +147,7 @@ static int dsi_panel_bklt_pwm(struct msm_dsi_panel *msm_panel, u32 level)
 		pr_err("%s: pwm_enable() failed err=%d\n", __func__, ret);
 		return ret;
 	}
-
+#endif
 	return 0;
 }
 
@@ -158,8 +159,8 @@ static int dsi_panel_request_gpios(struct msm_dsi_panel *msm_panel)
 	/* For dual dsi case, 2 panels share the gpios,
 	 * which are defined in the first panel only.
 	 */
-	if (msm_panel->id == DSI_PANEL_2)
-		return 0;
+	//if (msm_panel->id == DSI_PANEL_2)
+		//return 0;
 
 	msm_panel->disp_en_gpio = devm_gpiod_get(dev, "disp-enable");
 	if (IS_ERR(msm_panel->disp_en_gpio)) {
@@ -289,7 +290,8 @@ static int dsi_panel_parse_dt(struct device_node *np,
 
 	id = of_get_property(np,
 		"qcom,mdss-dsi-panel-destination", NULL);
-
+	msm_panel->id = DSI_PANEL_1;
+#if 0
 	if (id) {
 		if (strlen(id) != 9) {
 			pr_err("%s: Unknown id specified\n", __func__);
@@ -307,6 +309,7 @@ static int dsi_panel_parse_dt(struct device_node *np,
 		pr_err("%s: id not specified.\n", __func__);
 		return -EINVAL;
 	}
+#endif
 
 	msm_panel->bklt_ctrl_mode = UNKNOWN_MODE;
 	data = of_get_property(np, "qcom,mdss-dsi-bl-pmic-control-type", NULL);
@@ -333,12 +336,14 @@ static int dsi_panel_parse_dt(struct device_node *np,
 						__func__, __LINE__);
 				return ret;
 			}
+#if 0
 			msm_panel->pwm_bl = pwm_request(tmp, "lcd-bklt");
 			if (IS_ERR_OR_NULL(msm_panel->pwm_bl)) {
 				pr_err("%s: Error: pwm request failed",
 						__func__);
 				return -EINVAL;
 			}
+#endif
 		} else if (!strncmp(data, "bl_ctrl_dcs", 11)) {
 			msm_panel->bklt_ctrl_mode = BL_DCS_CMD;
 		}
@@ -355,6 +360,8 @@ int msm_dsi_panel_bl_ctrl(struct drm_panel *panel, u32 bl_level)
 {
 	struct msm_dsi_panel *msm_panel = to_msm_dsi_panel(panel);
 	int ret = 0;
+
+	return 0;
 
 	mutex_lock(&msm_panel->bl_mutex);
 	bl_level = clamp_t(u32, bl_level, msm_panel->bl_min, msm_panel->bl_max);

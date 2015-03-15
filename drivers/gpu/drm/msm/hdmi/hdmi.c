@@ -362,6 +362,8 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct msm_drm_private *priv = drm->dev_private;
 	static struct hdmi_platform_config *hdmi_cfg;
 	struct hdmi *hdmi;
+
+	return 0;
 #ifdef CONFIG_OF
 	struct device_node *of_node = dev->of_node;
 	const struct of_device_id *match;

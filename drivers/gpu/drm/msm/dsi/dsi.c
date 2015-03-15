@@ -201,10 +201,9 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 fail:
 	if (msm_dsi) {
 		/* bridge/connector are normally destroyed by drm: */
-		if (msm_dsi->bridge) {
-			msm_dsi->bridge->funcs->destroy(msm_dsi->bridge);
+		if (msm_dsi->bridge)
 			msm_dsi->bridge = NULL;
-		}
+
 		if (msm_dsi->connector) {
 			msm_dsi->connector->funcs->destroy(msm_dsi->connector);
 			msm_dsi->connector = NULL;

@@ -56,6 +56,8 @@ static int dsi_28hpm_phy_enable(struct dsi_phy *phy,
 	for (i = 0; i < 4; i++) {
 		dsi_phy_write(base + REG_DSI_28hpm_LN_TEST_STR_0(i), 0x1);
 		dsi_phy_write(base + REG_DSI_28hpm_LN_TEST_STR_1(i), 0x97);
+
+		dsi_phy_write(base + REG_DSI_28hpm_LN_CFG_2(i), 0x0);
 	}
 	dsi_phy_write(base + REG_DSI_28hpm_LN_CFG_4(0), 0);
 	dsi_phy_write(base + REG_DSI_28hpm_LN_CFG_4(1), 0x5);

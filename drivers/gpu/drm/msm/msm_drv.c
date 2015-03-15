@@ -22,8 +22,10 @@
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
+#ifdef CONFIG_DRM_MSM_FBDEV
 	if (priv->fbdev)
 		drm_fb_helper_hotplug_event(priv->fbdev);
+#endif
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
@@ -374,8 +376,10 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 static void msm_lastclose(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
+#ifdef CONFIG_DRM_MSM_FBDEV
 	if (priv->fbdev)
 		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
+#endif
 }
 
 static irqreturn_t msm_irq(int irq, void *arg)
@@ -966,6 +970,7 @@ static int msm_pdev_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 	add_components(&pdev->dev, &match, "connectors");
 	add_components(&pdev->dev, &match, "gpus");
+
 #else
 	/* For non-DT case, it kinda sucks.  We don't actually have a way
 	 * to know whether or not we are waiting for certain devices (or if
@@ -1032,6 +1037,7 @@ static int __init msm_drm_register(void)
 	DBG("init");
 	msm_edp_register();
 	hdmi_register();
+	msm_dsi_register();
 	adreno_register();
 	return platform_driver_register(&msm_platform_driver);
 }
@@ -1041,6 +1047,7 @@ static void __exit msm_drm_unregister(void)
 	DBG("fini");
 	platform_driver_unregister(&msm_platform_driver);
 	hdmi_unregister();
+	msm_dsi_unregister();
 	adreno_unregister();
 	msm_edp_unregister();
 }

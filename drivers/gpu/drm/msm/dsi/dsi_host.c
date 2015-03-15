@@ -18,7 +18,6 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <linux/iopoll.h>
 #include <linux/kthread.h>
 
 #include <linux/of_device.h>
@@ -34,8 +33,8 @@
 #include "dsi_panel.h"
 #include "dsi.xml.h"
 
-#define VDD_MIN_UV		3000000	/* uV units */
-#define VDD_MAX_UV		3000000	/* uV units */
+#define VDD_MIN_UV		2850000	/* uV units */
+#define VDD_MAX_UV		2850000	/* uV units */
 #define VDD_UA_ON_LOAD		150000	/* uA units */
 #define VDD_UA_OFF_LOAD		100	/* uA units */
 
@@ -65,6 +64,7 @@
 #define MSM_DSI_6G_VER_MINOR_V1_1	0x10010000
 #define MSM_DSI_6G_VER_MINOR_V1_2	0x10020000
 #define MSM_DSI_6G_VER_MINOR_V1_3	0x10030000
+#define MSM_DSI_6G_VER_MINOR_V1_31	0x10030001
 #define MSM_DSI_6G_VER_MINOR_V1_4	0x10040000
 
 #define DSI_6G_REG_SHIFT	4
@@ -83,6 +83,8 @@ struct dsi_config dsi_cfgs[] = {
 	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_1,
 		DSI_6G_REG_SHIFT, MSM_DSI_PHY_28HPM},
 	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_2,
+		DSI_6G_REG_SHIFT, MSM_DSI_PHY_28HPM},
+	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_31,
 		DSI_6G_REG_SHIFT, MSM_DSI_PHY_28HPM},
 };
 
@@ -219,6 +221,9 @@ static inline struct msm_dsi_host *to_msm_dsi_host(struct mipi_dsi_host *host)
 static void dsi_host_regulator_disable(struct msm_dsi_host *msm_host)
 {
 	struct regulator_bulk_data *supplies = msm_host->supplies;
+
+	return;
+
 	regulator_set_optimum_mode(supplies[MSM_DSI_HOST_SUPPLY_VDDIO].consumer,
 					VDDIO_UA_OFF_LOAD);
 	regulator_set_optimum_mode(supplies[MSM_DSI_HOST_SUPPLY_VDDIO].consumer,
@@ -234,6 +239,9 @@ static int dsi_host_regulator_enable(struct msm_dsi_host *msm_host)
 	int ret;
 
 	DBG("");
+
+	return 0;
+
 	ret = regulator_set_voltage(
 			supplies[MSM_DSI_HOST_SUPPLY_VDD].consumer,
 			VDD_MIN_UV, VDD_MAX_UV);
@@ -359,7 +367,7 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 		goto exit;
 	}
 
-	msm_host->esc_clk = devm_clk_get(dev, "core_clk");
+	msm_host->esc_clk = devm_clk_get(dev, "esc_clk");
 	if (IS_ERR(msm_host->esc_clk)) {
 		ret = PTR_ERR(msm_host->esc_clk);
 		pr_err("%s: can't find dsi_esc_clk. ret=%d\n",
@@ -436,6 +444,7 @@ static int dsi_link_clk_enable(struct msm_dsi_host *msm_host)
 	DBG("%s: Set clk rates: pclk=%d, byteclk=%d escclk=%d\n",
 		__func__, msm_host->pclk_rate,
 		msm_host->byte_clk_rate, esc_clk_rate);
+
 	ret = clk_set_rate(msm_host->esc_clk, esc_clk_rate);
 	if (ret) {
 		pr_err("%s: Failed to set rate esc clk, %d\n", __func__, ret);
@@ -826,7 +835,7 @@ static void dsi_check_idle(struct msm_dsi_host *msm_host, int enable)
 	u32 sleep_us = 1000;
 	u32 timeout_us = 16000;
 	u8 *base = msm_host->ctrl_base + msm_host->cfg->reg_offset;
-
+#if 0
 	/* Check for CMD_MODE_DMA_BUSY */
 	if (readl_poll_timeout(base + REG_DSI_STATUS0,
 			status,
@@ -850,6 +859,9 @@ static void dsi_check_idle(struct msm_dsi_host *msm_host, int enable)
 		DBG("%s: Doing sw reset\n", __func__);
 		dsi_sw_reset(msm_host);
 	}
+#else
+	msleep(50);
+#endif
 
 	dsi_ctrl = dsi_read(msm_host, REG_DSI_CTRL);
 	if (enable)
@@ -1721,9 +1733,9 @@ fail_disable_reg:
 
 static int dsi_host_disable(struct msm_dsi_host *msm_host)
 {
-
 	DBG("%s+: msm_host=%p id=%d\n", __func__,
 				msm_host, msm_host->id);
+
 
 	/* TODO: We keep the clock on for now.
 	 * Once we have a way to trun on/off clock for each frame,
@@ -1740,6 +1752,7 @@ static int dsi_host_disable(struct msm_dsi_host *msm_host)
 	 * first controller only when the second controller is disabled.
 	 * This is true regardless of whether broadcast mode is enabled.
 	 */
+#if 0
 	if (msm_host_list[DSI_HOST_CLOCK_SLAVE]->msm_panel) {
 		if (msm_host->id == DSI_HOST_CLOCK_SLAVE) {
 			struct msm_dsi_host *mhost =
@@ -1752,10 +1765,14 @@ static int dsi_host_disable(struct msm_dsi_host *msm_host)
 	} else if (msm_host->phy.disable) {
 		msm_host->phy.disable(&msm_host->phy);
 	}
+#else
+	if (msm_host->phy.disable)
+		msm_host->phy.disable(&msm_host->phy);
+#endif
 
 	dsi_clk_ctrl(msm_host, 0);
 
-	dsi_host_regulator_disable(msm_host);
+	//dsi_host_regulator_disable(msm_host);
 
 	DBG("-");
 
@@ -1868,7 +1885,7 @@ static int msm_dsi_host_detach(struct mipi_dsi_host *host,
 }
 
 static ssize_t msm_dsi_host_transfer(struct mipi_dsi_host *host,
-						struct mipi_dsi_msg *msg)
+						const struct mipi_dsi_msg *msg)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	int ret = -EINVAL;
@@ -1948,7 +1965,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		pr_err("%s: dsi panel dev reg failed\n", __func__);
 		goto fail;
 	}
-
+#if 0
 	msm_host->supplies[MSM_DSI_HOST_SUPPLY_GDSC].supply = "gdsc";
 	msm_host->supplies[MSM_DSI_HOST_SUPPLY_VDD].supply = "vdd";
 	msm_host->supplies[MSM_DSI_HOST_SUPPLY_VDDA].supply = "vdda";
@@ -1960,7 +1977,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 						__func__, ret);
 		goto host_unregister;
 	}
-
+#endif
 	ret = dsi_clk_init(msm_host);
 	if (ret) {
 		pr_err("%s: unable to initialize dsi clks\n", __func__);
@@ -1979,6 +1996,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		pr_err("%s: unable to enable regulators\n", __func__);
 		goto host_unregister;
 	}
+
 	ret = dsi_bus_clk_enable(msm_host);
 	if (ret) {
 		pr_err("%s: unable to enable clks\n", __func__);
@@ -2062,6 +2080,7 @@ int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 	int ret;
 
 	msm_host->dev = dev;
+
 	ret = dsi_tx_buf_alloc(msm_host, SZ_4K);
 	if (ret)
 		pr_err("%s: alloc tx gem obj failed, %d\n", __func__, ret);

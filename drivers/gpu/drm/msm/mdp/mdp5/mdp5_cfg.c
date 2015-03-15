@@ -171,7 +171,7 @@ const struct mdp5_cfg_hw msm8x16_config = {
 	},
 
 	.pipe_rgb = {
-		.count = 2,
+		.count = 1,
 		.base = { 0x15000,  0x17000 },
 	},
 
