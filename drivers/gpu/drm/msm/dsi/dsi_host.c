@@ -2009,7 +2009,9 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		pr_err("%s: get config failed\n", __func__);
 		goto host_unregister;
 	}
-	dsi_bus_clk_disable(msm_host);
+
+	/* TODO: disabling here causes mtp to freeze followed by watchdod reset */
+	//dsi_bus_clk_disable(msm_host);
 	dsi_host_regulator_disable(msm_host);
 
 	ret = msm_dsi_phy_init(&msm_host->phy, pdev, msm_host->cfg->phy_type);

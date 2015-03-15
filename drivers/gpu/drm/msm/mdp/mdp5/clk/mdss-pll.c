@@ -18,12 +18,9 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/delay.h>
-#include <linux/iopoll.h>
 
 #include "mdss-pll.h"
-#include "mdss-edp-pll.h"
 #include "mdss-dsi-pll.h"
-#include "mdss-hdmi-pll.h"
 
 int mdss_pll_resource_enable(struct mdss_pll_resources *pll_res, bool enable)
 {
@@ -155,14 +152,18 @@ static int mdss_pll_clock_register(struct platform_device *pdev,
 
 	switch (pll_res->pll_interface_type) {
 	case MDSS_DSI_PLL:
+		mdss_pll_resource_enable(pll_res, true);
 		rc = dsi_pll_clock_register(pdev, pll_res);
+		mdss_pll_resource_enable(pll_res, false);
 		break;
+#if 0
 	case MDSS_EDP_PLL:
 		rc = edp_pll_clock_register(pdev, pll_res);
 		break;
 	case MDSS_HDMI_PLL:
 		rc = hdmi_pll_clock_register(pdev, pll_res);
 		break;
+#endif
 	case MDSS_UNKNOWN_PLL:
 	default:
 		rc = -EINVAL;

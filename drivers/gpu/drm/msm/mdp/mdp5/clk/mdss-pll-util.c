@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/string.h>
-#include <linux/clk/msm-clock-generic.h>
 
 #include "mdss-pll.h"
 
@@ -26,12 +25,15 @@ int mdss_pll_util_resource_init(struct platform_device *pdev,
 	int rc = 0;
 	struct dss_module_power *mp = &pll_res->mp;
 
+	/* ignore the gdsc regulator stuff for now */
+#if 0
 	rc = msm_dss_config_vreg(&pdev->dev,
 				mp->vreg_config, mp->num_vreg, 1);
 	if (rc) {
 		pr_err("Vreg config failed rc=%d\n", rc);
 		goto vreg_err;
 	}
+#endif
 
 	rc = msm_dss_get_clk(&pdev->dev, mp->clk_config, mp->num_clk);
 	if (rc) {
@@ -53,8 +55,9 @@ void mdss_pll_util_resource_deinit(struct platform_device *pdev,
 	struct dss_module_power *mp = &pll_res->mp;
 
 	msm_dss_put_clk(mp->clk_config, mp->num_clk);
-
+#if 0
 	msm_dss_config_vreg(&pdev->dev, mp->vreg_config, mp->num_vreg, 0);
+#endif
 }
 
 void mdss_pll_util_resource_release(struct platform_device *pdev,
@@ -75,12 +78,13 @@ int mdss_pll_util_resource_enable(struct mdss_pll_resources *pll_res,
 	struct dss_module_power *mp = &pll_res->mp;
 
 	if (enable) {
+#if 0
 		rc = msm_dss_enable_vreg(mp->vreg_config, mp->num_vreg, enable);
 		if (rc) {
 			pr_err("Failed to enable vregs rc=%d\n", rc);
 			goto vreg_err;
 		}
-
+#endif
 		rc = msm_dss_clk_set_rate(mp->clk_config, mp->num_clk);
 		if (rc) {
 			pr_err("Failed to set clock rate rc=%d\n", rc);
@@ -94,8 +98,9 @@ int mdss_pll_util_resource_enable(struct mdss_pll_resources *pll_res,
 		}
 	} else {
 		msm_dss_enable_clk(mp->clk_config, mp->num_clk, enable);
-
+#if 0
 		msm_dss_enable_vreg(mp->vreg_config, mp->num_vreg, enable);
+#endif
 	}
 
 	return rc;

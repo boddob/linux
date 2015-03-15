@@ -431,6 +431,8 @@ static int msm_dsi_panel_unprepare(struct drm_panel *panel)
 {
 	struct msm_dsi_panel *msm_panel = to_msm_dsi_panel(panel);
 
+	return 0;
+
 	dsi_panel_reset(msm_panel, 0);
 	dsi_panel_regulator_disable(msm_panel);
 
