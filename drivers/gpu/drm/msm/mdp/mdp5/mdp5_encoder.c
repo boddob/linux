@@ -303,12 +303,15 @@ int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 
 	/* Make sure clocks are on when connectors calling this function. */
 	mdp5_enable(mdp5_kms);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, data);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_UPPER(0), data);
 
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER,
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_LOWER(0),
 			MDP5_SPLIT_DPL_LOWER_SMART_PANEL);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_EN(0), 1);
 	mdp5_disable(mdp5_kms);
+
+	mdp5_encoder->slave = mdp5_slave_enc;
+	mdp5_slave_enc->master = mdp5_encoder;
 
 	return 0;
 }
@@ -515,7 +518,7 @@ int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 	mdp5_kms = get_kms(encoder);
 	intf_num = mdp5_encoder->intf.num;
 
-	mdp5_write(mdp5_kms, REG_MDP5_SPARE_0,
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPARE_0(0),
 		MDP5_SPARE_0_SPLIT_DPL_SINGLE_FLUSH_EN);
 
 	/* Switch slave encoder's TimingGen Sync mode,
@@ -531,10 +534,14 @@ int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 	/* Make sure clocks are on when connectors calling this function. */
 	mdp5_enable(mdp5_kms);
 	/* Dumb Panel, Sync mode */
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, 0);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER, data);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
+
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_UPPER(0), 0);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_LOWER(0), data);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_EN(0),1);
 	mdp5_disable(mdp5_kms);
+
+	mdp5_encoder->slave = mdp5_slave_enc;
+	mdp5_slave_enc->master = mdp5_encoder;
 
 	return 0;
 }
