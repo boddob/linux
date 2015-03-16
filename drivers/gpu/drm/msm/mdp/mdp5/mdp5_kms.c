@@ -197,6 +197,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	const struct mdp5_cfg_hw *hw_cfg;
+	struct drm_encoder *encoder;
 	int i, ret;
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
