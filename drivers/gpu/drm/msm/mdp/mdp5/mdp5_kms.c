@@ -31,6 +31,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	struct drm_device *dev = mdp5_kms->dev;
 	unsigned long flags;
 
+	mdp5_enable(mdp5_kms);
 	pm_runtime_get_sync(dev->dev);
 
 	/* Magic unknown register writes:
@@ -64,6 +65,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	mdp5_ctlm_hw_reset(mdp5_kms->ctlm);
 
 	pm_runtime_put_sync(dev->dev);
+	mdp5_disable(mdp5_kms);
 
 	return 0;
 }

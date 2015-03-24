@@ -23,7 +23,9 @@
 
 void mdp5_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask)
 {
+	mdp5_enable(to_mdp5_kms(mdp_kms));
 	mdp5_write(to_mdp5_kms(mdp_kms), REG_MDP5_MDP_INTR_EN(0), irqmask);
+	mdp5_disable(to_mdp5_kms(mdp_kms));
 }
 
 static void mdp5_irq_error_handler(struct mdp_irq *irq, uint32_t irqstatus)
