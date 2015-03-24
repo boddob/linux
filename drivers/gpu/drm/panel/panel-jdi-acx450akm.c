@@ -228,6 +228,7 @@ static int acx450akm_probe(struct mipi_dsi_device *dsi)
 	if (ret < 0)
 		return ret;
 
+#if 0
 	np = of_parse_phandle(ctx->dev->of_node, "backlight", 0);
 	if (np) {
 		ctx->backlight = of_find_backlight_by_node(np);
@@ -236,6 +237,7 @@ static int acx450akm_probe(struct mipi_dsi_device *dsi)
 		if (!ctx->backlight)
 			return -EPROBE_DEFER;
 	}
+#endif
 
 	drm_panel_init(&ctx->panel);
 	ctx->panel.dev = dev;

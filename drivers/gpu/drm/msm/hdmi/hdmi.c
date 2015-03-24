@@ -377,6 +377,8 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct device_node *of_node = dev->of_node;
 	const struct of_device_id *match;
 
+	return 0;
+
 	match = of_match_node(dt_match, of_node);
 	if (match && match->data) {
 		hdmi_cfg = (struct hdmi_platform_config *)match->data;

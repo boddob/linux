@@ -126,9 +126,9 @@ static const struct dsi_config dsi_cfgs[] = {
 		.io_offset = DSI_6G_REG_SHIFT,
 		.phy_type = MSM_DSI_PHY_28NM,
 		.reg_cfg = {
-			.num = 4,
+			.num = 3,
 			.regs = {
-				{"gdsc", -1, -1, -1, -1},
+				//{"gdsc", -1, -1, -1, -1},
 				{"vdd", 2850000, 2850000, 100000, 100},
 				{"vdda", 1200000, 1200000, 100000, 100},
 				{"vddio", 1800000, 1800000, 100000, 100},
@@ -265,7 +265,7 @@ static const struct dsi_config *dsi_get_config(struct msm_dsi_host *msm_host)
 	struct regulator *gdsc_reg;
 	int i, ret;
 	u32 major, minor;
-
+#if 0
 	gdsc_reg = regulator_get(&msm_host->pdev->dev, "gdsc");
 	if (IS_ERR_OR_NULL(gdsc_reg)) {
 		pr_err("%s: cannot get gdsc\n", __func__);
@@ -277,6 +277,7 @@ static const struct dsi_config *dsi_get_config(struct msm_dsi_host *msm_host)
 		regulator_put(gdsc_reg);
 		goto fail;
 	}
+#endif
 	ret = clk_prepare_enable(msm_host->ahb_clk);
 	if (ret) {
 		pr_err("%s: unable to enable ahb_clk\n", __func__);
@@ -288,8 +289,11 @@ static const struct dsi_config *dsi_get_config(struct msm_dsi_host *msm_host)
 	ret = dsi_get_version(msm_host->ctrl_base, &major, &minor);
 
 	clk_disable_unprepare(msm_host->ahb_clk);
+
+#if 0
 	regulator_disable(gdsc_reg);
 	regulator_put(gdsc_reg);
+#endif
 	if (ret) {
 		pr_err("%s: Invalid version\n", __func__);
 		goto fail;
@@ -421,7 +425,7 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 			__func__, ret);
 		goto exit;
 	}
-
+#if 0
 	msm_host->mmss_misc_ahb_clk = devm_clk_get(dev, "core_mmss_clk");
 	if (IS_ERR(msm_host->mmss_misc_ahb_clk)) {
 		ret = PTR_ERR(msm_host->mmss_misc_ahb_clk);
@@ -429,6 +433,7 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 			__func__, ret);
 		goto exit;
 	}
+#endif
 
 	msm_host->byte_clk = devm_clk_get(dev, "byte_clk");
 	if (IS_ERR(msm_host->byte_clk)) {
@@ -448,7 +453,7 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 		goto exit;
 	}
 
-	msm_host->esc_clk = devm_clk_get(dev, "core_clk");
+	msm_host->esc_clk = devm_clk_get(dev, "esc_clk");
 	if (IS_ERR(msm_host->esc_clk)) {
 		ret = PTR_ERR(msm_host->esc_clk);
 		pr_err("%s: can't find dsi_esc_clk. ret=%d\n",
@@ -485,13 +490,14 @@ static int dsi_bus_clk_enable(struct msm_dsi_host *msm_host)
 		pr_err("%s: failed to enable ahb clock, %d\n", __func__, ret);
 		goto axi_clk_err;
 	}
-
+#if 0
 	ret = clk_prepare_enable(msm_host->mmss_misc_ahb_clk);
 	if (ret) {
 		pr_err("%s: failed to enable mmss misc ahb clk, %d\n",
 			__func__, ret);
 		goto misc_ahb_clk_err;
 	}
+#endif
 
 	return 0;
 
@@ -508,7 +514,7 @@ core_clk_err:
 static void dsi_bus_clk_disable(struct msm_dsi_host *msm_host)
 {
 	DBG("");
-	clk_disable_unprepare(msm_host->mmss_misc_ahb_clk);
+	//clk_disable_unprepare(msm_host->mmss_misc_ahb_clk);
 	clk_disable_unprepare(msm_host->axi_clk);
 	clk_disable_unprepare(msm_host->ahb_clk);
 	clk_disable_unprepare(msm_host->mdp_core_clk);
@@ -1607,8 +1613,7 @@ int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer)
 		 * create framebuffer.
 		 */
 		if (check_defer) {
-			node = of_parse_phandle(msm_host->pdev->dev.of_node,
-						"qcom,panel", 0);
+			node = of_get_child_by_name(msm_host->pdev->dev.of_node, "panel");
 			if (node) {
 				if (!of_drm_find_panel(node))
 					return -EPROBE_DEFER;

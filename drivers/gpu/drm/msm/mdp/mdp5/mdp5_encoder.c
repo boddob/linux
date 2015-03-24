@@ -310,8 +310,8 @@ int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_EN(0), 1);
 	mdp5_disable(mdp5_kms);
 
-	mdp5_encoder->slave = mdp5_slave_enc;
-	mdp5_slave_enc->master = mdp5_encoder;
+	//mdp5_encoder->slave = mdp5_slave_enc;
+	//mdp5_slave_enc->master = mdp5_encoder;
 
 	return 0;
 }
@@ -540,8 +540,8 @@ int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_EN(0),1);
 	mdp5_disable(mdp5_kms);
 
-	mdp5_encoder->slave = mdp5_slave_enc;
-	mdp5_slave_enc->master = mdp5_encoder;
+	//mdp5_encoder->slave = mdp5_slave_enc;
+	//mdp5_slave_enc->master = mdp5_encoder;
 
 	return 0;
 }
