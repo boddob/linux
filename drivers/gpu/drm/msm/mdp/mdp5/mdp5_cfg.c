@@ -171,6 +171,7 @@ const struct mdp5_cfg_hw msm8x16_config = {
 	.ctl = {
 		.count = 5,
 		.base = { 0x02000, 0x02200, 0x02400, 0x02600, 0x02800 },
+		.flush_hw_mask = 0x4003ffff,
 	},
 	.pipe_vig = {
 		.count = 1,
