@@ -348,6 +348,33 @@
 	qcom,platform-enable-gpio = <&msm_gpio 97 0>;
 	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
 	qcom,platform-bklight-en-gpio = <&msm_gpio 98 0>;
+
+	disp-enable-gpios = <&msm_gpio 97 0>;
+
+	panel@0 {
+		reg = <0>;
+		compatible = "jdi,acx450akm";
+
+		reset-gpios = <&msm_gpio 25 0>;
+
+		//backlight = <&pwm_backlight>;
+		vdda-supply = <&pm8916_l2>;
+		vddio-supply = <&pm8916_l6>;
+
+		display-timings {
+			timing0: timing-0 {
+				clock-frequency = <146273760>;
+				hactive = <1080>;
+				vactive = <1920>;
+				hfront-porch = <96>;
+				hback-porch = <64>;
+				hsync-len = <16>;
+				vfront-porch = <4>;
+				vback-porch = <16>;
+				vsync-len = <1>;
+			};
+		};
+	};
 };
 
 &dsi_jdi_1080_vid {
