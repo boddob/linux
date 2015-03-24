@@ -21,6 +21,8 @@
 #include "mdss-pll.h"
 #include "mdss-dsi-pll.h"
 
+#define VCO_DELAY_USEC		1000
+
 #define DSI_PHY_PLL_UNIPHY_PLL_REFCLK_CFG	(0x0)
 #define DSI_PHY_PLL_UNIPHY_PLL_POSTDIV1_CFG	(0x0004)
 #define DSI_PHY_PLL_UNIPHY_PLL_CHGPUMP_CFG	(0x0008)
@@ -104,6 +106,60 @@ static void dsi_pll_software_reset(struct mdss_pll_resources *dsi_pll_res)
 	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
 					DSI_PHY_PLL_UNIPHY_PLL_TEST_CFG, 0x00);
 	udelay(1);
+}
+
+static int dsi_pll_enable_seq_8916(struct mdss_pll_resources *dsi_pll_res)
+{
+	int pll_locked = 0;
+
+	pr_debug("DSI PLL enable sequence\n");
+
+	/*
+	 * DSI PLL software reset. Add HW recommended delays after toggling
+	 * the software reset bit off and back on.
+	 */
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_TEST_CFG, 0x01);
+	ndelay(500);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_TEST_CFG, 0x00);
+
+	/* Force postdiv2 to be div-4 */
+	writel_relaxed(3, dsi_pll_res->pll_base +
+				DSI_PHY_PLL_UNIPHY_PLL_POSTDIV2_CFG);
+	/*
+	 * PLL power up sequence.
+	 * Add necessary delays recommended by hardware.
+	 */
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_CAL_CFG1, 0x34);
+	ndelay(500);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x01);
+	ndelay(500);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x05);
+	ndelay(500);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x0f);
+	ndelay(500);
+
+	/* DSI PLL toggle lock detect setting */
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_LKDET_CFG2, 0x04);
+	ndelay(500);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_LKDET_CFG2, 0x05);
+	udelay(512);
+
+	pll_locked = dsi_pll_lock_status(dsi_pll_res);
+
+	if (pll_locked)
+		pr_debug("PLL Locked\n");
+	else
+		pr_err("PLL failed to lock\n");
+
+	return pll_locked ? 0 : -EINVAL;
 }
 
 static int dsi_pll_enable_seq_8974(struct mdss_pll_resources *dsi_pll_res)
@@ -256,6 +312,20 @@ static int vco_set_rate(struct clk_hw *hw, unsigned long rate,
 		return rc;
 	}
 
+	 /* DSI PLL software reset. Add HW recommended delays after toggling
+	 * the software reset bit off and back on.
+	 */
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_TEST_CFG, 0x01);
+	udelay(1000);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_TEST_CFG, 0x00);
+	udelay(1000);
+
+	/* Force postdiv2 to be div-4 */
+	writel_relaxed(3, dsi_pll_res->pll_base +
+				DSI_PHY_PLL_UNIPHY_PLL_POSTDIV2_CFG);
+
 	/* Configure the Loop filter resistance */
 	for (i = 0; i < vco->lpfr_lut_size; i++)
 		if (vco_clk_rate <= vco->lpfr_lut[i].vco_rate)
@@ -344,7 +414,7 @@ static int vco_set_rate(struct clk_hw *hw, unsigned long rate,
 				DSI_PHY_PLL_UNIPHY_PLL_SDM_CFG4, 0x00);
 
 	/* Add hardware recommended delay for correct PLL configuration */
-	udelay(1);
+	udelay(VCO_DELAY_USEC);
 
 	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
 			DSI_PHY_PLL_UNIPHY_PLL_REFCLK_CFG, (u32)refclk_cfg);
@@ -470,6 +540,8 @@ static int vco_prepare(struct clk_hw *hw)
 	struct dsi_pll_vco_clk *vco = to_vco_clk(hw);
 	struct mdss_pll_resources *dsi_pll_res = vco->priv;
 
+	pr_debug("vco prepare\n");
+
 	if (!dsi_pll_res) {
 		pr_err("Dsi pll resources are not available\n");
 		return -EINVAL;
@@ -516,14 +588,12 @@ static const struct clk_ops clk_ops_dsi_vco = {
 };
 
 
-static struct dsi_pll_vco_clk dsi_vco_clk_8974 = {
+static struct dsi_pll_vco_clk dsi_vco_clk_8916 = {
 	.ref_clk_rate = 19200000,
 	.min_rate = 350000000,
 	.max_rate = 750000000,
-	.pll_en_seq_cnt = 3,
-	.pll_enable_seqs[0] = dsi_pll_enable_seq_8974,
-	.pll_enable_seqs[1] = dsi_pll_enable_seq_8974,
-	.pll_enable_seqs[2] = dsi_pll_enable_seq_8974,
+	.pll_en_seq_cnt = 1,
+	.pll_enable_seqs[0] = dsi_pll_enable_seq_8916,
 	.lpfr_lut_size = 10,
 	.lpfr_lut = (struct lpfr_cfg[]){
 		{479500000, 8},
@@ -553,9 +623,9 @@ int dsi_pll_clock_register(struct platform_device *pdev,
 		return -EPROBE_DEFER;
 	}
 
-	dsi_vco_clk_8974.priv = pll_res;
+	dsi_vco_clk_8916.priv = pll_res;
 
-	clk_register(&pdev->dev, &dsi_vco_clk_8974.hw);
+	clk_register(&pdev->dev, &dsi_vco_clk_8916.hw);
 	clk_register_divider(&pdev->dev, "dsi_analog_postdiv_clk",
 			     "dsi_vco_clk", CLK_SET_RATE_PARENT,
 			     pll_res->pll_base +
@@ -581,6 +651,5 @@ int dsi_pll_clock_register(struct platform_device *pdev,
 	clk_register_fixed_factor(&pdev->dev, "dsi0pllbyte",
 				  "dsi_byte_mux", CLK_SET_RATE_PARENT,
 				  1, 4);
-
 	return 0;
 }

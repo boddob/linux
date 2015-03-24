@@ -36,6 +36,7 @@ msm-y := \
 	mdp/mdp5/mdp5_kms.o \
 	mdp/mdp5/mdp5_plane.o \
 	mdp/mdp5/mdp5_smp.o \
+	mdp/mdp5/clk/mdss_io_util.o mdp/mdp5/clk/mdss-pll-util.o mdp/mdp5/clk/mdss-pll.o mdp/mdp5/clk/mdss-dsi-pll-28hpm.o \
 	msm_atomic.o \
 	msm_drv.o \
 	msm_fb.o \
