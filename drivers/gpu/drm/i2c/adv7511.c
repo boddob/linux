@@ -281,6 +281,8 @@ static void adv7511_set_config_csc(struct adv7511 *adv7511,
 	else
 		config.hdmi_mode = false;
 
+	config.hdmi_mode = true;
+
 	hdmi_avi_infoframe_init(&config.avi_infoframe);
 
 	config.avi_infoframe.scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
@@ -625,12 +627,27 @@ static int adv7511_get_edid_block(void *data, u8 *buf, unsigned int block,
 /* -----------------------------------------------------------------------------
  * ADV75xx helpers
  */
+
+static const struct drm_display_mode adv7511_mode = {
+	.clock = 148500,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 88,
+	.hsync_end = 1920 + 88 + 44,
+	.htotal = 1920 + 88 + 44 + 148,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 4,
+	.vsync_end = 1080 + 4 + 5,
+	.vtotal = 1080 + 4 + 5 + 36,
+	.vrefresh = 60,
+};
+
 static int adv7511_get_modes(struct adv7511 *adv7511,
 		struct drm_connector *connector)
 {
 	struct edid *edid;
 	unsigned int count;
-
+	struct drm_display_mode *mode;
+#if 0
 	/* Reading the EDID only works if the device is powered */
 	if (!adv7511->powered) {
 		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER2,
@@ -659,7 +676,19 @@ static int adv7511_get_modes(struct adv7511 *adv7511,
 
 	drm_mode_connector_update_edid_property(connector, edid);
 	count = drm_add_edid_modes(connector, edid);
+#else
+	mode = drm_mode_duplicate(connector->dev, &adv7511_mode);
+	if (!mode) {
+		DRM_ERROR("failed to create a new display mode\n");
+		return 0;
+	}
 
+	drm_mode_set_name(mode);
+
+	drm_mode_probed_add(connector, mode);
+
+	count = 1;
+#endif
 	adv7511_set_config_csc(adv7511, connector, adv7511->rgb);
 
 	return count;
@@ -703,7 +732,7 @@ adv7511_detect(struct adv7511 *adv7511,
 	}
 
 	adv7511->status = status;
-	return status;
+	return connector_status_connected;
 }
 
 static void adv7511_mode_set(struct adv7511 *adv7511,
