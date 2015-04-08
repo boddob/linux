@@ -478,11 +478,13 @@ int mmc_of_parse(struct mmc_host *host)
 	/* Parse Write Protection */
 	ro_cap_invert = of_property_read_bool(np, "wp-inverted");
 
+#if 0
 	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0, &ro_gpio_invert);
 	if (!ret)
 		dev_info(host->parent, "Got WP GPIO\n");
 	else if (ret != -ENOENT)
 		return ret;
+#endif
 
 	if (of_property_read_bool(np, "disable-wp"))
 		host->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
