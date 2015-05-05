@@ -845,11 +845,41 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	return 0;
 }
 
+/* XXX Do these change between devices? */
+#define REASON_BOOTLOADER      0x77665500
+#define REASON_RECOVERY                0x77665502
+#define REASON_OEM             0x6f656d00
+#define REASON_NONE            0x77665501
+
+/* XXX This should be pulled from DT somehow */
+#define APQ8064_IMEM_PHYS               0x2A03F000
+#define RESTART_REASON_ADDR            APQ8064_IMEM_PHYS + 0x65C
+static void __iomem *restart_reason;
+
 static int msm_ps_hold_restart(struct notifier_block *nb, unsigned long action,
 			       void *data)
 {
 	struct msm_pinctrl *pctrl = container_of(nb, struct msm_pinctrl, restart_nb);
+	char *cmd = (char*)data;
 
+	if(restart_reason) {
+		if (cmd != NULL) {
+			if (!strncmp(cmd, "bootloader", 10)) {
+				writel(REASON_BOOTLOADER, restart_reason);
+			} else if (!strncmp(cmd, "recovery", 8)) {
+				writel(REASON_RECOVERY, restart_reason);
+			} else if (!strncmp(cmd, "oem-", 4)) {
+				unsigned long code;
+
+				code = simple_strtoul(cmd + 4, NULL, 16) & 0xff;
+				writel(REASON_OEM | code, restart_reason);
+			} else {
+				writel(REASON_NONE, restart_reason);
+			}
+		} else {
+			writel(REASON_NONE, restart_reason);
+		}
+	}
 	writel(0, pctrl->regs + PS_HOLD_OFFSET);
 	mdelay(1000);
 	return NOTIFY_DONE;
@@ -862,6 +892,9 @@ static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 
 	for (i = 0; i < pctrl->soc->nfunctions; i++)
 		if (!strcmp(func[i].name, "ps_hold")) {
+			/* XXX This should be a dt resource, not hardcoded */
+			restart_reason = ioremap(RESTART_REASON_ADDR, 4);
+
 			pctrl->restart_nb.notifier_call = msm_ps_hold_restart;
 			pctrl->restart_nb.priority = 128;
 			if (register_restart_handler(&pctrl->restart_nb))
