@@ -140,6 +140,9 @@ void of_pci_check_probe_only(void)
 		pci_clear_flags(PCI_PROBE_ONLY);
 
 	pr_info("PCI: PROBE_ONLY %sabled\n", val ? "en" : "dis");
+	of_dma_configure_masks(dev, bridge->parent->of_node);
+	of_dma_configure_ops(dev, bridge->parent->of_node);
+	pci_put_host_bridge_device(bridge);
 }
 EXPORT_SYMBOL_GPL(of_pci_check_probe_only);
 
