@@ -62,6 +62,10 @@
 
 				cs-gpios = <&qcom_pinmux 20 0>;
 
+				dmas = <&adm_dma 6>,
+					<&adm_dma 5>;
+				dma-names = "rx", "tx";
+
 				flash: m25p80@0 {
 					compatible = "s25fl256s1";
 					#address-cells = <1>;
