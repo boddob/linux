@@ -332,6 +332,10 @@ static void adv7511_set_link_config(struct adv7511 *adv7511,
 	 */
 	if (adv7511->type == ADV7533) {
 		adv7511->num_dsi_lanes = config->num_dsi_lanes;
+		adv7511->color_depth =
+			config->input_color_depth == 8 ? ADV_DEPTH_24BPP :
+				(config->input_color_depth == 10 ?
+					ADV_DEPTH_30BPP : ADV_DEPTH_36BPP);
 		return;
 	}
 
@@ -367,22 +371,72 @@ static void adv7511_set_link_config(struct adv7511 *adv7511,
 	adv7511->vsync_polarity = config->vsync_polarity;
 }
 
+static void adv7511_dsi_config_tgen(struct adv7511 *adv7511)
+{
+	struct drm_display_mode *mode = adv7511->curr_mode;
+	unsigned int hsw, hfp, hbp, vsw, vfp, vbp;
+
+	hsw = mode->hsync_end - mode->hsync_start;
+	hfp = mode->hsync_start - mode->hdisplay;
+	hbp = mode->htotal - mode->hsync_end;
+	vsw = mode->vsync_end - mode->vsync_start;
+	vfp = mode->vsync_start - mode->vdisplay;
+	vbp = mode->vtotal - mode->vsync_end;
+
+	/* set pixel clock divider mode to auto */
+	regmap_write(adv7511->regmap_cec, 0x16, 0x00);
+
+	/* horizontal porch params */
+	regmap_write(adv7511->regmap_cec, 0x28, mode->htotal >> 4);
+	regmap_write(adv7511->regmap_cec, 0x29, (mode->htotal << 4) & 0xff);
+	regmap_write(adv7511->regmap_cec, 0x2a, hsw >> 4);
+	regmap_write(adv7511->regmap_cec, 0x2b, (hsw << 4) & 0xff);
+	regmap_write(adv7511->regmap_cec, 0x2c, hfp >> 4);
+	regmap_write(adv7511->regmap_cec, 0x2d, (hfp << 4) & 0xff);
+	regmap_write(adv7511->regmap_cec, 0x2e, hbp >> 4);
+	regmap_write(adv7511->regmap_cec, 0x2f, (hbp << 4) & 0xff);
+
+	/* vertical porch params */
+	regmap_write(adv7511->regmap_cec, 0x30, mode->vtotal >> 4);
+	regmap_write(adv7511->regmap_cec, 0x31, (mode->vtotal << 4) & 0xff);
+	regmap_write(adv7511->regmap_cec, 0x32, vsw >> 4);
+	regmap_write(adv7511->regmap_cec, 0x33, (vsw << 4) & 0xff);
+	regmap_write(adv7511->regmap_cec, 0x34, vfp >> 4);
+	regmap_write(adv7511->regmap_cec, 0x35, (vfp << 4) & 0xff);
+	regmap_write(adv7511->regmap_cec, 0x36, vbp >> 4);
+	regmap_write(adv7511->regmap_cec, 0x37, (vbp << 4) & 0xff);
+
+	printk(KERN_ERR "%02x %02x\n", vbp >> 4, (vbp << 4) & 0xff);
+}
+
 static void adv7511_dsi_receiver_dpms(struct adv7511 *adv7511)
 {
 	if (adv7511->type != ADV7533)
 		return;
 
 	if (adv7511->powered) {
+		if (adv7511->use_tgen)
+			adv7511_dsi_config_tgen(adv7511);
 		/* set number of dsi lanes */
 		regmap_write(adv7511->regmap_cec, 0x1c, adv7511->num_dsi_lanes << 4);
-		/* disable internal timing generator */
-		regmap_write(adv7511->regmap_cec, 0x27, 0x0b);
+
+		if (adv7511->use_tgen) {
+			/* reset internal timing generator */
+			regmap_write(adv7511->regmap_cec, 0x27, 0xcb);
+			regmap_write(adv7511->regmap_cec, 0x27, 0x8b);
+			regmap_write(adv7511->regmap_cec, 0x27, 0xcb);
+		} else {
+			/* disable internal timing generator */
+			regmap_write(adv7511->regmap_cec, 0x27, 0x0b);
+		}
+
 		/* enable hdmi */
 		regmap_write(adv7511->regmap_cec, 0x03, 0x89);
 		/* explicitly disable test mode */
 		regmap_write(adv7511->regmap_cec, 0x55, 0x00);
 	} else {
 		regmap_write(adv7511->regmap_cec, 0x03, 0x0b);
+		regmap_write(adv7511->regmap_cec, 0x27, 0x0b);
 	}
 }
 
@@ -679,6 +733,75 @@ adv7511_detect(struct adv7511 *adv7511,
 	return status;
 }
 
+struct adv7511_internal_tgen_modes {
+	int hdisplay, vdisplay;
+	int clock, vrefresh;
+	bool interlace;
+	int num_lanes[ADV_DEPTH_MAX][4];
+};
+
+static const struct adv7511_internal_tgen_modes mandatory_modes[]= {
+	{ 720, 480, 27000, 60, false,
+		{ { 0 }, { 4 } , { 2, 3, 4 }, },
+	},
+	{ 1024, 576, 38960, 60, false,
+		{ { 0 }, { 0 }, { 2, 4 }, },
+	},
+	{ 1024, 576, 75520, 60, false,
+		{ { 0 }, { 2, 4 }, { 2, 3 }, },
+	},
+	{ 1280, 720, 74250, 60, false,
+		{ { 0 }, { 4 }, { 2, 3, 4 }, },
+	},
+	{ 1280, 720, 74250, 50, false,
+		{ { 0 }, { 0 }, { 2, 4 }, },
+	},
+	{ 1920, 1080, 74250, 60, true,
+		{ { 0 }, { 0 }, { 2, 4 }, },
+	},
+	{ 1920, 1080, 74250, 30, false,
+		{ { 0 }, { 0 }, { 2, 4 }, },
+	},
+	{ 1920, 1080, 74250, 50, true,
+		{ { 0 }, { 0 }, { 2, 4 }, },
+	},
+	{ 1920, 1080, 74250, 24, false,
+		{ { 0 }, { 4 }, { 2, 3, 4 }, },
+	},
+	{ 1024, 768, 65000, 60, false,
+		{ { 0 }, { 0 }, { 2, 4 }, },
+	},
+};
+
+static bool adv7511_use_internal_tgen(struct adv7511 *adv,
+		struct drm_display_mode *mode)
+{
+	int i;
+
+	if (adv->type != ADV7533)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(mandatory_modes); i++) {
+		const struct adv7511_internal_tgen_modes m = mandatory_modes[i];
+
+		if (m.hdisplay == mode->hdisplay &&
+				m.vdisplay == mode->vdisplay &&
+				m.clock == mode->clock &&
+				m.vrefresh == mode->vrefresh &&
+				m.interlace ==
+				!!(mode->flags & DRM_MODE_FLAG_INTERLACE)) {
+			int j;
+			const int *lanes = m.num_lanes[adv->color_depth];
+
+			for (j = 0; j < 4; j++)
+				if (lanes[j] == adv->num_dsi_lanes)
+					return true;
+		}
+	}
+
+	return false;
+}
+
 static void adv7511_mode_set(struct adv7511 *adv7511,
 				     struct drm_display_mode *mode,
 				     struct drm_display_mode *adj_mode)
@@ -765,6 +888,8 @@ static void adv7511_mode_set(struct adv7511 *adv7511,
 	regmap_update_bits(adv7511->regmap, 0x17,
 		0x60, (vsync_polarity << 6) | (hsync_polarity << 5));
 
+	adv7511->use_tgen = adv7511_use_internal_tgen(adv7511, adj_mode);
+	adv7511->curr_mode = adj_mode;
 	/*
 	 * TODO Test first order 4:2:2 to 4:4:4 up conversion method, which is
 	 * supposed to give better results.

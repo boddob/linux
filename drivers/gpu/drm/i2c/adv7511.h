@@ -239,6 +239,14 @@ enum adv7511_sync_polarity {
 	ADV7511_SYNC_POLARITY_HIGH,
 };
 
+enum adv7511_input_color_depth {
+	ADV_DEPTH_16BPP,
+	ADV_DEPTH_24BPP,
+	ADV_DEPTH_30BPP,
+	ADV_DEPTH_36BPP,
+	ADV_DEPTH_MAX,
+};
+
 enum adv7511_type {
 	ADV7511,
 	ADV7533,
@@ -255,6 +263,9 @@ struct adv7511 {
 	struct regmap *regmap_cec;
 	enum drm_connector_status status;
 	bool powered;
+
+	bool use_tgen;
+	struct drm_display_mode *curr_mode;
 
 	unsigned int f_tmds;
 	unsigned int f_audio;
@@ -277,6 +288,7 @@ struct adv7511 {
 	enum adv7511_sync_polarity hsync_polarity;
 	bool rgb;
 	u8 num_dsi_lanes;
+	enum adv7511_input_color_depth color_depth;
 
 	struct edid *edid;
 
