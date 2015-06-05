@@ -395,14 +395,6 @@
 			usb-phy		= <&usb1_phy>;
 		};
 
-		usb1: usb@12500000 {
-			compatible	= "qcom,ehci-host";
-			reg		= <0x12500000 0x400>;
-			interrupts	= <GIC_SPI 100 IRQ_TYPE_NONE>;
-			status		= "disabled";
-			usb-phy		= <&usb1_phy>;
-		};
-
 		usb3: usb@12520000 {
 			compatible	= "qcom,ehci-host";
 			reg		= <0x12520000 0x400>;
