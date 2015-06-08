@@ -513,8 +513,8 @@ static int adv7511_irq_process(struct adv7511 *adv7511)
 	regmap_write(adv7511->regmap, ADV7511_REG_INT(0), irq0);
 	regmap_write(adv7511->regmap, ADV7511_REG_INT(1), irq1);
 
-	if (adv7511->encoder && (irq0 & ADV7511_INT0_HDP))
-		drm_helper_hpd_irq_event(adv7511->encoder->dev);
+	//if (adv7511->encoder && (irq0 & ADV7511_INT0_HDP))
+		//drm_helper_hpd_irq_event(adv7511->encoder->dev);
 
 	if (irq0 & ADV7511_INT0_EDID_READY || irq1 & ADV7511_INT1_DDC_ERROR) {
 		adv7511->edid_read = true;
@@ -702,7 +702,7 @@ adv7511_detect(struct adv7511 *adv7511,
 		status = connector_status_connected;
 	else
 		status = connector_status_disconnected;
-
+#if 0
 	hpd = adv7511_hpd(adv7511);
 
 	/* The chip resets itself when the cable is disconnected, so in case
@@ -721,8 +721,9 @@ adv7511_detect(struct adv7511 *adv7511,
 				   ADV7511_REG_POWER2_HDP_SRC_MASK,
 				   ADV7511_REG_POWER2_HDP_SRC_BOTH);
 	}
-
+#endif
 	adv7511->status = status;
+
 	return status;
 }
 
@@ -959,6 +960,9 @@ static void adv7511_bridge_post_disable(struct drm_bridge *bridge)
 {
 	struct adv7511 *adv7511 = bridge_to_adv7511(bridge);
 
+	if (!adv7511->powered)
+		return;
+
 	adv7511_power_off(adv7511);
 }
 
@@ -991,7 +995,7 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge)
 		return -ENODEV;
 	}
 
-	adv7511->connector.polled = DRM_CONNECTOR_POLL_HPD;
+	//adv7511->connector.polled = DRM_CONNECTOR_POLL_HPD;
 	ret = drm_connector_init(bridge->dev, &adv7511->connector,
 			&adv7511_connector_funcs, DRM_MODE_CONNECTOR_HDMIA);
 	if (ret) {
@@ -1003,7 +1007,7 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge)
 	drm_connector_register(&adv7511->connector);
 	drm_mode_connector_attach_encoder(&adv7511->connector, adv7511->encoder);
 
-	drm_helper_hpd_irq_event(adv7511->connector.dev);
+	//drm_helper_hpd_irq_event(adv7511->connector.dev);
 
 	return ret;
 }
