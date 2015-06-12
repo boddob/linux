@@ -172,7 +172,7 @@
 		i2c-bus = <&blsp_i2c4>;
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
-		adi,dsi-lanes = <4>;
+		//adi,dsi-lanes = <4>;
 		pd-gpios = <&msm_gpio 32 0>;
 		pinctrl-names = "default","sleep";
 		pinctrl-0 = <&adv7533_int_active &adv7533_switch_active>;

@@ -784,8 +784,11 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 			DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(LANE_SWAP_1230));
 	} else {
 		/* Take 4 lanes as default */
-		data |= DSI_CTRL_LANE0 | DSI_CTRL_LANE1 | DSI_CTRL_LANE2 |
-			DSI_CTRL_LANE3;
+		if (msm_host->lanes == 3)
+			data |= DSI_CTRL_LANE0 | DSI_CTRL_LANE1 | DSI_CTRL_LANE2;
+		else
+			data |= DSI_CTRL_LANE0 | DSI_CTRL_LANE1 | DSI_CTRL_LANE2 |
+				DSI_CTRL_LANE3;
 		/* Do not swap lanes for 4-lane panel */
 		dsi_write(msm_host, REG_DSI_LANE_SWAP_CTRL,
 			DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(LANE_SWAP_0123));
@@ -1921,6 +1924,13 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 		DBG("dsi host already on");
 		goto unlock_ret;
 	}
+
+	/* hack: reduce number of lanes for lower pclks */
+	if (msm_host->mode->clock < 80000)
+		msm_host->lanes = 3;
+	else
+		msm_host->lanes = 4;
+
 	ret = dsi_calc_clk_rate(msm_host);
 	if (ret) {
 		pr_err("%s: unable to calc clk rate, %d\n", __func__, ret);

@@ -380,7 +380,7 @@ static void adv7511_dsi_config_tgen(struct adv7511 *adv7511)
 	vbp = mode->vtotal - mode->vsync_end;
 
 	/* set pixel clock divider mode to auto */
-	regmap_write(adv7511->regmap_cec, 0x16, 0x00);
+	//regmap_write(adv7511->regmap_cec, 0x16, 0x00);
 
 	/* horizontal porch params */
 	regmap_write(adv7511->regmap_cec, 0x28, mode->htotal >> 4);
@@ -409,10 +409,19 @@ static void adv7511_dsi_receiver_dpms(struct adv7511 *adv7511)
 		return;
 
 	if (adv7511->powered) {
+		int lanes = 3;
+		u8 clock_div_by_lanes[] = { 6, 4, 3 }; /* 2, 3, 4 lanes */
+
 		adv7511_dsi_config_tgen(adv7511);
 
+		if (!adv7511->num_dsi_lanes) {
+			if (adv7511->curr_mode->clock > 80000)
+				lanes = 4;
+		}
+
 		/* set number of dsi lanes */
-		regmap_write(adv7511->regmap_cec, 0x1c, adv7511->num_dsi_lanes << 4);
+		regmap_write(adv7511->regmap_cec, 0x1c, lanes << 4);
+		regmap_write(adv7511->regmap_cec, 0x16, clock_div_by_lanes[lanes - 2] << 3);
 
 		/* reset internal timing generator */
 		regmap_write(adv7511->regmap_cec, 0x27, 0xcb);
@@ -1041,10 +1050,10 @@ static int adv7511_parse_dt(struct adv7511 *adv7511, struct device_node *np,
 		return -EINVAL;
 
 	if (adv7511->type == ADV7533) {
-		of_property_read_u32(np, "adi,dsi-lanes",
-			&config->num_dsi_lanes);
-
-		if (config->num_dsi_lanes < 1 || config->num_dsi_lanes > 4)
+		if (!of_property_read_u32(np, "adi,dsi-lanes",
+				&config->num_dsi_lanes))
+			if (config->num_dsi_lanes < 1 ||
+				config->num_dsi_lanes > 4)
 			return -EINVAL;
 
 		return 0;
