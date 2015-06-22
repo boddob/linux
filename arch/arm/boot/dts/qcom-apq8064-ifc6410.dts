@@ -1,5 +1,6 @@
 #include "qcom-apq8064-v2.0.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Qualcomm APQ8064/IFC6410";
@@ -186,16 +187,19 @@
 				status = "okay";
 			};
 
-			/* External micro SD card */
-			sdcc3: sdcc@12180000 {
-				status = "okay";
-				pinctrl-names	= "default";
-				pinctrl-0	= <&card_detect>;
-				cd-gpios	= <&tlmm_pinmux 26 GPIO_ACTIVE_LOW>;
-			};
 			/* WLAN */
 			sdcc4: sdcc@121c0000 {
 				status = "okay";
+			};
+		};
+
+		gpio-keys {
+			compatible = "gpio-keys";
+			power {
+				label = "Power";
+				gpios = <&tlmm_pinmux 26 GPIO_ACTIVE_LOW>;
+				linux,code = <KEY_POWER>;
+				gpio-key,wakeup;
 			};
 		};
 	};
