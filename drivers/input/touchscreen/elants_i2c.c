@@ -869,7 +869,6 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 		switch (ts->buf[FW_HDR_TYPE]) {
 		case CMD_HEADER_HELLO:
 		case CMD_HEADER_RESP:
-		case CMD_HEADER_REK:
 			break;
 
 		case QUEUE_HEADER_WAIT:
@@ -887,6 +886,7 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 			elants_i2c_event(ts, &ts->buf[HEADER_SIZE]);
 			break;
 
+		case CMD_HEADER_REK:
 		case QUEUE_HEADER_NORMAL:
 			report_count = ts->buf[FW_HDR_COUNT];
 			if (report_count > 3) {
