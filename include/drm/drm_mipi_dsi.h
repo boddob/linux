@@ -174,6 +174,9 @@ ssize_t mipi_dsi_generic_write(struct mipi_dsi_device *dsi, const void *payload,
 ssize_t mipi_dsi_generic_read(struct mipi_dsi_device *dsi, const void *params,
 			      size_t num_params, void *data, size_t size);
 
+struct mipi_dsi_device *mipi_dsi_new_dummy(struct mipi_dsi_host *host, u32 reg);
+void mipi_dsi_unregister_device(struct mipi_dsi_device *dsi);
+
 /**
  * enum mipi_dsi_dcs_tear_mode - Tearing Effect Output Line mode
  * @MIPI_DSI_DCS_TEAR_MODE_VBLANK: the TE output line consists of V-Blanking

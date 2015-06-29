@@ -47,7 +47,14 @@
 
 static int mipi_dsi_device_match(struct device *dev, struct device_driver *drv)
 {
-	return of_driver_match_device(dev, drv);
+	if (of_driver_match_device(dev, drv))
+		return 1;
+
+	if (!strcmp(drv->name, "mipi_dsi_dummy") &&
+			strstr(dev_name(dev), "dummy_dev"))
+		return 1;
+
+	return 0;
 }
 
 static const struct dev_pm_ops mipi_dsi_device_pm_ops = {
@@ -170,6 +177,73 @@ of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 
 	return dsi;
 }
+
+static int dummy_probe(struct mipi_dsi_device *dsi)
+{
+	return 0;
+}
+
+static int dummy_remove(struct mipi_dsi_device *dsi)
+{
+	return 0;
+}
+
+static void dummy_shutdown(struct mipi_dsi_device *dsi)
+{
+}
+
+static struct mipi_dsi_driver dummy_dsi_driver = {
+	.probe = dummy_probe,
+	.remove = dummy_remove,
+	.shutdown = dummy_shutdown,
+	.driver.name = "mipi_dsi_dummy",
+};
+
+static int mipi_dsi_device_add_dummy(struct mipi_dsi_device *dsi)
+{
+	struct mipi_dsi_host *host = dsi->host;
+
+	dev_set_name(&dsi->dev, "%s.dummy_dev.%d", dev_name(host->dev),
+			dsi->channel);
+
+	return device_add(&dsi->dev);
+}
+
+struct mipi_dsi_device *mipi_dsi_new_dummy(struct mipi_dsi_host *host, u32 reg)
+{
+	struct mipi_dsi_device *dsi;
+	struct device *dev = host->dev;
+	int ret;
+
+	if (reg > 3) {
+		dev_err(dev, "invalid reg property %u\n", reg);
+		return ERR_PTR(-EINVAL);
+	}
+
+	dsi = mipi_dsi_device_alloc(host);
+	if (IS_ERR(dsi)) {
+		dev_err(dev, "failed to allocate dummy DSI device %ld\n",
+			PTR_ERR(dsi));
+		return dsi;
+	}
+
+	dsi->channel = reg;
+
+	ret = mipi_dsi_device_add_dummy(dsi);
+	if (ret) {
+		dev_err(dev, "failed to add dummy DSI device %d\n", ret);
+		kfree(dsi);
+		return ERR_PTR(ret);
+	}
+
+	return dsi;
+}
+
+void mipi_dsi_unregister_device(struct mipi_dsi_device *dsi)
+{
+	device_unregister(&dsi->dev);
+}
+EXPORT_SYMBOL(mipi_dsi_unregister_device);
 
 int mipi_dsi_host_register(struct mipi_dsi_host *host)
 {
@@ -924,7 +998,13 @@ EXPORT_SYMBOL(mipi_dsi_driver_unregister);
 
 static int __init mipi_dsi_bus_init(void)
 {
-	return bus_register(&mipi_dsi_bus_type);
+	int ret;
+
+	ret = bus_register(&mipi_dsi_bus_type);
+	if (ret < 0)
+		return ret;
+
+	return mipi_dsi_driver_register(&dummy_dsi_driver);
 }
 postcore_initcall(mipi_dsi_bus_init);
 
