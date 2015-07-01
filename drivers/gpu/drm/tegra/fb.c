@@ -18,7 +18,7 @@ static inline struct tegra_fb *to_tegra_fb(struct drm_framebuffer *fb)
 	return container_of(fb, struct tegra_fb, base);
 }
 
-#ifdef CONFIG_DRM_TEGRA_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 static inline struct tegra_fbdev *to_tegra_fbdev(struct drm_fb_helper *helper)
 {
 	return container_of(helper, struct tegra_fbdev, base);
@@ -181,7 +181,7 @@ unreference:
 	return ERR_PTR(err);
 }
 
-#ifdef CONFIG_DRM_TEGRA_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 static struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_fillrect = drm_fb_helper_sys_fillrect,
@@ -355,24 +355,11 @@ static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 	tegra_fbdev_free(fbdev);
 }
 
-void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)
-{
-	if (fbdev)
-		drm_fb_helper_restore_fbdev_mode_unlocked(&fbdev->base);
-}
-
-void tegra_fb_output_poll_changed(struct drm_device *drm)
-{
-	struct tegra_drm *tegra = drm->dev_private;
-
-	if (tegra->fbdev)
-		drm_fb_helper_hotplug_event(&tegra->fbdev->base);
-}
 #endif
 
 int tegra_drm_fb_prepare(struct drm_device *drm)
 {
-#ifdef CONFIG_DRM_TEGRA_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra->fbdev = tegra_fbdev_create(drm);
@@ -385,7 +372,7 @@ int tegra_drm_fb_prepare(struct drm_device *drm)
 
 void tegra_drm_fb_free(struct drm_device *drm)
 {
-#ifdef CONFIG_DRM_TEGRA_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra_fbdev_free(tegra->fbdev);
@@ -394,7 +381,7 @@ void tegra_drm_fb_free(struct drm_device *drm)
 
 int tegra_drm_fb_init(struct drm_device *drm)
 {
-#ifdef CONFIG_DRM_TEGRA_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct tegra_drm *tegra = drm->dev_private;
 	int err;
 
@@ -409,7 +396,7 @@ int tegra_drm_fb_init(struct drm_device *drm)
 
 void tegra_drm_fb_exit(struct drm_device *drm)
 {
-#ifdef CONFIG_DRM_TEGRA_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra_fbdev_exit(tegra->fbdev);

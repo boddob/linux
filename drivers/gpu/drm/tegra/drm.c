@@ -104,11 +104,17 @@ static int tegra_atomic_commit(struct drm_device *drm,
 	return 0;
 }
 
+static inline void tegra_fb_output_poll_changed(struct drm_device *drm)
+{
+	struct tegra_drm *tegra = drm->dev_private;
+
+	if (tegra->fbdev)
+		drm_fb_helper_hotplug_event(&tegra->fbdev->base);
+}
+
 static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 	.fb_create = tegra_fb_create,
-#ifdef CONFIG_DRM_TEGRA_FBDEV
 	.output_poll_changed = tegra_fb_output_poll_changed,
-#endif
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = tegra_atomic_commit,
 };
@@ -259,11 +265,10 @@ static void tegra_drm_context_free(struct tegra_drm_context *context)
 
 static void tegra_drm_lastclose(struct drm_device *drm)
 {
-#ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_drm *tegra = drm->dev_private;
 
-	tegra_fbdev_restore_mode(tegra->fbdev);
-#endif
+	if (tegra->fbdev)
+		drm_fb_helper_restore_fbdev_mode_unlocked(&tegra->fbdev->base);
 }
 
 static struct host1x_bo *
