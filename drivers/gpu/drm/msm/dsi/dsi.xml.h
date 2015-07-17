@@ -1304,5 +1304,227 @@ static inline uint32_t DSI_20nm_PHY_TIMING_CTRL_11_TRIG3_CMD(uint32_t val)
 
 #define REG_DSI_20nm_PHY_REGULATOR_CAL_PWR_CFG			0x00000018
 
+#define REG_DSI_14nm_PHY_REVISION_ID0				0x00000000
+
+#define REG_DSI_14nm_PHY_REVISION_ID1				0x00000004
+
+#define REG_DSI_14nm_PHY_REVISION_ID2				0x00000008
+
+#define REG_DSI_14nm_PHY_REVISION_ID3				0x0000000c
+
+#define REG_DSI_14nm_PHY_CLK_CFG0				0x00000010
+#define DSI_14nm_PHY_CLK_CFG0_DIV_CTRL_3_0__MASK		0x0000000f
+#define DSI_14nm_PHY_CLK_CFG0_DIV_CTRL_3_0__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_CLK_CFG0_DIV_CTRL_3_0(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_CLK_CFG0_DIV_CTRL_3_0__SHIFT) & DSI_14nm_PHY_CLK_CFG0_DIV_CTRL_3_0__MASK;
+}
+#define DSI_14nm_PHY_CLK_CFG0_DIV_CTRL_4_7__MASK		0x000000f0
+#define DSI_14nm_PHY_CLK_CFG0_DIV_CTRL_4_7__SHIFT		4
+static inline uint32_t DSI_14nm_PHY_CLK_CFG0_DIV_CTRL_4_7(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_CLK_CFG0_DIV_CTRL_4_7__SHIFT) & DSI_14nm_PHY_CLK_CFG0_DIV_CTRL_4_7__MASK;
+}
+
+#define REG_DSI_14nm_PHY_CLK_CFG1				0x00000014
+#define DSI_14nm_PHY_CLK_CFG1_DSICLK_SEL			0x00000001
+
+#define REG_DSI_14nm_PHY_GLBL_TEST_CTRL				0x00000018
+#define DSI_14nm_PHY_GLBL_TEST_CTRL_BITCLK_HS_SEL		0x00000004
+
+#define REG_DSI_14nm_PHY_CTRL_0					0x0000001c
+
+#define REG_DSI_14nm_PHY_CTRL_1					0x00000020
+
+#define REG_DSI_14nm_PHY_CAL_HW_TRIGGER				0x00000024
+
+#define REG_DSI_14nm_PHY_CAL_SW_CFG0				0x00000028
+
+#define REG_DSI_14nm_PHY_CAL_SW_CFG1				0x0000002c
+
+#define REG_DSI_14nm_PHY_CAL_SW_CFG2				0x00000030
+
+#define REG_DSI_14nm_PHY_CAL_HW_CFG0				0x00000034
+
+#define REG_DSI_14nm_PHY_CAL_HW_CFG1				0x00000038
+
+#define REG_DSI_14nm_PHY_CAL_HW_CFG2				0x0000003c
+
+#define REG_DSI_14nm_PHY_CAL_HW_CFG3				0x00000040
+
+#define REG_DSI_14nm_PHY_CAL_HW_CFG4				0x00000044
+
+#define REG_DSI_14nm_PHY_PLL_CNTRL				0x00000048
+
+#define REG_DSI_14nm_PHY_LDO_CNTRL				0x0000004c
+#define DSI_14nm_PHY_LDO_CNTRL_DUMMY_LOAD_EN			0x00000020
+
+#define REG_DSI_14nm_PHY_GLBL_DIGTOP_DEBUG_SEL			0x00000050
+
+#define REG_DSI_14nm_PHY_GLBL_DIGTOP_SPARE0			0x00000054
+
+#define REG_DSI_14nm_PHY_GLBL_DIGTOP_SPARE1			0x00000058
+
+#define REG_DSI_14nm_PHY_GLBL_DIGTOP_SPARE2			0x0000005c
+
+#define REG_DSI_14nm_PHY_GLBL_DIGTOP_SPARE3			0x00000060
+
+#define REG_DSI_14nm_PHY_REGULATOR_CAL_STATUS0			0x00000064
+
+#define REG_DSI_14nm_PHY_REGULATOR_CAL_STATUS1			0x00000068
+
+#define REG_DSI_14nm_PHY_GLBL_DEBUG_BUS0			0x0000006c
+
+#define REG_DSI_14nm_PHY_GLBL_DEBUG_BUS1			0x00000070
+
+#define REG_DSI_14nm_PHY_GLBL_DEBUG_BUS2			0x00000074
+
+#define REG_DSI_14nm_PHY_GLBL_DEBUG_BUS3			0x00000078
+
+static inline uint32_t REG_DSI_14nm_PHY_LN(uint32_t i0) { return 0x00000100 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_CFG0(uint32_t i0) { return 0x00000100 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_CFG0_PGM_DLY_3_0__MASK			0x0000000f
+#define DSI_14nm_PHY_LN_CFG0_PGM_DLY_3_0__SHIFT			0
+static inline uint32_t DSI_14nm_PHY_LN_CFG0_PGM_DLY_3_0(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_CFG0_PGM_DLY_3_0__SHIFT) & DSI_14nm_PHY_LN_CFG0_PGM_DLY_3_0__MASK;
+}
+#define DSI_14nm_PHY_LN_CFG0_PGM_DLY_5_4__MASK			0x00000030
+#define DSI_14nm_PHY_LN_CFG0_PGM_DLY_5_4__SHIFT			4
+static inline uint32_t DSI_14nm_PHY_LN_CFG0_PGM_DLY_5_4(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_CFG0_PGM_DLY_5_4__SHIFT) & DSI_14nm_PHY_LN_CFG0_PGM_DLY_5_4__MASK;
+}
+#define DSI_14nm_PHY_LN_CFG0_PREPARE_DLY__MASK			0x000000c0
+#define DSI_14nm_PHY_LN_CFG0_PREPARE_DLY__SHIFT			6
+static inline uint32_t DSI_14nm_PHY_LN_CFG0_PREPARE_DLY(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_CFG0_PREPARE_DLY__SHIFT) & DSI_14nm_PHY_LN_CFG0_PREPARE_DLY__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_CFG1(uint32_t i0) { return 0x00000104 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_CFG1_HALFBYTECLK_EN			0x00000001
+#define DSI_14nm_PHY_LN_CFG1_SLEW_RATE__MASK			0x000000f0
+#define DSI_14nm_PHY_LN_CFG1_SLEW_RATE__SHIFT			4
+static inline uint32_t DSI_14nm_PHY_LN_CFG1_SLEW_RATE(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_CFG1_SLEW_RATE__SHIFT) & DSI_14nm_PHY_LN_CFG1_SLEW_RATE__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_CFG2(uint32_t i0) { return 0x00000108 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_CFG3(uint32_t i0) { return 0x0000010c + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TEST_DATAPATH(uint32_t i0) { return 0x00000110 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TEST_STR(uint32_t i0) { return 0x00000114 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_4(uint32_t i0) { return 0x00000118 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_4_EXIT__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_4_EXIT__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_4_EXIT(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_4_EXIT__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_4_EXIT__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_5(uint32_t i0) { return 0x0000011c + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_5_ZERO__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_5_ZERO__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_5_ZERO(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_5_ZERO__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_5_ZERO__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_6(uint32_t i0) { return 0x00000120 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_6_PREPARE__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_6_PREPARE__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_6_PREPARE(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_6_PREPARE__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_6_PREPARE__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_7(uint32_t i0) { return 0x00000124 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_7_TRAIL__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_7_TRAIL__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_7_TRAIL(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_7_TRAIL__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_7_TRAIL__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_8(uint32_t i0) { return 0x00000128 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_8_REQUEST__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_8_REQUEST__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_8_REQUEST(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_8_REQUEST__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_8_REQUEST__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_9(uint32_t i0) { return 0x0000012c + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_GO__MASK		0x00000007
+#define DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_GO__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_GO(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_GO__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_GO__MASK;
+}
+#define DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_SURE__MASK		0x00000070
+#define DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_SURE__SHIFT		4
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_SURE(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_SURE__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_SURE__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_10(uint32_t i0) { return 0x00000130 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_10_TA_GET__MASK		0x00000007
+#define DSI_14nm_PHY_LN_TIMING_CTRL_10_TA_GET__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_10_TA_GET(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_10_TA_GET__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_10_TA_GET__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_11(uint32_t i0) { return 0x00000134 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_11_TRIG3_CMD__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_11_TRIG3_CMD__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_11_TRIG3_CMD(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_11_TRIG3_CMD__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_11_TRIG3_CMD__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_STRENGTH_CTRL_0(uint32_t i0) { return 0x00000138 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_STRENGTH_CTRL_1(uint32_t i0) { return 0x0000013c + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_POLY(uint32_t i0) { return 0x00000140 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_SEED0(uint32_t i0) { return 0x00000144 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_SEED1(uint32_t i0) { return 0x00000148 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_HEAD(uint32_t i0) { return 0x0000014c + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_SOT(uint32_t i0) { return 0x00000150 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_CTRL0(uint32_t i0) { return 0x00000154 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_CTRL1(uint32_t i0) { return 0x00000158 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_CTRL2(uint32_t i0) { return 0x0000015c + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_CTRL3(uint32_t i0) { return 0x00000160 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_VREG_CNTRL(uint32_t i0) { return 0x00000164 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_HSTX_STR_STATUS(uint32_t i0) { return 0x00000168 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_STATUS0(uint32_t i0) { return 0x0000016c + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_STATUS1(uint32_t i0) { return 0x00000170 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_STATUS2(uint32_t i0) { return 0x00000174 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_BIST_STATUS3(uint32_t i0) { return 0x00000178 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_MISR_STATUS(uint32_t i0) { return 0x0000017c + 0x80*i0; }
+
 
 #endif /* DSI_XML */
