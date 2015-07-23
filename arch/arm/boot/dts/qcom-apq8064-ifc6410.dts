@@ -1,7 +1,7 @@
 #include "qcom-apq8064-v2.0.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 / {
 	model = "Qualcomm APQ8064/IFC6410";
 	compatible = "qcom,apq8064-ifc6410", "qcom,apq8064";
@@ -201,6 +201,17 @@
 				linux,code = <KEY_POWER>;
 				gpio-key,wakeup;
 			};
+			volume_up {
+				label = "Volume Up";
+				gpios = <&pm8921_gpio 4 GPIO_ACTIVE_HIGH>;
+				linux,code = <KEY_VOLUMEUP>;
+			};
+			volume_down {
+				label = "Volume Down";
+				gpios = <&pm8921_gpio 38 GPIO_ACTIVE_HIGH>;
+				linux,code = <KEY_VOLUMEDOWN>;
+			};
 		};
+
 	};
 };
