@@ -1,0 +1,27 @@
+JDI model LT070ME05000 1920x1200 7" DSI Panel
+
+Basic data sheet is at:
+	http://panelone.net/en/7-0-inch/JDI_LT070ME05000_7.0_inch-datasheet
+
+This panel has command mode implemented currently in the driver.
+
+Required properties:
+- compatible: should be "jdi,lt070me05000"
+
+Optional properties:
+- power-supply: phandle of the regulator that provides the supply voltage
+- reset-gpio: phandle of gpio for reset line
+- backlight: phandle of the backlight device attached to the panel
+
+Example:
+
+	dsi@54300000 {
+		panel: panel@0 {
+			compatible = "jdi,lt070me05000";
+			reg = <0>;
+
+			power-supply = <...>;
+			reset-gpio = <...>;
+			backlight = <...>;
+		};
+	};

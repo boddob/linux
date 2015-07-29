@@ -123,6 +123,11 @@
 					bias-pull-down;
 				};
 
+				pm8921_lvs5: lvs5 {
+					bias-pull-down;
+					//regulator-boot-on;
+				};
+
 				pm8921_lvs7: lvs7 {
 					bias-pull-down;
 					regulator-name = "pm8921_lvs7";
@@ -209,7 +214,7 @@
 
 			panel@0 {
 				reg = <0>;
-				compatible = "truly,otm8018b";
+				compatible = "jdi,lt070me05000";
 
 				reset-gpio = <&pm8821_mpps 2 0>;
 
@@ -218,7 +223,7 @@
 				/*backlight = <&backlight>;*/
 
 				port {
-					truly_in: endpoint {
+					panel_in: endpoint {
 						remote-endpoint = <&dsi_out>;
 					};
 				};
@@ -226,7 +231,7 @@
 
 			port {
 				dsi_out: endpoint {
-					remote-endpoint = <&truly_in>;
+					remote-endpoint = <&panel_in>;
 				};
 			};
 		};
