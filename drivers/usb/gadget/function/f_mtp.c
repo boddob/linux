@@ -1434,12 +1434,12 @@ struct usb_function *function_alloc_mtp_ptp(struct usb_function_instance *fi,
 	 * function with a gadget configuration.
 	 */
 	if (fi_mtp->dev == NULL) {
-		pr_err("Error: Create MTP function before linking
-				PTP function with a gadget configuration\n");
+		pr_err("Error: Create MTP function before linking\n"
+			"	PTP function with a gadget configuration\n");
 		pr_err("\t1: Delete existing PTP function if any\n");
 		pr_err("\t2: Create MTP function\n");
-		pr_err("\t3: Create and symlink PTP function
-				with a gadget configuration\n");
+		pr_err("\t3: Create and symlink PTP function\n"
+			"\t	with a gadget configuration\n");
 		return NULL;
 	}
 
