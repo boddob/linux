@@ -53,7 +53,7 @@ static void dsi_14nm_dphy_set_timing(struct msm_dsi_phy *phy,
 }
 
 static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
-		const unsigned long bit_rate, const unsigned long esc_rate)
+				struct msm_dsi_phy_clk_request *clk_req)
 {
 	struct msm_dsi_dphy_timing *timing = &phy->timing;
 	u32 data;
@@ -61,7 +61,7 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	int ret;
 	void __iomem *base = phy->base;
 
-	if (msm_dsi_dphy_timing_calc_v2(timing, bit_rate, esc_rate)) {
+	if (msm_dsi_dphy_timing_calc_v2(timing, clk_req)) {
 		dev_err(&phy->pdev->dev,
 			"%s: D-PHY timing calculation failed\n", __func__);
 		return -EINVAL;
