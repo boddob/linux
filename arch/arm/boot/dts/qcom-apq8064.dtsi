@@ -702,6 +702,34 @@
 			};
 		};
 
+                qcom,ssbi@c00000 {
+                        compatible = "qcom,ssbi";
+                        reg = <0x00c00000 0x1000>;
+                        qcom,controller-type = "pmic-arbiter";
+
+                        pmicintc2: pmic@1 {
+                                compatible = "qcom,pm8821";
+                                interrupt-parent = <&tlmm_pinmux>;
+                                interrupts = <76 8>;
+                                #interrupt-cells = <2>;
+                                interrupt-controller;
+                                #address-cells = <1>;
+                                #size-cells = <0>;
+
+                                pma8821_mpps: mpps@50 {
+
+                                        compatible = "qcom,pm8821-mpp";
+                                        reg = <0x50>;
+
+                                        interrupts = <24 1>, <25 1>, <26 1>,
+                                                     <27 1>;
+
+                                        gpio-controller;
+                                        #gpio-cells = <2>;
+                                };
+                        };
+                };
+
 		qfprom: qfprom@00700000 {
 			compatible	= "qcom,qfprom";
 			reg		= <0x00700000 0x1000>;

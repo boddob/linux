@@ -1,6 +1,7 @@
 #include "qcom-apq8064-v2.0.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+#include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 
 / {
 	model = "Qualcomm APQ8064/IFC6410";
@@ -363,6 +364,26 @@
 				};
 			};
 		};
+
+                qcom,ssbi@c00000 {
+
+                        pmicintc2: pmic@1 {
+
+                                pm8821_mpps: mpps@50 {
+                                        pinctrl-names = "default";
+                                        pinctrl-0 = <&led_mpp>;
+                                        led_mpp:  led-mpp{
+                                                pios {
+                                                        pins = "mpp1";
+                                                        function = "digital";
+                                                        power-source = <PM8921_GPIO_S4>;
+                                                        drive-strength = <PM8821_MPP_VPH>;
+                                                };
+                                        };
+                                };
+                        };
+                };
+
 		sdcc4_pwrseq:pwrseq {
 			compatible = "mmc-pwrseq-simple";
 			reset-gpios = <&pm8921_gpio 43 GPIO_ACTIVE_LOW>,
