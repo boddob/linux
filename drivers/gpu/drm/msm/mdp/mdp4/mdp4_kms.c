@@ -251,6 +251,7 @@ int mdp4_enable(struct mdp4_kms *mdp4_kms)
 	return 0;
 }
 
+#ifdef CONFIG_DRM_MSM_LVDS
 #ifdef CONFIG_OF
 static struct drm_panel *detect_panel(struct drm_device *dev)
 {
@@ -287,6 +288,7 @@ static struct drm_panel *detect_panel(struct drm_device *dev)
 	// ??? maybe use a module param to specify which panel is attached?
 }
 #endif
+#endif
 
 static int modeset_init(struct mdp4_kms *mdp4_kms)
 {
@@ -295,8 +297,10 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
+#ifdef CONFIG_DRM_MSM_LVDS
 	struct drm_connector *connector;
 	struct drm_panel *panel;
+#endif
 	int ret;
 
 	/* construct non-private planes: */
@@ -316,6 +320,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	}
 	priv->planes[priv->num_planes++] = plane;
 
+#ifdef CONFIG_DRM_MSM_LVDS
 	/*
 	 * Setup the LCDC/LVDS path: RGB2 -> DMA_P -> LCDC -> LVDS:
 	 */
@@ -362,7 +367,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	}
 
 	priv->connectors[priv->num_connectors++] = connector;
-
+#endif
 	/*
 	 * Setup DTV/HDMI path: RGB1 -> DMA_E -> DTV -> HDMI:
 	 */
