@@ -1388,11 +1388,16 @@
 			};
 		};
 
+		mmss_sfpb: syscon@5700000 {
+			compatible = "syscon";
+			reg = <0x5700000 0x70>;
+		};
+
 		mdp: qcom,mdp@5100000 {
 			compatible = "qcom,mdp";
 			reg = <0x05100000 0xf0000>;
 			interrupts = <GIC_SPI 75 0>;
-			connectors = <&hdmi>;
+			connectors = <&hdmi>, <&dsi0>;
 			gpus = <&gpu>;
 			clock-names =
 			    "core_clk",
@@ -1413,6 +1418,49 @@
 
 			iommus = <&mdp_port0 0 2
 				  &mdp_port1 0 2>;
+		};
+
+		dsi0: qcom,mdss_dsi@4700000 {
+			compatible = "qcom,mdss-dsi-ctrl";
+			label = "MDSS DSI CTRL->0";
+			qcom,dsi-host-index = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 82 0>;
+			reg = <0x04700000 0x200>;
+			reg-names = "dsi_ctrl";
+
+			clocks = <&mmcc DSI_M_AHB_CLK>,
+				 <&mmcc DSI_S_AHB_CLK>,
+				 <&mmcc AMP_AHB_CLK>,
+				 <&mmcc DSI_CLK>,
+				 <&mmcc DSI1_BYTE_CLK>,
+				 <&mmcc DSI_PIXEL_CLK>,
+				 <&mmcc DSI1_ESC_CLK>,
+				 <&mmcc DSI1_BYTE_SRC>,
+				 <&mmcc DSI1_ESC_SRC>,
+				 <&mmcc DSI_SRC>,
+				 <&mmcc DSI_PIXEL_SRC>;
+	                clock-names = "iface_clk", "bus_clk", "core_mmss_clk",
+				      "src_clk", "byte_clk", "pixel_clk",
+				      "core_clk", "byte_clk_src", "esc_clk_src",
+				      "dsi_clk_src", "pixel_clk_src";
+
+			syscon-sfpb = <&mmss_sfpb>;
+			qcom,dsi-phy = <&dsi0_phy>;
+		};
+
+		dsi0_phy: qcom,mdss_dsi_phy@4700200 {
+			compatible = "qcom,dsi-phy-28nm-8960";
+			qcom,dsi-phy-index = <0>;
+			#clock-cells = <1>;
+
+			reg = <0x04700200 0x50>,
+			      <0x04700300 0x200>,
+			      <0x04700500 0x5c>;
+			reg-names = "dsi_pll", "dsi_phy", "dsi_phy_regulator";
+			clock-names = "iface_clk";
+			clocks = <&mmcc DSI_M_AHB_CLK>;
 		};
 
 		mdp_port0: qcom,iommu@7500000 {
