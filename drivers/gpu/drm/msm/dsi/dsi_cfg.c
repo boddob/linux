@@ -13,9 +13,20 @@
 
 #include "dsi_cfg.h"
 
-/* DSI v2 has not been supported by now */
-static const struct msm_dsi_config dsi_v2_cfg = {
+static const struct msm_dsi_config apq8064_dsi_cfg = {
 	.io_offset = 0,
+	.reg_cfg = {
+		.num = 5,
+		.regs = {
+			{"gdsc", -1, -1, -1, -1},
+			{"vdda", 1200000, 1200000, 100000, 100},
+			{"vdd", 3300000, 3300000, 150000, 100},
+			{"vddio", 3300000, 3300000, 150000, 100},
+			{"avdd", 3300000, 3300000, 150000, 100},
+			{"iovdd", 1800000, 1800000, 100000, 100},
+			{"vccs", 3300000, 3300000, 150000, 100},
+		},
+	},
 };
 
 static const struct msm_dsi_config msm8974_apq8084_dsi_cfg = {
@@ -61,7 +72,7 @@ static const struct msm_dsi_config msm8994_dsi_cfg = {
 };
 
 static const struct msm_dsi_cfg_handler dsi_cfg_handlers[] = {
-	{MSM_DSI_VER_MAJOR_V2, U32_MAX, &dsi_v2_cfg},
+	{MSM_DSI_VER_MAJOR_V2, MSM_DSI_V2_VER_MINOR_8064, &apq8064_dsi_cfg},
 	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_0,
 						&msm8974_apq8084_dsi_cfg},
 	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_1,
