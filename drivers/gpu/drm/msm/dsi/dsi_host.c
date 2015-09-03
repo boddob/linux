@@ -102,6 +102,9 @@ struct msm_dsi_host {
 	struct clk *pixel_clk_src;
 
 	u32 byte_clk_rate;
+	/* additional clock rates for DSI v2 */
+	u32 dsi_src_clk_rate;
+	u32 dsi_vco_clk_rate;
 
 	struct gpio_desc *disp_en_gpio;
 	struct gpio_desc *te_gpio;
@@ -513,7 +516,8 @@ unlock_ret:
 	return ret;
 }
 
-static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
+/* for dsi 6g, we only need byte clock rate */
+static int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host)
 {
 	struct drm_display_mode *mode = msm_host->mode;
 	u8 lanes = msm_host->lanes;
@@ -526,6 +530,7 @@ static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
 	}
 
 	pclk_rate = mode->clock * 1000;
+
 	if (lanes > 0) {
 		msm_host->byte_clk_rate = (pclk_rate * bpp) / (8 * lanes);
 	} else {
@@ -536,6 +541,54 @@ static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
 	DBG("pclk=%d, bclk=%d", pclk_rate, msm_host->byte_clk_rate);
 
 	return 0;
+}
+
+static int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host)
+{
+	struct drm_display_mode *mode = msm_host->mode;
+	u8 lanes = msm_host->lanes;
+	u32 bpp = dsi_get_bpp(msm_host->format);
+	u32 pclk_rate, bit_clk_rate;
+	u32 bit_mhz;
+	int factor;
+
+	if (!mode) {
+		pr_err("%s: mode not set\n", __func__);
+		return -EINVAL;
+	}
+
+	pclk_rate = mode->clock * 1000;
+
+	if (lanes > 0) {
+		bit_clk_rate = (pclk_rate * bpp) / lanes;
+	} else {
+		pr_err("%s: forcing mdss_dsi lanes to 1\n", __func__);
+		bit_clk_rate = pclk_rate * bpp;
+	}
+
+	bit_mhz = bit_clk_rate / 1000000;
+
+	factor = bit_mhz < 125 ? 8 : bit_mhz < 250 ? 4 : bit_mhz < 600 ? 2 : 1;
+
+	msm_host->dsi_vco_clk_rate = factor * bit_clk_rate;
+	msm_host->dsi_src_clk_rate = pclk_rate * bpp;
+	msm_host->byte_clk_rate = bit_clk_rate / 8;
+
+	DBG("pclk=%d, bclk=%d, vco_clk=%d, src_clk=%d", pclk_rate,
+		msm_host->byte_clk_rate, msm_host->dsi_vco_clk_rate,
+		msm_host->dsi_src_clk_rate);
+
+	return 0;
+}
+
+static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
+{
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G)
+		return dsi_calc_clk_rate_6g(msm_host);
+	else
+		return dsi_calc_clk_rate_v2(msm_host);
 }
 
 static void dsi_phy_sw_reset(struct msm_dsi_host *msm_host)
