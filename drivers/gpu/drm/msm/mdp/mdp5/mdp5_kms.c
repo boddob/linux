@@ -703,7 +703,8 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(i), 0x3);
 	}
-	mdp5_disable(mdp5_kms);
+	/* TODO: Remove this after runtime pm adaptation */
+	//mdp5_disable(mdp5_kms);
 	mdelay(16);
 
 	if (config->platform.iommu) {
