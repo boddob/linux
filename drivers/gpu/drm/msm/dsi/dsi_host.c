@@ -101,7 +101,7 @@ struct msm_dsi_host {
 	struct clk *byte_clk_src;
 	struct clk *pixel_clk_src;
 	/* additional clocks for DSI v2 */
-	struct clk *arb_clk;
+	//struct clk *arb_clk;
 	struct clk *src_clk;
 	struct clk *vco_clk;
 
@@ -389,8 +389,8 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 	msm_host->vco_clk = devm_clk_get(dev, "vco_clk");
 	printk(KERN_ERR "vco_clk %p\n", msm_host->vco_clk);
 
-	msm_host->arb_clk = devm_clk_get(dev, "arb_clk");
-	printk(KERN_ERR "arb_clk %p\n", msm_host->arb_clk);
+	//msm_host->arb_clk = devm_clk_get(dev, "arb_clk");
+	//printk(KERN_ERR "arb_clk %p\n", msm_host->arb_clk);
 exit:
 	return ret;
 }
@@ -445,10 +445,11 @@ static int dsi_bus_clk_enable_v2(struct msm_dsi_host *msm_host)
 
 	DBG("id=%d", msm_host->id);
 
-	ret = clk_prepare_enable(msm_host->arb_clk);
+	ret = clk_prepare_enable(msm_host->mmss_misc_ahb_clk);
+	//ret = clk_prepare_enable(msm_host->arb_clk);
 	ret = clk_prepare_enable(msm_host->ahb_clk);
 	ret = clk_prepare_enable(msm_host->axi_clk);
-	ret = clk_prepare_enable(msm_host->mmss_misc_ahb_clk);
+	//ret = clk_prepare_enable(msm_host->mmss_misc_ahb_clk);
 
 	/* enable sfpb */
 
