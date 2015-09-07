@@ -19,6 +19,7 @@
 #include <drm/drm_encoder_slave.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_mipi_dsi.h>
 
 #include "adv7511.h"
 
@@ -57,6 +58,9 @@ struct adv7511 {
 	struct edid *edid;
 
 	struct gpio_desc *gpio_pd;
+
+	struct mipi_dsi_device *dsi;
+	int num_dsi_lanes;
 
 	enum adv7511_type type;
 };
@@ -403,8 +407,10 @@ static void adv7511_dsi_receiver_dpms(struct adv7511 *adv7511)
 		return;
 
 	if (adv7511->powered) {
+		struct mipi_dsi_device *dsi = adv7511->dsi;
+
 		/* set number of dsi lanes (hardcoded to 4 for now) */
-		regmap_write(adv7511->regmap_cec, 0x1c, 0x4 << 4);
+		regmap_write(adv7511->regmap_cec, 0x1c, dsi->lanes << 4);
 		/* disable internal timing generator */
 		regmap_write(adv7511->regmap_cec, 0x27, 0x0b);
 		/* enable hdmi */
@@ -1087,7 +1093,7 @@ static const struct of_device_id adv7511_of_ids[] = {
 	{ .compatible = "adi,adv7511", .data = (void *) ADV7511 },
 	{ .compatible = "adi,adv7511w", .data = (void *) ADV7511 },
 	{ .compatible = "adi,adv7513", .data = (void *) ADV7511 },
-	{ .compatible = "adi,adv7533", .data = (void *) ADV7533 },
+	{ .compatible = "adi,adv7533-i2c", .data = (void *) ADV7533 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adv7511_of_ids);
@@ -1293,8 +1299,92 @@ static struct drm_i2c_encoder_driver adv7511_driver = {
 	.encoder_init = adv7511_encoder_init,
 };
 
+static struct of_device_id adv7533_of_match[] = {
+	{ .compatible = "adi,adv7533-dsi" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, adv7533_of_match);
+
+static int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv7511)
+{
+	u32 num_lanes;
+
+	of_property_read_u32(np, "adi,dsi-lanes", &num_lanes);
+
+	if (num_lanes < 1 || num_lanes > 4)
+		return -EINVAL;
+
+	adv7511->num_dsi_lanes = num_lanes;
+
+	/* TODO: Check if these need to be parsed by DT or not */
+	adv7511->rgb = true;
+	adv7511->embedded_sync = false;
+
+	return 0;
+}
+
+static int adv7533_probe(struct mipi_dsi_device *dsi)
+{
+	struct device *dev = &dsi->dev;
+	struct adv7511 *adv7511;
+	struct device_node *np = dsi->dev.of_node;
+	struct device_node *i2c_node;
+	struct i2c_client *i2c;
+	int ret;
+
+	i2c_node = of_parse_phandle(np, "i2c-control", 0);
+	if (!i2c_node)
+		return -ENODEV;
+
+	i2c = of_find_i2c_device_by_node(i2c_node);
+	if (!i2c)
+		return -EPROBE_DEFER;
+
+	adv7511 = i2c_get_clientdata(i2c);
+	if (!adv7511)
+		return -ENODEV;
+
+	/* this sets up link between the two drivers */
+	adv7511->dsi = dsi;
+
+	mipi_dsi_set_drvdata(dsi, adv7511);
+
+	ret = adv7533_parse_dt(np, adv7511);
+	if (ret)
+		return ret;
+
+	dsi->lanes = adv7511->num_dsi_lanes;
+	dsi->format = MIPI_DSI_FMT_RGB888;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE
+			| MIPI_DSI_MODE_EOT_PACKET | MIPI_DSI_MODE_VIDEO_HSE;
+
+	return mipi_dsi_attach(dsi);
+}
+
+static int adv7533_remove(struct mipi_dsi_device *dsi)
+{
+	mipi_dsi_detach(dsi);
+
+	return 0;
+}
+
+static struct mipi_dsi_driver adv7533_driver = {
+	.probe = adv7533_probe,
+	.remove = adv7533_remove,
+	.driver = {
+		.name = "adv7533",
+		.of_match_table = adv7533_of_match,
+	},
+};
+
 static int __init adv7511_init(void)
 {
+	int ret;
+
+	ret = mipi_dsi_driver_register(&adv7533_driver);
+	if (ret)
+		DRM_DEBUG("mipi driver register failed %d\n", ret);
+
 	return drm_i2c_encoder_register(THIS_MODULE, &adv7511_driver);
 }
 module_init(adv7511_init);
@@ -1302,6 +1392,7 @@ module_init(adv7511_init);
 static void __exit adv7511_exit(void)
 {
 	drm_i2c_encoder_unregister(&adv7511_driver);
+	mipi_dsi_driver_unregister(&adv7533_driver);
 }
 module_exit(adv7511_exit);
 
