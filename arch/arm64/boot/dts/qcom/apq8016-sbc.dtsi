@@ -162,13 +162,12 @@
 &blsp_i2c4 {
 	status = "ok";
 
-	adv_bridge: bridge@39 {
+	adv_i2c: bridge@39 {
 		status = "ok";
-		compatible = "adi,adv7533";
+		compatible = "adi,adv7533-i2c";
 		reg = <0x39>;
 		interrupt-parent = <&msmgpio>;
 		//interrupts = <31 2>;
-		adi,dsi-lanes = <4>;
 		pd-gpios = <&msmgpio 32 0>;
 		pinctrl-names = "default","sleep";
 		pinctrl-0 = <&adv7533_int_active &adv7533_switch_active>;
@@ -187,9 +186,18 @@
 &mdss_dsi0 {
 	status = "ok";
 
+	adv_dsi: bridge@0 {
+		status = "ok";
+		compatible = "adi,adv7533-dsi";
+		adi,dsi-lanes = <4>;
+		reg = <0x0>;
+		i2c-control = <&adv_i2c>;
+	};
+
 	port {
 		dsi_out: endpoint {
 			remote-endpoint = <&adv_in>;
+		};
 	};
 };
 
@@ -226,7 +234,7 @@
 			sound-dai = <&lpass MI2S_QUATERNARY>;
 		};
 		codec {
-			sound-dai = <&adv_bridge 0>;
+			sound-dai = <&adv_i2c 0>;
 		};
 	};
 };
