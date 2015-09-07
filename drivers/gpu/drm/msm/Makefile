@@ -55,6 +55,7 @@ msm-$(CONFIG_DRM_MSM_LVDS) += mdp/mdp4/mdp4_lcdc_encoder.o \
         mdp/mdp4/mdp4_lvds_connector.o
 
 msm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi.o \
+			mdp/mdp4/mdp4_dsi_encoder.o \
 			dsi/dsi_cfg.o \
 			dsi/dsi_host.o \
 			dsi/dsi_manager.o \
