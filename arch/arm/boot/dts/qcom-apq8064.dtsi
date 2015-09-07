@@ -1115,7 +1115,7 @@
 			compatible = "qcom,mdp";
 			reg = <0x05100000 0xf0000>;
 			interrupts = <GIC_SPI 75 0>;
-			connectors = <&hdmi>;
+			connectors = <&hdmi>, <&dsi0>;
 			gpus = <&gpu>;
 			clock-names =
 			    "core_clk",
