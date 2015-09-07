@@ -301,6 +301,8 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	struct drm_connector *connector;
 	struct drm_panel *panel;
 #endif
+	int dsi_id = 0;
+	struct drm_encoder *dsi_encs[MSM_DSI_ENCODER_NUM];
 	int ret;
 
 	/* construct non-private planes: */
@@ -319,6 +321,46 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 		goto fail;
 	}
 	priv->planes[priv->num_planes++] = plane;
+
+#ifdef CONFIG_DRM_MSM_DSI
+	/*
+         * Setup the DSI path: RGB2 -> DMA_P -> DSI:
+         */
+        plane = mdp4_plane_init(dev, RGB2, true);
+        if (IS_ERR(plane)) {
+                dev_err(dev->dev, "failed to construct plane for RGB3\n");
+                ret = PTR_ERR(plane);
+                goto fail;
+        }
+
+        crtc  = mdp4_crtc_init(dev, plane, priv->num_crtcs, 0, DMA_P);
+        if (IS_ERR(crtc)) {
+                dev_err(dev->dev, "failed to construct crtc for DMA_P\n");
+                ret = PTR_ERR(crtc);
+                goto fail;
+        }
+
+        dsi_encs[0] = mdp4_dsi_encoder_init(dev);
+        if (IS_ERR(dsi_encs[0])) {
+                dev_err(dev->dev, "failed to construct DSI encoder\n");
+                ret = PTR_ERR(dsi_encs[0]);
+                goto fail;
+        }
+
+        dsi_encs[0]->possible_crtcs = 1 << priv->num_crtcs;
+
+        priv->crtcs[priv->num_crtcs++] = crtc;
+        priv->encoders[priv->num_encoders++] = dsi_encs[0];
+
+        /* Create DSI connector/bridge: */
+        if (priv->dsi[dsi_id]) {
+                ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, dsi_encs);
+                if (ret) {
+                        dev_err(dev->dev, "failed to initialize DSI\n");
+                        goto fail;
+                }
+        }
+#endif
 
 #ifdef CONFIG_DRM_MSM_LVDS
 	/*
