@@ -142,6 +142,19 @@ int msm_dsi_dphy_timing_calc(struct msm_dsi_dphy_timing *timing,
 	return 0;
 }
 
+void msm_dsi_phy_pre_enable(struct msm_dsi_phy *phy)
+{
+	dsi_phy_write(phy->base + 0x214, 0x50);
+}
+
+void msm_dsi_phy_post_disable(struct msm_dsi_phy *phy)
+{
+	dsi_phy_write(phy->base + 0x214, 0x5f);
+	dsi_phy_write(phy->reg_base, 0x02);
+	dsi_phy_write(phy->base + 0x170, 0x00);
+	dsi_phy_write(phy->base + 0x174, 0x7f);
+}
+
 void msm_dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
 				u32 bit_mask)
 {

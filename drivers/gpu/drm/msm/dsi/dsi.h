@@ -93,6 +93,8 @@ int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg);
 bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 iova, u32 len);
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi);
 void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi);
+void msm_dsi_manager_phy_pre_enable(int id);
+void msm_dsi_manager_phy_post_disable(int id);
 
 /* msm dsi */
 static inline bool msm_dsi_device_connected(struct msm_dsi *msm_dsi)
@@ -173,6 +175,8 @@ void msm_dsi_phy_disable(struct msm_dsi_phy *phy);
 void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,
 					u32 *clk_pre, u32 *clk_post);
 struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy);
+void msm_dsi_phy_pre_enable(struct msm_dsi_phy *phy);
+void msm_dsi_phy_post_disable(struct msm_dsi_phy *phy);
 
 #endif /* __DSI_CONNECTOR_H__ */
 

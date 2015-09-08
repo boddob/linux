@@ -109,6 +109,7 @@ struct msm_dsi_host {
 	/* additional clock rates for DSI v2 */
 	u32 dsi_src_clk_rate;
 	u32 dsi_vco_clk_rate;
+	u32 esc_clk_rate;
 
 	struct gpio_desc *disp_en_gpio;
 	struct gpio_desc *te_gpio;
@@ -439,6 +440,19 @@ core_clk_err:
 	return ret;
 }
 
+static void sfpb_enable(void)
+{
+	void __iomem *base = ioremap(0x5700000, SZ_512);
+	u32 val = readl(base + 0x58);
+
+	val |= 0x1800;
+	writel(val, base + 0x58);
+
+	wmb();
+
+	iounmap(base);
+}
+
 static int dsi_bus_clk_enable_v2(struct msm_dsi_host *msm_host)
 {
 	int ret;
@@ -452,6 +466,7 @@ static int dsi_bus_clk_enable_v2(struct msm_dsi_host *msm_host)
 	//ret = clk_prepare_enable(msm_host->mmss_misc_ahb_clk);
 
 	/* enable sfpb */
+	sfpb_enable();
 
 	return ret;
 }
@@ -480,7 +495,7 @@ static void dsi_bus_clk_disable_v2(struct msm_dsi_host *msm_host)
 	DBG("");
 	clk_disable_unprepare(msm_host->ahb_clk);
 	clk_disable_unprepare(msm_host->axi_clk);
-	clk_disable_unprepare(msm_host->axi_clk);
+	clk_disable_unprepare(msm_host->mmss_misc_ahb_clk);
 
 	/* disable sfpb */
 	/* clk_disable_unprepare(msm_host->mmss_misc_ahb_clk); */
@@ -680,6 +695,7 @@ static int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host)
 		msm_host->byte_clk_rate = (pclk_rate * bpp) / 8;
 	}
 
+	msm_host->esc_clk_rate = clk_get_rate(msm_host->esc_clk);
 	DBG("pclk=%d, bclk=%d", pclk_rate, msm_host->byte_clk_rate);
 
 	return 0;
@@ -713,12 +729,15 @@ static int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host)
 	factor = bit_mhz < 125 ? 8 : bit_mhz < 250 ? 4 : bit_mhz < 600 ? 2 : 1;
 
 	msm_host->dsi_vco_clk_rate = factor * bit_clk_rate;
-	msm_host->dsi_src_clk_rate = pclk_rate * bpp;
+	msm_host->dsi_src_clk_rate = (pclk_rate * bpp) / 8;
 	msm_host->byte_clk_rate = bit_clk_rate / 8;
 
-	DBG("pclk=%d, bclk=%d, vco_clk=%d, src_clk=%d", pclk_rate,
-		msm_host->byte_clk_rate, msm_host->dsi_vco_clk_rate,
-		msm_host->dsi_src_clk_rate);
+	msm_host->esc_clk_rate = msm_host->byte_clk_rate / 4;
+
+	DBG("pclk=%d, bit=%d, byte=%d, vco=%d, src=%d esc=%d\n",
+		pclk_rate, bit_clk_rate, msm_host->byte_clk_rate,
+		msm_host->dsi_vco_clk_rate, msm_host->dsi_src_clk_rate,
+		msm_host->esc_clk_rate);
 
 	return 0;
 }
@@ -2079,10 +2098,12 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 		goto fail_disable_reg;
 	}
 
+	msm_dsi_manager_phy_pre_enable(msm_host->id);
+
 	dsi_phy_sw_reset(msm_host);
 	ret = msm_dsi_manager_phy_enable(msm_host->id,
 					msm_host->byte_clk_rate * 8,
-					clk_get_rate(msm_host->esc_clk),
+					msm_host->esc_clk_rate,
 					&clk_pre, &clk_post);
 	dsi_bus_clk_disable(msm_host);
 	if (ret) {
@@ -2142,6 +2163,7 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 	pinctrl_pm_select_sleep_state(&msm_host->pdev->dev);
 
 	msm_dsi_manager_phy_disable(msm_host->id);
+	msm_dsi_manager_phy_post_disable(msm_host->id);
 
 	dsi_clk_ctrl(msm_host, 0);
 

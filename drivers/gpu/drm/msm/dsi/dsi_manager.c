@@ -314,7 +314,8 @@ static int dsi_mgr_connector_mode_valid(struct drm_connector *connector,
 
 	DBG("");
 	requested = 1000 * mode->clock;
-	actual = kms->funcs->round_pixclk(kms, requested, encoder);
+	//actual = kms->funcs->round_pixclk(kms, requested, encoder);
+	actual = 1000 * mode->clock;
 
 	DBG("requested=%ld, actual=%ld", requested, actual);
 	if (actual != requested)
@@ -666,6 +667,22 @@ void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge)
 {
 }
 
+void msm_dsi_manager_phy_pre_enable(int id)
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi_phy *phy = msm_dsi->phy;
+
+	msm_dsi_phy_pre_enable(phy);
+}
+
+void msm_dsi_manager_phy_post_disable(int id)
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi_phy *phy = msm_dsi->phy;
+
+	msm_dsi_phy_post_disable(phy);
+}
+
 int msm_dsi_manager_phy_enable(int id,
 		const unsigned long bit_rate, const unsigned long esc_rate,
 		u32 *clk_pre, u32 *clk_post)
@@ -675,6 +692,8 @@ int msm_dsi_manager_phy_enable(int id,
 	int src_pll_id = IS_DUAL_DSI() ? DSI_CLOCK_MASTER : id;
 	struct msm_dsi_pll *pll = msm_dsi_phy_get_pll(msm_dsi->phy);
 	int ret;
+
+	printk(KERN_ERR "bit rate %d, esc rate %d\n", bit_rate, esc_rate);
 
 	ret = msm_dsi_phy_enable(phy, src_pll_id, bit_rate, esc_rate);
 	if (ret)

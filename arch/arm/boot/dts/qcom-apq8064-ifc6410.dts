@@ -200,9 +200,21 @@
 
 				reset-gpio = <&pm8821_mpps 2 0>;
 
-                               /* TODO: Update backlight stuff */
-                               power-supply = <&pm8921_l8>;
-                               /*backlight = <&backlight>;*/
+				/* TODO: Update backlight stuff */
+				power-supply = <&pm8921_l8>;
+				/*backlight = <&backlight>;*/
+
+				port {
+					truly_in: endpoint {
+						remote-endpoint = <&dsi_out>;
+					};
+				};
+			};
+
+			port {
+				dsi_out: endpoint {
+					remote-endpoint = <&truly_in>;
+				};
 			};
 		};
 
