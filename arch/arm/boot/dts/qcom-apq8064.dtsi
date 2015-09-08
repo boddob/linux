@@ -716,7 +716,7 @@
                                 #address-cells = <1>;
                                 #size-cells = <0>;
 
-                                pma8821_mpps: mpps@50 {
+                                pm8821_mpps: mpps@50 {
 
                                         compatible = "qcom,pm8821-mpp";
                                         reg = <0x50>;

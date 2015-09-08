@@ -95,6 +95,12 @@
 					bias-pull-down;
 				};
 
+				pm8921_l8: l8 {
+                                        regulator-name = "pm8921_l8";
+                                        regulator-min-microvolt = <3300000>;
+                                        regulator-max-microvolt = <3300000>;
+                                };
+
 				pm8921_l23: l23 {
 					regulator-min-microvolt = <1700000>;
 					regulator-max-microvolt = <1900000>;
@@ -184,12 +190,23 @@
             		};
 		};
 
-		dsi0: qcom,dsi0@4700000 {
+		dsi0: qcom,mdss_dsi@4700000 {
 			status = "okay";
 			vdd-supply = <&pm8921_l2>;/*VDD_MIPI1 to 4*/
+
+			panel@0 {
+				reg = <0>;
+				compatible = "truly,otm8018b";
+
+				reset-gpio = <&pm8821_mpps 2 0>;
+
+                               /* TODO: Update backlight stuff */
+                               power-supply = <&pm8921_l8>;
+                               /*backlight = <&backlight>;*/
+			};
 		};
 
-		mdp_dsi_phy0: qcom,mdp_dsi_phy@4700200 {
+		mdp_dsi_phy0: qcom,mdss_dsi_phy@4700200 {
 			status = "okay";
 			vddio-supply = <&pm8921_lvs7>;/*VDD_PLL2_1 to 7*/
 		};
@@ -384,10 +401,18 @@
 
                                 pm8821_mpps: mpps@50 {
                                         pinctrl-names = "default";
-                                        pinctrl-0 = <&led_mpp>;
+                                        pinctrl-0 = <&led_mpp>, <&disp_rst>;
                                         led_mpp:  led-mpp{
                                                 pios {
                                                         pins = "mpp1";
+                                                        function = "digital";
+                                                        power-source = <PM8921_GPIO_S4>;
+                                                        drive-strength = <PM8821_MPP_VPH>;
+                                                };
+                                        };
+					disp_rst:  disp-rst{
+                                                pios {
+                                                        pins = "mpp2";
                                                         function = "digital";
                                                         power-source = <PM8921_GPIO_S4>;
                                                         drive-strength = <PM8821_MPP_VPH>;
