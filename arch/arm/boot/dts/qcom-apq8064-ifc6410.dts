@@ -56,6 +56,7 @@
 					regulator-min-microvolt	= <1800000>;
 					regulator-max-microvolt	= <1800000>;
 					qcom,switch-mode-frequency = <3200000>;
+					regulator-always-on;
 				};
 
 				pm8921_s7: s7 {
@@ -97,6 +98,12 @@
 
 				pm8921_l8: l8 {
                                         regulator-name = "pm8921_l8";
+                                        regulator-min-microvolt = <3300000>;
+                                        regulator-max-microvolt = <3300000>;
+                                };
+
+				pm8921_l11: l11 {
+                                        regulator-name = "pm8921_l11";
                                         regulator-min-microvolt = <3300000>;
                                         regulator-max-microvolt = <3300000>;
                                 };
@@ -192,7 +199,12 @@
 
 		dsi0: qcom,mdss_dsi@4700000 {
 			status = "okay";
-			vdd-supply = <&pm8921_l2>;/*VDD_MIPI1 to 4*/
+			vdda-supply = <&pm8921_l2>;/*VDD_MIPI1 to 4*/
+			vdd-supply = <&pm8921_l8>;
+			vddio-supply = <&pm8921_l8>;
+			iovdd-supply = <&pm8921_s4>;
+			avdd-supply = <&pm8921_l11>;
+			vcss-supply = <&ext_3p3v>;	
 
 			panel@0 {
 				reg = <0>;
