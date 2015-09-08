@@ -303,6 +303,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 #endif
 	int dsi_id = 0;
 	struct drm_encoder *dsi_encs[MSM_DSI_ENCODER_NUM];
+	int i;
 	int ret;
 
 	/* construct non-private planes: */
@@ -333,33 +334,35 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
                 goto fail;
         }
 
-        crtc  = mdp4_crtc_init(dev, plane, priv->num_crtcs, 0, DMA_P);
-        if (IS_ERR(crtc)) {
-                dev_err(dev->dev, "failed to construct crtc for DMA_P\n");
-                ret = PTR_ERR(crtc);
-                goto fail;
-        }
+	crtc  = mdp4_crtc_init(dev, plane, priv->num_crtcs, 0, DMA_P);
+	if (IS_ERR(crtc)) {
+		dev_err(dev->dev, "failed to construct crtc for DMA_P\n");
+		ret = PTR_ERR(crtc);
+		goto fail;
+	}
 
-        dsi_encs[0] = mdp4_dsi_encoder_init(dev);
-        if (IS_ERR(dsi_encs[0])) {
-                dev_err(dev->dev, "failed to construct DSI encoder\n");
-                ret = PTR_ERR(dsi_encs[0]);
-                goto fail;
-        }
+	priv->crtcs[priv->num_crtcs++] = crtc;
 
-        dsi_encs[0]->possible_crtcs = 1 << priv->num_crtcs;
+	for (i = 0; i < 2; i++) {
+		dsi_encs[i] = mdp4_dsi_encoder_init(dev);
+		if (IS_ERR(dsi_encs[i])) {
+			dev_err(dev->dev, "failed to construct DSI encoder\n");
+			ret = PTR_ERR(dsi_encs[i]);
+			goto fail;
+		}
 
-        priv->crtcs[priv->num_crtcs++] = crtc;
-        priv->encoders[priv->num_encoders++] = dsi_encs[0];
+		dsi_encs[i]->possible_crtcs = 1 << priv->num_crtcs;
+		priv->encoders[priv->num_encoders++] = dsi_encs[i];
+	}
 
         /* Create DSI connector/bridge: */
-        if (priv->dsi[dsi_id]) {
-                ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, dsi_encs);
-                if (ret) {
-                        dev_err(dev->dev, "failed to initialize DSI\n");
-                        goto fail;
-                }
-        }
+	if (priv->dsi[dsi_id]) {
+		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, dsi_encs);
+		if (ret) {
+			dev_err(dev->dev, "failed to initialize DSI\n");
+			goto fail;
+		}
+	}
 #endif
 
 #ifdef CONFIG_DRM_MSM_LVDS
