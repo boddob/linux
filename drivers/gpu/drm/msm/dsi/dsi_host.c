@@ -562,14 +562,10 @@ static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
 {
 	int ret;
 
-	ret = clk_set_rate(msm_host->vco_clk, msm_host->dsi_vco_clk_rate);
-	if (ret) {
-		/* no point in going further, life sucks */
-		printk(KERN_ERR "ret %d\n", ret);
-		return ret;
-	}
+	DBG("");
 
 	ret = clk_set_rate(msm_host->vco_clk, msm_host->dsi_vco_clk_rate);
+	/* no point in going further, life sucks */
 	printk(KERN_ERR "ret %d\n", ret);
 
 	ret = clk_set_rate(msm_host->src_clk, msm_host->dsi_src_clk_rate);
@@ -656,6 +652,7 @@ static int dsi_clk_ctrl(struct msm_dsi_host *msm_host, bool enable)
 				__func__, ret);
 			goto unlock_ret;
 		}
+
 		ret = dsi_link_clk_enable(msm_host);
 		if (ret) {
 			pr_err("%s: Can not enable link clk, %d\n",
@@ -2098,8 +2095,6 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 		goto fail_disable_reg;
 	}
 
-	msm_dsi_manager_phy_pre_enable(msm_host->id);
-
 	dsi_phy_sw_reset(msm_host);
 	ret = msm_dsi_manager_phy_enable(msm_host->id,
 					msm_host->byte_clk_rate * 8,
@@ -2124,6 +2119,11 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 		goto fail_disable_clk;
 	}
 
+#if 1
+	msm_host->power_on = true;
+	mutex_unlock(&msm_host->dev_mutex);
+	return 0;
+#endif
 	dsi_timing_setup(msm_host);
 	dsi_sw_reset(msm_host);
 	dsi_ctrl_config(msm_host, true, clk_pre, clk_post);
@@ -2163,7 +2163,6 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 	pinctrl_pm_select_sleep_state(&msm_host->pdev->dev);
 
 	msm_dsi_manager_phy_disable(msm_host->id);
-	msm_dsi_manager_phy_post_disable(msm_host->id);
 
 	dsi_clk_ctrl(msm_host, 0);
 

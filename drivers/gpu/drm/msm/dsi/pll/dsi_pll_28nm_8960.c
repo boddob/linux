@@ -46,7 +46,7 @@
 
 #define NUM_PROVIDED_CLKS	2
 
-#define VCO_REF_CLK_RATE	19200000
+#define VCO_REF_CLK_RATE	27000000
 #define VCO_MIN_RATE		600000000
 #define VCO_MAX_RATE		1200000000
 
@@ -114,20 +114,21 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct dsi_pll_28nm *pll_28nm = to_pll_28nm(pll);
 	struct device *dev = &pll_28nm->pdev->dev;
 	void __iomem *base = pll_28nm->mmio;
-	unsigned long div_fbx1000, gen_vco_clk;
-	u32 val;
-	u32 fb_divider;
-	u32 refclk_cfg, frac_n_mode, frac_n_value;
-	u32 sdm_cfg0, sdm_cfg1, sdm_cfg2, sdm_cfg3;
-	u32 cal_cfg10, cal_cfg11;
-	u32 rem;
-	int i;
-	
-	VERB("rate=%lu, parent's=%lu", rate, parent_rate);
+	u32 val, temp, fb_divider;
 
+	printk(KERN_ERR "rate=%lu, parent's=%lu", rate, parent_rate);
+
+#if 1
+	temp = rate / 10;
+	val = VCO_REF_CLK_RATE / 10;
+	fb_divider = (temp * VCO_PREF_DIV_RATIO) / val;
+	fb_divider = fb_divider / 2 - 1;
+#else
 	fb_divider = ((rate * VCO_PREF_DIV_RATIO) / 27);
 	fb_divider =  fb_divider / 2 - 1;
+#endif
 
+#if 0
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1,
 			fb_divider & 0xff);
 
@@ -138,8 +139,61 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3,
 			(VCO_PREF_DIV_RATIO - 1) & 0x3f);
 
-	/* ? */
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_5, 0x050);
+	printk(KERN_ERR "CTRL1 %x, CTRL_2 %x, CTRL_3 %x\n",
+			fb_divider & 0xff, (fb_divider >> 8) & 0x07,
+			(VCO_PREF_DIV_RATIO - 1) & 0x3f);
+#else
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1,
+			0x56);
+
+	/* maybe we need to read copy write here */
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2,
+			0x31);
+
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3,
+			0xda);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_4,
+			0x4a);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_6,
+			0x19);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_7,
+			0x62);
+
+	/*
+	 * should be done by divider clocks
+	 */
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_5, 0x01);
+#endif
+
+#if 0
+
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8,
+			0x71);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9,
+			0xf);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10,
+			0x7);
+
+
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_11,
+			0x0);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_12,
+			0x14);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_13,
+			0x3);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_14,
+			0x0);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_15,
+			0x2);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_16,
+			0x0);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_17,
+			0x20);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_18,
+			0x0);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_19,
+			0x1);
+#endif
 
 	return 0;
 }
@@ -206,7 +260,7 @@ static int dsi_pll_28nm_enable_seq(struct msm_dsi_pll *pll)
 	struct device *dev = &pll_28nm->pdev->dev;
 	void __iomem *base = pll_28nm->mmio;
 	bool locked;
-	u32 max_reads = 10, timeout_us = 50;
+	u32 max_reads = 1000, timeout_us = 100;
 	u32 val;
 
 	DBG("id=%d", pll_28nm->id);
@@ -299,7 +353,7 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm)
 {
 	char clk_name[32], parent[32], vco_name[32];
 	struct clk_init_data vco_init = {
-		.parent_names = (const char *[]){ "xo" },
+		.parent_names = (const char *[]){ "pxo" },
 		.num_parents = 1,
 		.name = vco_name,
 		.ops = &clk_ops_dsi_pll_28nm_vco,
