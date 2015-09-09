@@ -118,17 +118,10 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	printk(KERN_ERR "rate=%lu, parent's=%lu", rate, parent_rate);
 
-#if 1
 	temp = rate / 10;
 	val = VCO_REF_CLK_RATE / 10;
 	fb_divider = (temp * VCO_PREF_DIV_RATIO) / val;
 	fb_divider = fb_divider / 2 - 1;
-#else
-	fb_divider = ((rate * VCO_PREF_DIV_RATIO) / 27);
-	fb_divider =  fb_divider / 2 - 1;
-#endif
-
-#if 0
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1,
 			fb_divider & 0xff);
 
@@ -139,20 +132,6 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3,
 			(VCO_PREF_DIV_RATIO - 1) & 0x3f);
 
-	printk(KERN_ERR "CTRL1 %x, CTRL_2 %x, CTRL_3 %x\n",
-			fb_divider & 0xff, (fb_divider >> 8) & 0x07,
-			(VCO_PREF_DIV_RATIO - 1) & 0x3f);
-#else
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1,
-			0x56);
-
-	/* maybe we need to read copy write here */
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2,
-			0x31);
-
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3,
-			0xda);
-#endif
 	return 0;
 }
 
@@ -189,8 +168,8 @@ static unsigned long dsi_pll_28nm_clk_recalc_rate(struct clk_hw *hw,
 		ref_divider &= 0x3f;
 		ref_divider += 1;
 
-		 /* do we need to multiply fb_divider by 2 here? */
-		vco_rate = (parent_rate / ref_divider) * fb_divider;
+		/* multiply by 2 */
+		vco_rate = (parent_rate / ref_divider) * fb_divider * 2;
 	} else {
 		vco_rate = 0;
 	}
