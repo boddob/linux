@@ -152,49 +152,7 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3,
 			0xda);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_4,
-			0x4a);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_6,
-			0x19);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_7,
-			0x62);
-
-	/*
-	 * should be done by divider clocks
-	 */
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_5, 0x01);
 #endif
-
-#if 0
-
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8,
-			0x71);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9,
-			0xf);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10,
-			0x7);
-
-
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_11,
-			0x0);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_12,
-			0x14);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_13,
-			0x3);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_14,
-			0x0);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_15,
-			0x2);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_16,
-			0x0);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_17,
-			0x20);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_18,
-			0x0);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_19,
-			0x1);
-#endif
-
 	return 0;
 }
 
