@@ -2345,6 +2345,11 @@ static struct clk_branch dsi2_esc_clk = {
         },
 };
 
+static struct freq_tbl clk_tbl_dsi1_pixel[] = {
+	{  .src = P_DSI1_PLL_DSICLK, .pre_div = 1, },
+	{ }
+};
+
 static struct clk_rcg dsi1_pixel_src = {
 	.ns_reg = 0x0138,
 	.md_reg = 0x0134,
@@ -2364,7 +2369,7 @@ static struct clk_rcg dsi1_pixel_src = {
 		.src_sel_shift = 0,
 		.parent_map = mmcc_pxo_dsi2_dsi1_map,
 	},
-	//.freq_tbl = clk_tbl_dsi1,
+	.freq_tbl = clk_tbl_dsi1_pixel,
 	.clkr = {
 		.enable_reg = 0x0130,
 		.enable_mask = BIT(2),
@@ -2372,8 +2377,7 @@ static struct clk_rcg dsi1_pixel_src = {
 			.name = "dsi1_pixel_src",
 			.parent_names = mmcc_pxo_dsi2_dsi1,
 			.num_parents = 3,
-			.ops = &clk_rcg_ops,
-			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_rcg_pixel_ops,
 		},
 	},
 };

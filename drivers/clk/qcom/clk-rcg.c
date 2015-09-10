@@ -547,6 +547,99 @@ static int clk_rcg_bypass_set_rate(struct clk_hw *hw, unsigned long rate,
 	return __clk_rcg_set_rate(rcg, rcg->freq_tbl);
 }
 
+struct frac_entry {
+	int num;
+	int den;
+};
+
+struct frac_entry pixel_table[] = {
+	{ 1, 2 },
+	{ 1, 3 },
+	{ 3, 16 },
+	{ }
+};
+
+/* doing this because we're not getting the right parent rate from above */
+static unsigned long
+clk_rcg_pixel_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+{
+	struct clk_rcg *rcg = to_clk_rcg(hw);
+	const struct freq_tbl *f = rcg->freq_tbl;
+	struct clk *p;
+	int index = qcom_find_src_index(hw, rcg->s.parent_map, f->src);
+
+	p = clk_get_parent_by_index(hw->clk, index);
+
+	return clk_rcg_recalc_rate(hw, __clk_get_rate(p));
+}
+
+static long clk_rcg_pixel_determine_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long min_rate, unsigned long max_rate,
+		unsigned long *p_rate, struct clk_hw **p_hw)
+{
+	struct clk_rcg *rcg = to_clk_rcg(hw);
+	const struct freq_tbl *f = rcg->freq_tbl;
+	int delta = 100000;
+	struct clk *p;
+	const struct frac_entry *frac = pixel_table;
+	unsigned long request, src_rate;
+	int index = qcom_find_src_index(hw, rcg->s.parent_map, f->src);
+
+	p = clk_get_parent_by_index(hw->clk, index);
+	*p_hw = __clk_get_hw(p);
+
+	src_rate = __clk_get_rate(p);
+
+	for (; frac->num; frac++) {
+		request = (rate * frac->den) / frac->num;
+
+		if ((src_rate < (request - delta)) ||
+			(src_rate > (request + delta)))
+			continue;
+
+		*p_rate = src_rate;
+		return (src_rate * frac->num) / frac->den;
+	}
+
+	return -EINVAL;
+}
+
+static int clk_rcg_pixel_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
+{
+	struct clk_rcg *rcg = to_clk_rcg(hw);
+	const struct freq_tbl *f = rcg->freq_tbl;
+	struct freq_tbl new_f = { 0 };
+	int delta = 100000;
+	const struct frac_entry *frac = pixel_table;
+	struct clk *p;
+	unsigned long request, src_rate;
+	int index = qcom_find_src_index(hw, rcg->s.parent_map, f->src);
+
+	/* getting wrong parent rate from above, getting it manually */
+	p = clk_get_parent_by_index(hw->clk, index);
+	src_rate = __clk_get_rate(p);
+
+	/* copy source */
+	new_f = *f;
+
+	/* let us find appropriate m/n values for this */
+	for (; frac->num; frac++) {
+		request = (rate * frac->den) / frac->num;
+
+		if ((src_rate < (request - delta)) ||
+			(src_rate > (request + delta)))
+			continue;
+
+		new_f.m = frac->num;
+		new_f.n = frac->den;
+
+		return __clk_rcg_set_rate(rcg, &new_f);
+	}
+
+	return -EINVAL;
+}
+
 /*
  * This type of clock has a glitch-free mux that switches between the output of
  * the M/N counter and an always on clock source (XO). When clk_set_rate() is
@@ -643,6 +736,17 @@ const struct clk_ops clk_rcg_bypass_ops = {
 	.set_rate = clk_rcg_bypass_set_rate,
 };
 EXPORT_SYMBOL_GPL(clk_rcg_bypass_ops);
+
+const struct clk_ops clk_rcg_pixel_ops = {
+	.enable = clk_enable_regmap,
+	.disable = clk_disable_regmap,
+	.get_parent = clk_rcg_get_parent,
+	.set_parent = clk_rcg_set_parent,
+	.recalc_rate = clk_rcg_pixel_recalc_rate,
+	.determine_rate = clk_rcg_pixel_determine_rate,
+	.set_rate = clk_rcg_pixel_set_rate,
+};
+EXPORT_SYMBOL_GPL(clk_rcg_pixel_ops);
 
 const struct clk_ops clk_rcg_lcc_ops = {
 	.enable = clk_rcg_lcc_enable,
