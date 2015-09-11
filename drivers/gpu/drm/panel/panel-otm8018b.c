@@ -643,13 +643,14 @@ if(0){
 		return ret;
 
 	ret = mipi_dsi_generic_write(dsi, &write_memory104, sizeof(write_memory104));
+
 	mdelay(250);
-}
-/*truly*/
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
 	if (ret < 0)
 		return ret;
 	mdelay(5);
+}
+/*truly*/
 
 	return 0;
 }
@@ -661,12 +662,13 @@ static int otm8018b_panel_on(struct otm8018b_panel *otm8018b)
 
 	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
+#if 0
 	ret = mipi_dsi_dcs_set_display_on(dsi);
 	if (ret < 0)
 		return ret;
 
 	mdelay(10);
-	
+#endif
 	return 0;
 }
 
@@ -677,6 +679,7 @@ static int otm8018b_panel_off(struct otm8018b_panel *otm8018b)
 
 	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
+#if 0
 	ret = mipi_dsi_dcs_write(dsi, 0xff, (u8[]){ 0x10 }, 1);
 	if (ret < 0)
 		return ret;
@@ -690,7 +693,7 @@ static int otm8018b_panel_off(struct otm8018b_panel *otm8018b)
 		return ret;
 
 	msleep(100);
-
+#endif
 	return 0;
 }
 
