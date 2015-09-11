@@ -2265,6 +2265,12 @@ static struct clk_branch dsi2_byte_clk = {
         },
 };
 
+/* hack, need to calculate pre_div, not hardcode */
+static struct freq_tbl clk_tbl_dsi1_esc[] = {
+	{  .src = P_DSI1_PLL_BYTECLK, .pre_div = 5 },
+	{ }
+};
+
 static struct clk_rcg dsi1_esc_src = {
 	.ns_reg = 0x0011c,
 	.p = {
@@ -2275,7 +2281,7 @@ static struct clk_rcg dsi1_esc_src = {
 		.src_sel_shift = 0,
 		.parent_map = mmcc_pxo_dsi1_dsi2_byte_map,
 	},
-	.freq_tbl = clk_tbl_dsi1_byte,
+	.freq_tbl = clk_tbl_dsi1_esc,
 	.clkr = {
 		.enable_reg = 0x00cc,
 		.enable_mask = BIT(2),
