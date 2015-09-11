@@ -37,7 +37,7 @@
  *                o--| DIV3 |---dsi0pll--o--->pixel rcg
  *                   +------+		 |
  *					 |
- *					 o--->dsi rcg
+ *					 o--->dsi rcg (we make this set parent)
  *                  dsi_clk_div (F * magic)
  */
 
@@ -364,7 +364,7 @@ struct msm_dsi_pll *msm_dsi_pll_28nm_8960_init(struct platform_device *pdev,
 		return ERR_PTR(-ENOMEM);
 
 	pll_28nm->pdev = pdev;
-	pll_28nm->id = id;
+	pll_28nm->id = id + 1;
 
 	pll_28nm->mmio = msm_ioremap(pdev, "dsi_pll", "DSI_PLL");
 	if (IS_ERR_OR_NULL(pll_28nm->mmio)) {
