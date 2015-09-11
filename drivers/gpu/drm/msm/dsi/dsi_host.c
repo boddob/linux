@@ -104,6 +104,7 @@ struct msm_dsi_host {
 	//struct clk *arb_clk;
 	struct clk *src_clk;
 	struct clk *vco_clk;
+	struct clk *bit_clk;
 
 	u32 byte_clk_rate;
 	/* additional clock rates for DSI v2 */
@@ -390,6 +391,9 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 	msm_host->vco_clk = devm_clk_get(dev, "vco_clk");
 	printk(KERN_ERR "vco_clk %p\n", msm_host->vco_clk);
 
+	msm_host->bit_clk = devm_clk_get(dev, "bit_clk");
+	printk(KERN_ERR "bit_clk %p\n", msm_host->bit_clk);
+
 	//msm_host->arb_clk = devm_clk_get(dev, "arb_clk");
 	//printk(KERN_ERR "arb_clk %p\n", msm_host->arb_clk);
 exit:
@@ -566,40 +570,46 @@ static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
 
 	ret = clk_set_rate(msm_host->vco_clk, msm_host->dsi_vco_clk_rate);
 	/* no point in going further, life sucks */
-	printk(KERN_ERR "ret %d\n", ret);
+	printk(KERN_ERR "vco clk ret %d\n", ret);
 
 	ret = clk_set_rate(msm_host->src_clk, msm_host->dsi_src_clk_rate);
-	printk(KERN_ERR "ret %d\n", ret);
+	printk(KERN_ERR "src clk ret %d\n", ret);
 
 	ret = clk_set_rate(msm_host->pixel_clk, msm_host->mode->clock * 1000);
-	printk(KERN_ERR "ret %d\n", ret);
+	printk(KERN_ERR "pclk ret %d\n", ret);
 
 	ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
-	printk(KERN_ERR "ret %d\n", ret);
+	printk(KERN_ERR "byte_clk ret %d\n", ret);
+
+	ret = clk_set_rate(msm_host->bit_clk, msm_host->byte_clk_rate * 8);
+	printk(KERN_ERR "bit ret %d\n", ret);
 
 	/* temporary */
 	ret = clk_set_rate(msm_host->esc_clk, msm_host->byte_clk_rate / 5);
-	printk(KERN_ERR "ret %d\n", ret);
+	printk(KERN_ERR "esc ret %d\n", ret);
 
 	/* enables the VCO, hey ho */
 	ret = clk_prepare_enable(msm_host->vco_clk);
 	if (ret) {
 		/* sigh, so nea, so fa */
-		printk(KERN_ERR "ret %d\n", ret);
+		printk(KERN_ERR "enable vco ret %d\n", ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(msm_host->src_clk);
-	printk(KERN_ERR "ret %d\n", ret);
+	printk(KERN_ERR "enable src ret %d\n", ret);
 
-	ret = clk_prepare_enable(msm_host->esc_clk);
-	printk(KERN_ERR "ret %d\n", ret);
+	ret = clk_prepare_enable(msm_host->bit_clk);
+	printk(KERN_ERR "enable bit ret %d\n", ret);
 
 	ret = clk_prepare_enable(msm_host->byte_clk);
-	printk(KERN_ERR "ret %d\n", ret);
+	printk(KERN_ERR "enable byte ret %d\n", ret);
+
+	ret = clk_prepare_enable(msm_host->esc_clk);
+	printk(KERN_ERR "enable esc ret %d\n", ret);
 
 	ret = clk_prepare_enable(msm_host->pixel_clk);
-	printk(KERN_ERR "ret %d\n", ret);
+	printk(KERN_ERR "enable pixel ret %d\n", ret);
 
 	return ret;
 }
@@ -2119,11 +2129,6 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 		goto fail_disable_clk;
 	}
 
-#if 1
-	msm_host->power_on = true;
-	mutex_unlock(&msm_host->dev_mutex);
-	return 0;
-#endif
 	dsi_timing_setup(msm_host);
 	dsi_sw_reset(msm_host);
 	dsi_ctrl_config(msm_host, true, clk_pre, clk_post);
