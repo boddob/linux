@@ -341,8 +341,6 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 		goto fail;
 	}
 
-	priv->crtcs[priv->num_crtcs++] = crtc;
-
 	for (i = 0; i < 2; i++) {
 		dsi_encs[i] = mdp4_dsi_encoder_init(dev);
 		if (IS_ERR(dsi_encs[i])) {
@@ -354,6 +352,8 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 		dsi_encs[i]->possible_crtcs = 1 << priv->num_crtcs;
 		priv->encoders[priv->num_encoders++] = dsi_encs[i];
 	}
+
+	priv->crtcs[priv->num_crtcs++] = crtc;
 
         /* Create DSI connector/bridge: */
 	if (priv->dsi[dsi_id]) {
