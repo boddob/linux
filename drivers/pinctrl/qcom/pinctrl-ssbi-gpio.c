@@ -661,18 +661,23 @@ MODULE_DEVICE_TABLE(of, pm8xxx_gpio_of_match);
 
 static int pm8xxx_gpio_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
 	struct pm8xxx_pin_data *pin_data;
 	struct pinctrl_pin_desc *pins;
 	struct pm8xxx_gpio *pctrl;
 	int ret;
 	int i;
 
+	match = of_match_node(pm8xxx_gpio_of_match, pdev->dev.of_node);
+	if (!match)
+		return -ENXIO;
+
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
 		return -ENOMEM;
 
 	pctrl->dev = &pdev->dev;
-	pctrl->npins = (unsigned)of_device_get_match_data(&pdev->dev);
+	pctrl->npins = (unsigned)match->data;
 
 	pctrl->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!pctrl->regmap) {
@@ -777,7 +782,8 @@ static int pm8xxx_gpio_remove(struct platform_device *pdev)
 
 static struct platform_driver pm8xxx_gpio_driver = {
 	.driver = {
-		.name = "qcom-ssbi-gpio",
+		// merge -jstultz .name = "qcom-ssbi-gpio",
+		.name = "pm8xxx_gpio",
 		.of_match_table = pm8xxx_gpio_of_match,
 	},
 	.probe = pm8xxx_gpio_probe,

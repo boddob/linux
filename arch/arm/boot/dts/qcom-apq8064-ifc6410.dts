@@ -2,12 +2,15 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+#include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
+
 / {
 	model = "Qualcomm APQ8064/IFC6410";
 	compatible = "qcom,apq8064-ifc6410", "qcom,apq8064";
 
 	aliases {
 		serial0 = &gsbi7_serial;
+		serial1 = &gsbi6_serial;
 	};
 
 	soc {
@@ -54,12 +57,20 @@
 					regulator-min-microvolt	= <1800000>;
 					regulator-max-microvolt	= <1800000>;
 					qcom,switch-mode-frequency = <3200000>;
+					regulator-always-on;
 				};
 
 				pm8921_s7: s7 {
 					regulator-min-microvolt = <1300000>;
 					regulator-max-microvolt = <1300000>;
 					qcom,switch-mode-frequency = <3200000>;
+				};
+
+				pm8921_l2: l2 {
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					//bias-pull-down;
+					regulator-always-on;
 				};
 
 				pm8921_l3: l3 {
@@ -74,18 +85,155 @@
 					bias-pull-down;
 				};
 
+				pm8921_l5: l5 {
+					regulator-min-microvolt = <2750000>;
+					regulator-max-microvolt = <3000000>;
+					bias-pull-down;
+				};
+
 				pm8921_l6: l6 {
 					regulator-min-microvolt = <2950000>;
 					regulator-max-microvolt = <2950000>;
 					bias-pull-down;
 				};
 
+				pm8921_l8: l8 {
+                                        regulator-name = "pm8921_l8";
+                                        regulator-min-microvolt = <3300000>;
+                                        regulator-max-microvolt = <3300000>;
+                                };
+
+				pm8921_l11: l11 {
+                                        regulator-name = "pm8921_l11";
+                                        regulator-min-microvolt = <3300000>;
+                                        regulator-max-microvolt = <3300000>;
+                                };
+
 				pm8921_l23: l23 {
 					regulator-min-microvolt = <1700000>;
 					regulator-max-microvolt = <1900000>;
 					bias-pull-down;
 				};
+
+				pm8921_lvs1: lvs1 {
+					bias-pull-down;
+				};
+
+				pm8921_lvs6: lvs6 {
+					bias-pull-down;
+				};
+
+				pm8921_lvs7: lvs7 {
+					//bias-pull-down;
+					regulator-name = "pm8921_lvs7";
+					regulator-boot-on;
+				};
 			};
+		};
+
+		ext_3p3v: regulator-fixed@1 {
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-name = "ext_3p3v";
+			regulator-type = "voltage";
+			startup-delay-us = <0>;
+			gpio = <&tlmm_pinmux 77 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			regulator-boot-on;
+		};
+
+		hdmi: qcom,hdmi-tx@4a00000 {
+			status = "okay";
+			core-vdda-supply = <&pm8921_hdmi_switch>;
+			hdmi-mux-supply = <&ext_3p3v>;
+		};
+
+		mdp: qcom,mdp@5100000 {
+			status = "okay";
+			lvds-vccs-3p3v-supply = <&ext_3p3v>;
+			lvds-pll-vdda-supply = <&pm8921_l2>;
+			lvds-vdda-supply = <&pm8921_lvs7>;
+			
+        		port {
+				lvds_out: endpoint {
+					remote-endpoint = <&auo_in>;
+				};
+			}; 
+		};
+
+		panel_3p3v: panel_3p3v {
+			pinctrl-0 = <&pwm_en_gpios>;
+			pinctrl-names = "default";
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-name = "panel_en_3p3v";
+			regulator-type = "voltage";
+			startup-delay-us = <0>;
+			gpio = <&pm8921_gpio 36 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			regulator-boot-on;
+		};
+
+		backlight: backlight{
+			pinctrl-0 = <&pwm_bl_gpios>;
+			pinctrl-names = "default";
+			compatible = "gpio-backlight";
+			gpios = <&pm8921_gpio 26 GPIO_ACTIVE_HIGH>;
+			default-on;
+		};
+
+		panel: auo,b101xtn01 {
+			status = "okay";
+			compatible = "auo,b101xtn01";
+
+			ddc-i2c-bus = <&i2c3>;
+			backlight = <&backlight>;
+			power-supply = <&panel_3p3v>;
+			port {
+                		auo_in: endpoint {
+                    			remote-endpoint = <&lvds_out>;
+                		};
+            		};
+		};
+
+		dsi0: qcom,mdss_dsi@4700000 {
+			status = "okay";
+			vdda-supply = <&pm8921_l2>;/*VDD_MIPI1 to 4*/
+			vdd-supply = <&pm8921_l8>;
+			vddio-supply = <&pm8921_l8>;
+			iovdd-supply = <&pm8921_s4>;
+			avdd-supply = <&pm8921_l11>;
+			vcss-supply = <&ext_3p3v>;	
+
+			panel@0 {
+				reg = <0>;
+				compatible = "truly,otm8018b";
+
+				reset-gpio = <&pm8821_mpps 2 0>;
+
+				/* TODO: Update backlight stuff */
+				power-supply = <&pm8921_l8>;
+				/*backlight = <&backlight>;*/
+
+				port {
+					truly_in: endpoint {
+						remote-endpoint = <&dsi_out>;
+					};
+				};
+			};
+
+			port {
+				dsi_out: endpoint {
+					remote-endpoint = <&truly_in>;
+				};
+			};
+		};
+
+		mdp_dsi_phy0: qcom,mdss_dsi_phy@4700200 {
+			status = "okay";
+			vddio-supply = <&pm8921_lvs7>;/*VDD_PLL2_1 to 7*/
 		};
 
 		gsbi3: gsbi@16200000 {
@@ -122,6 +270,18 @@
 					reg = <0x52>;
 					pagesize = <32>;
 				};
+			};
+		};
+
+		gsbi@16500000 {
+			status = "ok";
+			qcom,mode = <GSBI_PROT_I2C_UART>;
+
+			serial@16540000 {
+				status = "ok";
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart_pins>;
 			};
 		};
 
@@ -180,16 +340,142 @@
 		usb4: usb@12530000 {
 			status = "okay";
 		};
+		
+		/* on board fixed 3.3v supply */
+		v3p3_pcieclk: v3p3-pcieclk {
+			compatible = "regulator-fixed";
+			regulator-name = "PCIE V3P3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		pci@1b500000 {
+			status = "ok";
+			pcie-clk-supply	= <&v3p3_pcieclk>;
+			avdd-supply	= <&pm8921_s3>;
+			vdd-supply	= <&pm8921_lvs6>;
+			ext-3p3v-supply = <&ext_3p3v>;
+			qcom,external-phy-refclk;
+			reset-gpio = <&tlmm_pinmux 27 GPIO_ACTIVE_LOW>;
+		};
+
+		leds {
+			compatible = "gpio-leds";
+			pinctrl-names = "default";
+			pinctrl-0 = <&notify_led>;
+
+			led@1 {
+				label = "apq8064:green:user1";
+				gpios = <&pm8921_gpio 18 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "heartbeat";
+				default-state = "on";
+			};
+		};
+
+		qcom,ssbi@500000 {
+			pmicintc: pmic@0 {
+				pm8921_gpio: gpio@150 {
+					pinctrl-names = "default";
+					pinctrl-0 = <&wlan_default_gpios &bt_gpios>;
+
+					pwm_bl_gpios: pwm-bl-gpios {
+						pios {
+							pins = "gpio26";
+							bias-disable;
+							function = "normal";
+							qcom,drive-strength = <1>;
+							power-source = <PM8921_GPIO_S4>;
+						};
+					};
+
+					pwm_en_gpios: pwm-en-gpios {
+						pios {
+							pins = "gpio36";
+							bias-disable;
+							function = "normal";
+							qcom,drive-strength = <1>;
+							power-source = <PM8921_GPIO_S4>;
+						};
+					};
+
+					wlan_default_gpios: wlan-gpios {
+						pios {
+							pins = "gpio43";
+							function = "normal";
+							bias-disable;
+							power-source = <PM8921_GPIO_S4>;
+						};
+					};
+
+					bt_gpios: bt-gpio {
+						pios {
+							pins = "gpio44";
+							function = "normal";
+							bias-disable;
+							power-source = <PM8921_GPIO_S4>;
+						};
+					};
+
+					notify_led: nled {
+						pios {
+							pins = "gpio18";
+							function = "normal";
+							bias-disable;
+							power-source = <PM8921_GPIO_S4>;
+						};
+					};
+				};
+			};
+		};
+
+                qcom,ssbi@c00000 {
+
+                        pmicintc2: pmic@1 {
+
+                                pm8821_mpps: mpps@50 {
+                                        pinctrl-names = "default";
+                                        pinctrl-0 = <&led_mpp>, <&disp_rst>;
+                                        led_mpp:  led-mpp{
+                                                pios {
+                                                        pins = "mpp1";
+                                                        function = "digital";
+                                                        power-source = <PM8921_GPIO_S4>;
+                                                        drive-strength = <PM8821_MPP_VPH>;
+                                                };
+                                        };
+					disp_rst:  disp-rst{
+                                                pios {
+                                                        pins = "mpp2";
+                                                        function = "digital";
+                                                        power-source = <PM8921_GPIO_S4>;
+                                                        drive-strength = <PM8821_MPP_VPH>;
+                                                };
+                                        };
+                                };
+                        };
+                };
+
+		sdcc4_pwrseq:pwrseq {
+			compatible = "mmc-pwrseq-simple";
+			reset-gpios = <&pm8921_gpio 43 GPIO_ACTIVE_LOW>,
+				      <&pm8921_gpio 44 GPIO_ACTIVE_LOW>;
+		};
 
 		amba {
 			/* eMMC */
 			sdcc1: sdcc@12400000 {
 				status = "okay";
+				vmmc-supply = <&pm8921_l5>;
+				vqmmc-supply = <&pm8921_s4>;
 			};
 
 			/* WLAN */
 			sdcc4: sdcc@121c0000 {
 				status = "okay";
+				vmmc-supply = <&ext_3p3v>;
+				vqmmc-supply = <&pm8921_lvs1>;
+				mmc-pwrseq = <&sdcc4_pwrseq>;
 			};
 		};
 

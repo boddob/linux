@@ -296,7 +296,7 @@ static int regulator_check_drms(struct regulator_dev *rdev)
 		return -ENODEV;
 	}
 	if (!(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_DRMS)) {
-		rdev_err(rdev, "operation not allowed\n");
+		rdev_dbg(rdev, "operation not allowed\n");
 		return -EPERM;
 	}
 	return 0;
@@ -1244,7 +1244,7 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 	regulator->debugfs = debugfs_create_dir(regulator->supply_name,
 						rdev->debugfs);
 	if (!regulator->debugfs) {
-		rdev_warn(rdev, "Failed to create debugfs directory\n");
+		rdev_dbg(rdev, "Failed to create debugfs directory\n");
 	} else {
 		debugfs_create_u32("uA_load", 0444, regulator->debugfs,
 				   &regulator->uA_load);

@@ -283,6 +283,11 @@ static int pm8xxx_irq_get_irqchip_state(struct irq_data *d,
 	u8 block;
 	int rc;
 
+	if (!chip) {
+		pr_err("Failed to resolve pm_irq_chip\n");
+		return -EINVAL;
+	}
+
 	if (which != IRQCHIP_STATE_LINE_LEVEL)
 		return -EINVAL;
 
@@ -306,7 +311,7 @@ static int pm8xxx_irq_get_irqchip_state(struct irq_data *d,
 bail:
 	spin_unlock(&chip->pm_irq_lock);
 
-	return rc;
+	return rc ? rc : 0;
 }
 
 static struct irq_chip pm8xxx_irq_chip = {

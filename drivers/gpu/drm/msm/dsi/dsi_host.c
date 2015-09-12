@@ -20,103 +20,15 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spinlock.h>
 #include <video/mipi_display.h>
 
 #include "dsi.h"
 #include "dsi.xml.h"
-
-#define MSM_DSI_VER_MAJOR_V2	0x02
-#define MSM_DSI_VER_MAJOR_6G	0x03
-#define MSM_DSI_6G_VER_MINOR_V1_0	0x10000000
-#define MSM_DSI_6G_VER_MINOR_V1_1	0x10010000
-#define MSM_DSI_6G_VER_MINOR_V1_1_1	0x10010001
-#define MSM_DSI_6G_VER_MINOR_V1_2	0x10020000
-#define MSM_DSI_6G_VER_MINOR_V1_3_1	0x10030001
-
-#define DSI_6G_REG_SHIFT	4
-
-struct dsi_config {
-	u32 major;
-	u32 minor;
-	u32 io_offset;
-	struct dsi_reg_config reg_cfg;
-};
-
-static const struct dsi_config dsi_cfgs[] = {
-	{MSM_DSI_VER_MAJOR_V2, 0, 0, {0,} },
-	{ /* 8974 v1 */
-		.major = MSM_DSI_VER_MAJOR_6G,
-		.minor = MSM_DSI_6G_VER_MINOR_V1_0,
-		.io_offset = DSI_6G_REG_SHIFT,
-		.reg_cfg = {
-			.num = 4,
-			.regs = {
-				{"gdsc", -1, -1, -1, -1},
-				{"vdd", 3000000, 3000000, 150000, 100},
-				{"vdda", 1200000, 1200000, 100000, 100},
-				{"vddio", 1800000, 1800000, 100000, 100},
-			},
-		},
-	},
-	{ /* 8974 v2 */
-		.major = MSM_DSI_VER_MAJOR_6G,
-		.minor = MSM_DSI_6G_VER_MINOR_V1_1,
-		.io_offset = DSI_6G_REG_SHIFT,
-		.reg_cfg = {
-			.num = 4,
-			.regs = {
-				{"gdsc", -1, -1, -1, -1},
-				{"vdd", 3000000, 3000000, 150000, 100},
-				{"vdda", 1200000, 1200000, 100000, 100},
-				{"vddio", 1800000, 1800000, 100000, 100},
-			},
-		},
-	},
-	{ /* 8974 v3 */
-		.major = MSM_DSI_VER_MAJOR_6G,
-		.minor = MSM_DSI_6G_VER_MINOR_V1_1_1,
-		.io_offset = DSI_6G_REG_SHIFT,
-		.reg_cfg = {
-			.num = 4,
-			.regs = {
-				{"gdsc", -1, -1, -1, -1},
-				{"vdd", 3000000, 3000000, 150000, 100},
-				{"vdda", 1200000, 1200000, 100000, 100},
-				{"vddio", 1800000, 1800000, 100000, 100},
-			},
-		},
-	},
-	{ /* 8084 */
-		.major = MSM_DSI_VER_MAJOR_6G,
-		.minor = MSM_DSI_6G_VER_MINOR_V1_2,
-		.io_offset = DSI_6G_REG_SHIFT,
-		.reg_cfg = {
-			.num = 4,
-			.regs = {
-				{"gdsc", -1, -1, -1, -1},
-				{"vdd", 3000000, 3000000, 150000, 100},
-				{"vdda", 1200000, 1200000, 100000, 100},
-				{"vddio", 1800000, 1800000, 100000, 100},
-			},
-		},
-	},
-	{ /* 8916 */
-		.major = MSM_DSI_VER_MAJOR_6G,
-		.minor = MSM_DSI_6G_VER_MINOR_V1_3_1,
-		.io_offset = DSI_6G_REG_SHIFT,
-		.reg_cfg = {
-			.num = 4,
-			.regs = {
-				{"gdsc", -1, -1, -1, -1},
-				{"vdd", 2850000, 2850000, 100000, 100},
-				{"vdda", 1200000, 1200000, 100000, 100},
-				{"vddio", 1800000, 1800000, 100000, 100},
-			},
-		},
-	},
-};
+#include "dsi_cfg.h"
 
 static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 {
@@ -188,13 +100,22 @@ struct msm_dsi_host {
 	struct clk *pixel_clk;
 	struct clk *byte_clk_src;
 	struct clk *pixel_clk_src;
+	/* additional clocks for DSI v2 */
+	//struct clk *arb_clk;
+	struct clk *src_clk;
+	struct clk *vco_clk;
+	struct clk *bit_clk;
 
 	u32 byte_clk_rate;
+	/* additional clock rates for DSI v2 */
+	u32 dsi_src_clk_rate;
+	u32 dsi_vco_clk_rate;
+	u32 esc_clk_rate;
 
 	struct gpio_desc *disp_en_gpio;
 	struct gpio_desc *te_gpio;
 
-	const struct dsi_config *cfg;
+	const struct msm_dsi_cfg_handler *cfg_hnd;
 
 	struct completion dma_comp;
 	struct completion video_comp;
@@ -212,13 +133,14 @@ struct msm_dsi_host {
 
 	struct drm_display_mode *mode;
 
-	/* Panel info */
-	struct device_node *panel_node;
+	/* connected device info */
+	struct device_node *device_node;
 	unsigned int channel;
 	unsigned int lanes;
 	enum mipi_dsi_pixel_format format;
 	unsigned long mode_flags;
 
+	u32 dlane_swap;
 	u32 dma_cmd_ctrl_restore;
 
 	bool registered;
@@ -239,61 +161,58 @@ static u32 dsi_get_bpp(const enum mipi_dsi_pixel_format fmt)
 
 static inline u32 dsi_read(struct msm_dsi_host *msm_host, u32 reg)
 {
-	return msm_readl(msm_host->ctrl_base + msm_host->cfg->io_offset + reg);
+	return msm_readl(msm_host->ctrl_base + reg);
 }
 static inline void dsi_write(struct msm_dsi_host *msm_host, u32 reg, u32 data)
 {
-	msm_writel(data, msm_host->ctrl_base + msm_host->cfg->io_offset + reg);
+	msm_writel(data, msm_host->ctrl_base + reg);
 }
 
 static int dsi_host_regulator_enable(struct msm_dsi_host *msm_host);
 static void dsi_host_regulator_disable(struct msm_dsi_host *msm_host);
 
-static const struct dsi_config *dsi_get_config(struct msm_dsi_host *msm_host)
+static const struct msm_dsi_cfg_handler *dsi_get_config(
+						struct msm_dsi_host *msm_host)
 {
-	const struct dsi_config *cfg;
+	const struct msm_dsi_cfg_handler *cfg_hnd = NULL;
 	struct regulator *gdsc_reg;
-	int i, ret;
+	int ret;
 	u32 major = 0, minor = 0;
 
 	gdsc_reg = regulator_get(&msm_host->pdev->dev, "gdsc");
 	if (IS_ERR(gdsc_reg)) {
 		pr_err("%s: cannot get gdsc\n", __func__);
-		goto fail;
+		goto exit;
 	}
 	ret = regulator_enable(gdsc_reg);
 	if (ret) {
 		pr_err("%s: unable to enable gdsc\n", __func__);
-		regulator_put(gdsc_reg);
-		goto fail;
+		goto put_gdsc;
 	}
 	ret = clk_prepare_enable(msm_host->ahb_clk);
 	if (ret) {
 		pr_err("%s: unable to enable ahb_clk\n", __func__);
-		regulator_disable(gdsc_reg);
-		regulator_put(gdsc_reg);
-		goto fail;
+		goto disable_gdsc;
 	}
 
 	ret = dsi_get_version(msm_host->ctrl_base, &major, &minor);
-
-	clk_disable_unprepare(msm_host->ahb_clk);
-	regulator_disable(gdsc_reg);
-	regulator_put(gdsc_reg);
 	if (ret) {
 		pr_err("%s: Invalid version\n", __func__);
-		goto fail;
+		goto disable_clks;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(dsi_cfgs); i++) {
-		cfg = dsi_cfgs + i;
-		if ((cfg->major == major) && (cfg->minor == minor))
-			return cfg;
-	}
-	pr_err("%s: Version %x:%x not support\n", __func__, major, minor);
+	cfg_hnd = msm_dsi_cfg_get(major, minor);
 
-fail:
-	return NULL;
+	DBG("%s: Version %x:%x\n", __func__, major, minor);
+
+disable_clks:
+	clk_disable_unprepare(msm_host->ahb_clk);
+disable_gdsc:
+	regulator_disable(gdsc_reg);
+put_gdsc:
+	regulator_put(gdsc_reg);
+exit:
+	return cfg_hnd;
 }
 
 static inline struct msm_dsi_host *to_msm_dsi_host(struct mipi_dsi_host *host)
@@ -304,8 +223,8 @@ static inline struct msm_dsi_host *to_msm_dsi_host(struct mipi_dsi_host *host)
 static void dsi_host_regulator_disable(struct msm_dsi_host *msm_host)
 {
 	struct regulator_bulk_data *s = msm_host->supplies;
-	const struct dsi_reg_entry *regs = msm_host->cfg->reg_cfg.regs;
-	int num = msm_host->cfg->reg_cfg.num;
+	const struct dsi_reg_entry *regs = msm_host->cfg_hnd->cfg->reg_cfg.regs;
+	int num = msm_host->cfg_hnd->cfg->reg_cfg.num;
 	int i;
 
 	DBG("");
@@ -320,8 +239,8 @@ static void dsi_host_regulator_disable(struct msm_dsi_host *msm_host)
 static int dsi_host_regulator_enable(struct msm_dsi_host *msm_host)
 {
 	struct regulator_bulk_data *s = msm_host->supplies;
-	const struct dsi_reg_entry *regs = msm_host->cfg->reg_cfg.regs;
-	int num = msm_host->cfg->reg_cfg.num;
+	const struct dsi_reg_entry *regs = msm_host->cfg_hnd->cfg->reg_cfg.regs;
+	int num = msm_host->cfg_hnd->cfg->reg_cfg.num;
 	int ret, i;
 
 	DBG("");
@@ -354,8 +273,8 @@ fail:
 static int dsi_regulator_init(struct msm_dsi_host *msm_host)
 {
 	struct regulator_bulk_data *s = msm_host->supplies;
-	const struct dsi_reg_entry *regs = msm_host->cfg->reg_cfg.regs;
-	int num = msm_host->cfg->reg_cfg.num;
+	const struct dsi_reg_entry *regs = msm_host->cfg_hnd->cfg->reg_cfg.regs;
+	int num = msm_host->cfg_hnd->cfg->reg_cfg.num;
 	int i, ret;
 
 	for (i = 0; i < num; i++)
@@ -388,6 +307,7 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 	struct device *dev = &msm_host->pdev->dev;
 	int ret = 0;
 
+#if 0
 	msm_host->mdp_core_clk = devm_clk_get(dev, "mdp_core_clk");
 	if (IS_ERR(msm_host->mdp_core_clk)) {
 		ret = PTR_ERR(msm_host->mdp_core_clk);
@@ -395,6 +315,7 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 			__func__, ret);
 		goto exit;
 	}
+#endif
 
 	msm_host->ahb_clk = devm_clk_get(dev, "iface_clk");
 	if (IS_ERR(msm_host->ahb_clk)) {
@@ -447,6 +368,7 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 		goto exit;
 	}
 
+#if 0
 	msm_host->byte_clk_src = devm_clk_get(dev, "byte_clk_src");
 	if (IS_ERR(msm_host->byte_clk_src)) {
 		ret = PTR_ERR(msm_host->byte_clk_src);
@@ -462,12 +384,23 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 		msm_host->pixel_clk_src = NULL;
 		goto exit;
 	}
+#endif
+	msm_host->src_clk = devm_clk_get(dev, "src_clk");
+	printk(KERN_ERR "src_clk %p\n", msm_host->src_clk);
 
+	msm_host->vco_clk = devm_clk_get(dev, "vco_clk");
+	printk(KERN_ERR "vco_clk %p\n", msm_host->vco_clk);
+
+	msm_host->bit_clk = devm_clk_get(dev, "bit_clk");
+	printk(KERN_ERR "bit_clk %p\n", msm_host->bit_clk);
+
+	//msm_host->arb_clk = devm_clk_get(dev, "arb_clk");
+	//printk(KERN_ERR "arb_clk %p\n", msm_host->arb_clk);
 exit:
 	return ret;
 }
 
-static int dsi_bus_clk_enable(struct msm_dsi_host *msm_host)
+static int dsi_bus_clk_enable_6g(struct msm_dsi_host *msm_host)
 {
 	int ret;
 
@@ -511,7 +444,48 @@ core_clk_err:
 	return ret;
 }
 
-static void dsi_bus_clk_disable(struct msm_dsi_host *msm_host)
+static void sfpb_enable(void)
+{
+	void __iomem *base = ioremap(0x5700000, SZ_512);
+	u32 val = readl(base + 0x58);
+
+	val |= 0x1800;
+	writel(val, base + 0x58);
+
+	wmb();
+
+	iounmap(base);
+}
+
+static int dsi_bus_clk_enable_v2(struct msm_dsi_host *msm_host)
+{
+	int ret;
+
+	DBG("id=%d", msm_host->id);
+
+	ret = clk_prepare_enable(msm_host->mmss_misc_ahb_clk);
+	//ret = clk_prepare_enable(msm_host->arb_clk);
+	ret = clk_prepare_enable(msm_host->ahb_clk);
+	ret = clk_prepare_enable(msm_host->axi_clk);
+	//ret = clk_prepare_enable(msm_host->mmss_misc_ahb_clk);
+
+	/* enable sfpb */
+	sfpb_enable();
+
+	return ret;
+}
+
+static int dsi_bus_clk_enable(struct msm_dsi_host *msm_host)
+{
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G)
+		return dsi_bus_clk_enable_6g(msm_host);
+	else
+		return dsi_bus_clk_enable_v2(msm_host);
+}
+
+static void dsi_bus_clk_disable_6g(struct msm_dsi_host *msm_host)
 {
 	DBG("");
 	clk_disable_unprepare(msm_host->mmss_misc_ahb_clk);
@@ -520,7 +494,28 @@ static void dsi_bus_clk_disable(struct msm_dsi_host *msm_host)
 	clk_disable_unprepare(msm_host->mdp_core_clk);
 }
 
-static int dsi_link_clk_enable(struct msm_dsi_host *msm_host)
+static void dsi_bus_clk_disable_v2(struct msm_dsi_host *msm_host)
+{
+	DBG("");
+	clk_disable_unprepare(msm_host->ahb_clk);
+	clk_disable_unprepare(msm_host->axi_clk);
+	clk_disable_unprepare(msm_host->mmss_misc_ahb_clk);
+
+	/* disable sfpb */
+	/* clk_disable_unprepare(msm_host->mmss_misc_ahb_clk); */
+}
+
+static void dsi_bus_clk_disable(struct msm_dsi_host *msm_host)
+{
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G)
+		dsi_bus_clk_disable_6g(msm_host);
+	else
+		dsi_bus_clk_disable_v2(msm_host);
+}
+
+static int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host)
 {
 	int ret;
 
@@ -567,11 +562,92 @@ error:
 	return ret;
 }
 
-static void dsi_link_clk_disable(struct msm_dsi_host *msm_host)
+static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
+{
+	int ret;
+
+	DBG("");
+
+	ret = clk_set_rate(msm_host->vco_clk, msm_host->dsi_vco_clk_rate);
+	/* no point in going further, life sucks */
+	printk(KERN_ERR "vco clk ret %d\n", ret);
+
+	ret = clk_set_rate(msm_host->src_clk, msm_host->dsi_src_clk_rate);
+	printk(KERN_ERR "src clk ret %d\n", ret);
+
+	ret = clk_set_rate(msm_host->pixel_clk, msm_host->mode->clock * 1000);
+	printk(KERN_ERR "pclk ret %d\n", ret);
+
+	ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
+	printk(KERN_ERR "byte_clk ret %d\n", ret);
+
+	ret = clk_set_rate(msm_host->bit_clk, msm_host->byte_clk_rate * 8);
+	printk(KERN_ERR "bit ret %d\n", ret);
+
+	/* temporary */
+	ret = clk_set_rate(msm_host->esc_clk, msm_host->byte_clk_rate / 5);
+	printk(KERN_ERR "esc ret %d\n", ret);
+
+	/* enables the VCO, hey ho */
+	ret = clk_prepare_enable(msm_host->vco_clk);
+	if (ret) {
+		/* sigh, so nea, so fa */
+		printk(KERN_ERR "enable vco ret %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(msm_host->src_clk);
+	printk(KERN_ERR "enable src ret %d\n", ret);
+
+	ret = clk_prepare_enable(msm_host->bit_clk);
+	printk(KERN_ERR "enable bit ret %d\n", ret);
+
+	ret = clk_prepare_enable(msm_host->byte_clk);
+	printk(KERN_ERR "enable byte ret %d\n", ret);
+
+	ret = clk_prepare_enable(msm_host->esc_clk);
+	printk(KERN_ERR "enable esc ret %d\n", ret);
+
+	ret = clk_prepare_enable(msm_host->pixel_clk);
+	printk(KERN_ERR "enable pixel ret %d\n", ret);
+
+	return ret;
+}
+
+static int dsi_link_clk_enable(struct msm_dsi_host *msm_host)
+{
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G)
+		return dsi_link_clk_enable_6g(msm_host);
+	else	
+		return dsi_link_clk_enable_v2(msm_host);
+}
+
+static void dsi_link_clk_disable_6g(struct msm_dsi_host *msm_host)
 {
 	clk_disable_unprepare(msm_host->esc_clk);
 	clk_disable_unprepare(msm_host->pixel_clk);
 	clk_disable_unprepare(msm_host->byte_clk);
+}
+
+static void dsi_link_clk_disable_v2(struct msm_dsi_host *msm_host)
+{
+	clk_disable_unprepare(msm_host->esc_clk);
+	clk_disable_unprepare(msm_host->pixel_clk);
+	clk_disable_unprepare(msm_host->byte_clk);
+	clk_disable_unprepare(msm_host->src_clk);
+	clk_disable_unprepare(msm_host->vco_clk);
+}
+
+static void dsi_link_clk_disable(struct msm_dsi_host *msm_host)
+{
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G)
+		dsi_link_clk_disable_6g(msm_host);
+	else
+		dsi_link_clk_disable_v2(msm_host);
 }
 
 static int dsi_clk_ctrl(struct msm_dsi_host *msm_host, bool enable)
@@ -586,6 +662,7 @@ static int dsi_clk_ctrl(struct msm_dsi_host *msm_host, bool enable)
 				__func__, ret);
 			goto unlock_ret;
 		}
+
 		ret = dsi_link_clk_enable(msm_host);
 		if (ret) {
 			pr_err("%s: Can not enable link clk, %d\n",
@@ -603,7 +680,8 @@ unlock_ret:
 	return ret;
 }
 
-static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
+/* for dsi 6g, we only need byte clock rate */
+static int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host)
 {
 	struct drm_display_mode *mode = msm_host->mode;
 	u8 lanes = msm_host->lanes;
@@ -616,6 +694,7 @@ static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
 	}
 
 	pclk_rate = mode->clock * 1000;
+
 	if (lanes > 0) {
 		msm_host->byte_clk_rate = (pclk_rate * bpp) / (8 * lanes);
 	} else {
@@ -623,9 +702,61 @@ static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
 		msm_host->byte_clk_rate = (pclk_rate * bpp) / 8;
 	}
 
+	msm_host->esc_clk_rate = clk_get_rate(msm_host->esc_clk);
 	DBG("pclk=%d, bclk=%d", pclk_rate, msm_host->byte_clk_rate);
 
 	return 0;
+}
+
+static int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host)
+{
+	struct drm_display_mode *mode = msm_host->mode;
+	u8 lanes = msm_host->lanes;
+	u32 bpp = dsi_get_bpp(msm_host->format);
+	u32 pclk_rate, bit_clk_rate;
+	u32 bit_mhz;
+	int factor;
+
+	if (!mode) {
+		pr_err("%s: mode not set\n", __func__);
+		return -EINVAL;
+	}
+
+	pclk_rate = mode->clock * 1000;
+
+	if (lanes > 0) {
+		bit_clk_rate = (pclk_rate * bpp) / lanes;
+	} else {
+		pr_err("%s: forcing mdss_dsi lanes to 1\n", __func__);
+		bit_clk_rate = pclk_rate * bpp;
+	}
+
+	bit_mhz = bit_clk_rate / 1000000;
+
+	factor = bit_mhz < 125 ? 8 : bit_mhz < 250 ? 4 : bit_mhz < 600 ? 2 : 1;
+
+	msm_host->dsi_vco_clk_rate = factor * bit_clk_rate;
+	msm_host->dsi_src_clk_rate = (pclk_rate * bpp) / 8;
+	msm_host->byte_clk_rate = bit_clk_rate / 8;
+
+	msm_host->esc_clk_rate = msm_host->byte_clk_rate / 4;
+
+	DBG("pclk=%d, bit=%d, byte=%d, vco=%d, src=%d esc=%d\n",
+		pclk_rate, bit_clk_rate, msm_host->byte_clk_rate,
+		msm_host->dsi_vco_clk_rate, msm_host->dsi_src_clk_rate,
+		msm_host->esc_clk_rate);
+
+	return 0;
+}
+
+static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
+{
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G)
+		return dsi_calc_clk_rate_6g(msm_host);
+	else
+		return dsi_calc_clk_rate_v2(msm_host);
 }
 
 static void dsi_phy_sw_reset(struct msm_dsi_host *msm_host)
@@ -697,6 +828,7 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 {
 	u32 flags = msm_host->mode_flags;
 	enum mipi_dsi_pixel_format mipi_fmt = msm_host->format;
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	u32 data = 0;
 
 	if (!enable) {
@@ -750,8 +882,8 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	data |= DSI_TRIG_CTRL_MDP_TRIGGER(TRIGGER_NONE);
 	data |= DSI_TRIG_CTRL_DMA_TRIGGER(TRIGGER_SW);
 	data |= DSI_TRIG_CTRL_STREAM(msm_host->channel);
-	if ((msm_host->cfg->major == MSM_DSI_VER_MAJOR_6G) &&
-		(msm_host->cfg->minor >= MSM_DSI_6G_VER_MINOR_V1_2))
+	if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
+		(cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V1_2))
 		data |= DSI_TRIG_CTRL_BLOCK_DMA_WITHIN_FRAME;
 	dsi_write(msm_host, REG_DSI_TRIG_CTRL, data);
 
@@ -774,19 +906,9 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	data = DSI_CTRL_CLK_EN;
 
 	DBG("lane number=%d", msm_host->lanes);
-	if (msm_host->lanes == 2) {
-		data |= DSI_CTRL_LANE1 | DSI_CTRL_LANE2;
-		/* swap lanes for 2-lane panel for better performance */
-		dsi_write(msm_host, REG_DSI_LANE_SWAP_CTRL,
-			DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(LANE_SWAP_1230));
-	} else {
-		/* Take 4 lanes as default */
-		data |= DSI_CTRL_LANE0 | DSI_CTRL_LANE1 | DSI_CTRL_LANE2 |
-			DSI_CTRL_LANE3;
-		/* Do not swap lanes for 4-lane panel */
-		dsi_write(msm_host, REG_DSI_LANE_SWAP_CTRL,
-			DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(LANE_SWAP_0123));
-	}
+	data |= ((DSI_CTRL_LANE0 << msm_host->lanes) - DSI_CTRL_LANE0);
+	dsi_write(msm_host, REG_DSI_LANE_SWAP_CTRL,
+		DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(msm_host->dlane_swap));
 
 	if (!(flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
 		dsi_write(msm_host, REG_DSI_LANE_CTRL,
@@ -855,7 +977,9 @@ static void dsi_sw_reset(struct msm_dsi_host *msm_host)
 
 	dsi_write(msm_host, REG_DSI_RESET, 1);
 	wmb(); /* make sure reset happen */
+	mdelay(100);
 	dsi_write(msm_host, REG_DSI_RESET, 0);
+	wmb();
 }
 
 static void dsi_op_mode_config(struct msm_dsi_host *msm_host,
@@ -1257,7 +1381,11 @@ static void dsi_dln0_phy_err(struct msm_dsi_host *msm_host)
 
 	status = dsi_read(msm_host, REG_DSI_DLN0_PHY_ERR);
 
-	if (status) {
+	if (status & (DSI_DLN0_PHY_ERR_DLN0_ERR_ESC |
+			DSI_DLN0_PHY_ERR_DLN0_ERR_SYNC_ESC |
+			DSI_DLN0_PHY_ERR_DLN0_ERR_CONTROL |
+			DSI_DLN0_PHY_ERR_DLN0_ERR_CONTENTION_LP0 |
+			DSI_DLN0_PHY_ERR_DLN0_ERR_CONTENTION_LP1)) {
 		dsi_write(msm_host, REG_DSI_DLN0_PHY_ERR, status);
 		msm_host->err_work_state |= DSI_ERR_STATE_DLN0_PHY;
 	}
@@ -1359,7 +1487,8 @@ static int dsi_host_init_panel_gpios(struct msm_dsi_host *msm_host,
 		return PTR_ERR(msm_host->disp_en_gpio);
 	}
 
-	msm_host->te_gpio = devm_gpiod_get(panel_device, "disp-te", GPIOD_IN);
+	msm_host->te_gpio = devm_gpiod_get_optional(panel_device, "disp-te",
+								GPIOD_IN);
 	if (IS_ERR(msm_host->te_gpio)) {
 		DBG("cannot get disp-te-gpios %ld", PTR_ERR(msm_host->te_gpio));
 		return PTR_ERR(msm_host->te_gpio);
@@ -1374,12 +1503,13 @@ static int dsi_host_attach(struct mipi_dsi_host *host,
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	int ret;
 
+	if (dsi->lanes > 4 || dsi->channel > 3)
+		return -EINVAL;
+
 	msm_host->channel = dsi->channel;
 	msm_host->lanes = dsi->lanes;
 	msm_host->format = dsi->format;
 	msm_host->mode_flags = dsi->mode_flags;
-
-	msm_host->panel_node = dsi->dev.of_node;
 
 	/* Some gpios defined in panel DT need to be controlled by host */
 	ret = dsi_host_init_panel_gpios(msm_host, &dsi->dev);
@@ -1387,7 +1517,7 @@ static int dsi_host_attach(struct mipi_dsi_host *host,
 		return ret;
 
 	DBG("id=%d", msm_host->id);
-	if (msm_host->dev)
+	if (msm_host->dev && of_drm_find_panel(msm_host->device_node))
 		drm_helper_hpd_irq_event(msm_host->dev);
 
 	return 0;
@@ -1398,10 +1528,10 @@ static int dsi_host_detach(struct mipi_dsi_host *host,
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 
-	msm_host->panel_node = NULL;
+	msm_host->device_node = NULL;
 
 	DBG("id=%d", msm_host->id);
-	if (msm_host->dev)
+	if (msm_host->dev && of_drm_find_panel(msm_host->device_node))
 		drm_helper_hpd_irq_event(msm_host->dev);
 
 	return 0;
@@ -1429,6 +1559,77 @@ static struct mipi_dsi_host_ops dsi_host_ops = {
 	.transfer = dsi_host_transfer,
 };
 
+static void dsi_parse_dlane_swap(struct msm_dsi_host *msm_host,
+				struct device_node *np)
+{
+	const char *lane_swap;
+
+	lane_swap = of_get_property(np, "qcom,dsi-logical-lane-swap", NULL);
+
+	if (!lane_swap)
+		msm_host->dlane_swap = LANE_SWAP_0123;
+	else if (!strncmp(lane_swap, "3012", 5))
+		msm_host->dlane_swap = LANE_SWAP_3012;
+	else if (!strncmp(lane_swap, "2301", 5))
+		msm_host->dlane_swap = LANE_SWAP_2301;
+	else if (!strncmp(lane_swap, "1230", 5))
+		msm_host->dlane_swap = LANE_SWAP_1230;
+	else if (!strncmp(lane_swap, "0321", 5))
+		msm_host->dlane_swap = LANE_SWAP_0321;
+	else if (!strncmp(lane_swap, "1032", 5))
+		msm_host->dlane_swap = LANE_SWAP_1032;
+	else if (!strncmp(lane_swap, "2103", 5))
+		msm_host->dlane_swap = LANE_SWAP_2103;
+	else if (!strncmp(lane_swap, "3210", 5))
+		msm_host->dlane_swap = LANE_SWAP_3210;
+	else
+		msm_host->dlane_swap = LANE_SWAP_0123;
+}
+
+static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
+{
+	struct device *dev = &msm_host->pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct device_node *endpoint, *device_node;
+	int ret;
+
+	ret = of_property_read_u32(np, "qcom,dsi-host-index", &msm_host->id);
+	if (ret) {
+		dev_err(dev, "%s: host index not specified, ret=%d\n",
+			__func__, ret);
+		return ret;
+	}
+
+	dsi_parse_dlane_swap(msm_host, np);
+
+	/*
+	 * Get the first endpoint node. In our case, dsi has one output port
+	 * to which the panel is connected. Don't return an error if a port
+	 * isn't defined. It's possible that there is nothing connected to
+	 * the dsi output.
+	 */
+	endpoint = of_graph_get_next_endpoint(np, NULL);
+	if (!endpoint) {
+		dev_dbg(dev, "%s: no endpoint\n", __func__);
+		return 0;
+	}
+
+	/* Get panel node from the output port's endpoint data */
+	device_node = of_graph_get_remote_port_parent(endpoint);
+	if (!device_node) {
+		dev_err(dev, "%s: no valid device\n", __func__);
+		of_node_put(endpoint);
+		return -ENODEV;
+	}
+
+	of_node_put(endpoint);
+	of_node_put(device_node);
+
+	msm_host->device_node = device_node;
+
+	return 0;
+}
+
 int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 {
 	struct msm_dsi_host *msm_host = NULL;
@@ -1443,15 +1644,13 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		goto fail;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-				"qcom,dsi-host-index", &msm_host->id);
+	msm_host->pdev = pdev;
+
+	ret = dsi_host_parse_dt(msm_host);
 	if (ret) {
-		dev_err(&pdev->dev,
-			"%s: host index not specified, ret=%d\n",
-			__func__, ret);
+		pr_err("%s: failed to parse dt\n", __func__);
 		goto fail;
 	}
-	msm_host->pdev = pdev;
 
 	ret = dsi_clk_init(msm_host);
 	if (ret) {
@@ -1466,12 +1665,15 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		goto fail;
 	}
 
-	msm_host->cfg = dsi_get_config(msm_host);
-	if (!msm_host->cfg) {
+	msm_host->cfg_hnd = dsi_get_config(msm_host);
+	if (!msm_host->cfg_hnd) {
 		ret = -EINVAL;
 		pr_err("%s: get config failed\n", __func__);
 		goto fail;
 	}
+
+	/* fixup base address by io offset */
+	msm_host->ctrl_base += msm_host->cfg_hnd->cfg->io_offset;
 
 	ret = dsi_regulator_init(msm_host);
 	if (ret) {
@@ -1559,7 +1761,6 @@ int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
-	struct device_node *node;
 	int ret;
 
 	/* Register mipi dsi host */
@@ -1577,14 +1778,13 @@ int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer)
 		 * It makes sure panel is connected when fbcon detects
 		 * connector status and gets the proper display mode to
 		 * create framebuffer.
+		 * Don't try to defer if there is nothing connected to the dsi
+		 * output
 		 */
-		if (check_defer) {
-			node = of_get_child_by_name(msm_host->pdev->dev.of_node,
-							"panel");
-			if (node) {
-				if (!of_drm_find_panel(node))
+		if (check_defer && msm_host->device_node) {
+			if (!of_drm_find_panel(msm_host->device_node))
+				if (!of_drm_find_bridge(msm_host->device_node))
 					return -EPROBE_DEFER;
-			}
 		}
 	}
 
@@ -1663,6 +1863,7 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 				const struct mipi_dsi_msg *msg)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int data_byte, rx_byte, dlen, end;
 	int short_response, diff, pkt_size, ret = 0;
 	char cmd;
@@ -1704,8 +1905,8 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 			return -EINVAL;
 		}
 
-		if ((msm_host->cfg->major == MSM_DSI_VER_MAJOR_6G) &&
-			(msm_host->cfg->minor >= MSM_DSI_6G_VER_MINOR_V1_1)) {
+		if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
+			(cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V1_1)) {
 			/* Clear the RDBK_DATA registers */
 			dsi_write(msm_host, REG_DSI_RDBK_DATA_CTRL,
 					DSI_RDBK_DATA_CTRL_CLR);
@@ -1812,6 +2013,8 @@ int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
 	struct clk *byte_clk_provider, *pixel_clk_provider;
 	int ret;
 
+	return 0;
+
 	ret = msm_dsi_pll_get_clk_provider(src_pll,
 				&byte_clk_provider, &pixel_clk_provider);
 	if (ret) {
@@ -1905,7 +2108,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 	dsi_phy_sw_reset(msm_host);
 	ret = msm_dsi_manager_phy_enable(msm_host->id,
 					msm_host->byte_clk_rate * 8,
-					clk_get_rate(msm_host->esc_clk),
+					msm_host->esc_clk_rate,
 					&clk_pre, &clk_post);
 	dsi_bus_clk_disable(msm_host);
 	if (ret) {
@@ -1917,6 +2120,13 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 	if (ret) {
 		pr_err("%s: failed to enable clocks. ret=%d\n", __func__, ret);
 		goto fail_disable_reg;
+	}
+
+	ret = pinctrl_pm_select_default_state(&msm_host->pdev->dev);
+	if (ret) {
+		pr_err("%s: failed to set pinctrl default state, %d\n",
+			__func__, ret);
+		goto fail_disable_clk;
 	}
 
 	dsi_timing_setup(msm_host);
@@ -1931,6 +2141,8 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 
 	return 0;
 
+fail_disable_clk:
+	dsi_clk_ctrl(msm_host, 0);
 fail_disable_reg:
 	dsi_host_regulator_disable(msm_host);
 unlock_ret:
@@ -1952,6 +2164,8 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 
 	if (msm_host->disp_en_gpio)
 		gpiod_set_value(msm_host->disp_en_gpio, 0);
+
+	pinctrl_pm_select_sleep_state(&msm_host->pdev->dev);
 
 	msm_dsi_manager_phy_disable(msm_host->id);
 
@@ -1993,10 +2207,16 @@ struct drm_panel *msm_dsi_host_get_panel(struct mipi_dsi_host *host,
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	struct drm_panel *panel;
 
-	panel = of_drm_find_panel(msm_host->panel_node);
+	panel = of_drm_find_panel(msm_host->device_node);
 	if (panel_flags)
 			*panel_flags = msm_host->mode_flags;
 
 	return panel;
 }
 
+struct drm_bridge *msm_dsi_host_get_bridge(struct mipi_dsi_host *host)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+
+	return of_drm_find_bridge(msm_host->device_node);
+}
