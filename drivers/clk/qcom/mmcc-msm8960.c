@@ -2290,7 +2290,6 @@ static struct clk_rcg dsi1_esc_src = {
 			.parent_names = mmcc_pxo_dsi1_dsi2_byte,
 			.num_parents = 3,
 			.ops = &clk_rcg_bypass_ops,
-			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
