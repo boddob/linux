@@ -69,8 +69,7 @@
 				pm8921_l2: l2 {
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
-					//bias-pull-down;
-					regulator-always-on;
+					bias-pull-down;
 				};
 
 				pm8921_l3: l3 {
@@ -107,6 +106,7 @@
                                         regulator-name = "pm8921_l11";
                                         regulator-min-microvolt = <3300000>;
                                         regulator-max-microvolt = <3300000>;
+					bias-pull-down;
                                 };
 
 				pm8921_l23: l23 {
@@ -124,9 +124,9 @@
 				};
 
 				pm8921_lvs7: lvs7 {
-					//bias-pull-down;
+					bias-pull-down;
 					regulator-name = "pm8921_lvs7";
-					regulator-boot-on;
+					//regulator-boot-on;
 				};
 			};
 		};
