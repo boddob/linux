@@ -29,10 +29,10 @@
  *                |  bit_div (F)
  *                |
  *		  |  +------+
- *                o--| DIV2 |---dsi0pllbyte--> To byte RCG
- *		  |  +------+
- *                |  byte_div (F * 8)
- *                | 
+ *                o--| DIV2 |---dsi0pllbyte--o---> To byte RCG (this can change rate)
+ *		  |  +------+                |
+ *                |  byte_div (F * 8)        |
+ *                |                          o---> To esc RCG (this can't)
  *                |  +------+
  *                o--| DIV3 |---dsi0pll--o--->pixel rcg
  *                   +------+		 |
