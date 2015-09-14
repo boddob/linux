@@ -235,6 +235,9 @@
 				reg = <0>;
 				compatible = "jdi,lt070me05000";
 
+				pinctrl-names = "default";
+				pinctrl-0 = <&dsi_panel_pinctrl>;
+
 				reset-gpio = <&tlmm_pinmux 54 0>;
 				enable-gpio = <&pm8921_gpio 36 GPIO_ACTIVE_HIGH>;
 				vcc-gpio = <&pm8921_gpio 23 GPIO_ACTIVE_HIGH>;

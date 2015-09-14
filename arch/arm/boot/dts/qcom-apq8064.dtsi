@@ -419,7 +419,14 @@
 					function = "sdc4";
 				};
 			};
-
+			dsi_panel_pinctrl: dsi-panel-pinctrl {
+				mux {
+					pins = "gpio54";
+					function = "dsi0";
+					bias-pull-up;
+					drive-strength = <8>;
+				};
+			};
 			hdmi_pinctrl: hdmi-pinctrl {
 				mux1 {
 					pins = "gpio69", "gpio70", "gpio71";
