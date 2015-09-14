@@ -104,6 +104,20 @@
 
 				pm8921_l11: l11 {
                                         regulator-name = "pm8921_l11";
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt = <3000000>;
+					regulator-always-on;
+				};
+
+				pm8921_l17: l17 {
+                                        regulator-name = "pm8921_l17";
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt = <3000000>;
+					regulator-always-on;
+				};
+
+				pm8921_l11: l11 {
+                                        regulator-name = "pm8921_l11";
                                         regulator-min-microvolt = <3300000>;
                                         regulator-max-microvolt = <3300000>;
 					bias-pull-down;
@@ -126,6 +140,11 @@
 				pm8921_lvs5: lvs5 {
 					bias-pull-down;
 					//regulator-boot-on;
+				};
+
+				pm8921_lvs5: lvs5 {
+					regulator-name = "pm8921_lvs5";
+					regulator-boot-on;
 				};
 
 				pm8921_lvs7: lvs7 {
@@ -216,10 +235,11 @@
 				reg = <0>;
 				compatible = "jdi,lt070me05000";
 
-				reset-gpio = <&pm8821_mpps 2 0>;
-
+				reset-gpio = <&tlmm_pinmux 54 0>;
+				enable-gpio = <&pm8921_gpio 36 GPIO_ACTIVE_HIGH>;
+				vcc-gpio = <&pm8921_gpio 23 GPIO_ACTIVE_HIGH>;
 				/* TODO: Update backlight stuff */
-				power-supply = <&pm8921_l8>;
+				power-supply = <&pm8921_lvs5>;
 				/*backlight = <&backlight>;*/
 
 				port {
