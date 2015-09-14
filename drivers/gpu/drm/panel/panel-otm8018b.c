@@ -230,7 +230,7 @@ static int otm8018b_panel_init(struct otm8018b_panel *otm8018b)
 	struct mipi_dsi_device *dsi = otm8018b->dsi;
 	int ret;
 
-	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+	dsi->mode_flags |= MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS;
 	
 	/*truly*/
 if(0){
@@ -660,7 +660,7 @@ static int otm8018b_panel_on(struct otm8018b_panel *otm8018b)
 	struct mipi_dsi_device *dsi = otm8018b->dsi;
 	int ret;
 
-	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+	dsi->mode_flags |= MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS;
 
 #if 0
 	ret = mipi_dsi_dcs_set_display_on(dsi);
