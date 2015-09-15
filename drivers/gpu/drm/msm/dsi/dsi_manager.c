@@ -314,7 +314,8 @@ static int dsi_mgr_connector_mode_valid(struct drm_connector *connector,
 
 	DBG("");
 	requested = 1000 * mode->clock;
-	actual = kms->funcs->round_pixclk(kms, requested, encoder);
+	//actual = kms->funcs->round_pixclk(kms, requested, encoder);
+	actual = 1000 * mode->clock;
 
 	DBG("requested=%ld, actual=%ld", requested, actual);
 	if (actual != requested)
