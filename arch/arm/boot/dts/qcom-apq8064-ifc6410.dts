@@ -74,6 +74,7 @@
 					regulator-min-microvolt	= <1800000>;
 					regulator-max-microvolt	= <1800000>;
 					qcom,switch-mode-frequency = <3200000>;
+					regulator-always-on;
 				};
 
 				pm8921_s7: s7 {
@@ -85,7 +86,8 @@
 				pm8921_l2: l2 {
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
-					bias-pull-down;
+					//bias-pull-down;
+					regulator-always-on;
 				};
 
 				pm8921_l3: l3 {
@@ -112,6 +114,18 @@
 					bias-pull-down;
 				};
 
+				pm8921_l8: l8 {
+                                        regulator-name = "pm8921_l8";
+                                        regulator-min-microvolt = <2800000>;
+                                        regulator-max-microvolt = <2800000>;
+                                };
+
+				pm8921_l11: l11 {
+                                        regulator-name = "pm8921_l11";
+                                        regulator-min-microvolt = <3000000>;
+                                        regulator-max-microvolt = <3000000>;
+                                };
+
 				pm8921_l23: l23 {
 					regulator-min-microvolt = <1700000>;
 					regulator-max-microvolt = <1900000>;
@@ -127,7 +141,9 @@
 				};
 
 				pm8921_lvs7: lvs7 {
-					bias-pull-down;
+					//bias-pull-down;
+					regulator-name = "pm8921_lvs7";
+					regulator-boot-on;
 				};
 			};
 		};
@@ -187,6 +203,43 @@
 			ddc-i2c-bus = <&i2c3>;
 			backlight = <&backlight>;
 			power-supply = <&panel_3p3v>;
+		};
+
+		dsi0: qcom,mdss_dsi@4700000 {
+			status = "okay";
+			vdda-supply = <&pm8921_l2>;/*VDD_MIPI1 to 4*/
+			vdd-supply = <&pm8921_l8>;
+			vddio-supply = <&pm8921_lvs7>;
+			avdd-supply = <&pm8921_l11>;
+			vcss-supply = <&ext_3p3v>;	
+
+			panel@0 {
+				reg = <0>;
+				compatible = "truly,otm8018b";
+
+				reset-gpio = <&pm8821_mpps 2 0>;
+
+				/* TODO: Update backlight stuff */
+				power-supply = <&pm8921_l8>;
+				/*backlight = <&backlight>;*/
+
+				port {
+					truly_in: endpoint {
+						remote-endpoint = <&dsi_out>;
+					};
+				};
+			};
+
+			port {
+				dsi_out: endpoint {
+					remote-endpoint = <&truly_in>;
+				};
+			};
+		};
+
+		mdp_dsi_phy0: qcom,mdss_dsi_phy@4700200 {
+			status = "okay";
+			vddio-supply = <&pm8921_lvs7>;/*VDD_PLL2_1 to 7*/
 		};
 
 		gsbi3: gsbi@16200000 {
@@ -372,10 +425,18 @@
 
                                 pm8821_mpps: mpps@50 {
                                         pinctrl-names = "default";
-                                        pinctrl-0 = <&led_mpp>;
+                                        pinctrl-0 = <&led_mpp>, <&disp_rst>;
                                         led_mpp:  led-mpp{
                                                 pios {
                                                         pins = "mpp1";
+                                                        function = "digital";
+                                                        power-source = <PM8921_GPIO_S4>;
+                                                        drive-strength = <PM8821_MPP_VPH>;
+                                                };
+                                        };
+					disp_rst:  disp-rst{
+                                                pios {
+                                                        pins = "mpp2";
                                                         function = "digital";
                                                         power-source = <PM8921_GPIO_S4>;
                                                         drive-strength = <PM8821_MPP_VPH>;
