@@ -566,6 +566,7 @@ error:
 static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
 {
 	int ret;
+	void __iomem *cc_base = ioremap(0x4000000, SZ_4K);
 
 	DBG("");
 
@@ -597,11 +598,14 @@ static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
 		return ret;
 	}
 
+	ret = clk_prepare_enable(msm_host->bit_clk);
+	printk(KERN_ERR "enable bit ret %d\n", ret);
+
 	ret = clk_prepare_enable(msm_host->src_clk);
 	printk(KERN_ERR "enable src ret %d\n", ret);
 
-	ret = clk_prepare_enable(msm_host->bit_clk);
-	printk(KERN_ERR "enable bit ret %d\n", ret);
+	ret = clk_prepare_enable(msm_host->pixel_clk);
+	printk(KERN_ERR "enable pixel ret %d\n", ret);
 
 	ret = clk_prepare_enable(msm_host->byte_clk);
 	printk(KERN_ERR "enable byte ret %d\n", ret);
@@ -609,9 +613,16 @@ static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
 	ret = clk_prepare_enable(msm_host->esc_clk);
 	printk(KERN_ERR "enable esc ret %d\n", ret);
 
-	ret = clk_prepare_enable(msm_host->pixel_clk);
-	printk(KERN_ERR "enable pixel ret %d\n", ret);
+	DBG("MMSS_DSI1_ESC_CC : %08x", readl(cc_base + 0x0CC));
+	DBG("MMSS_DSI1_ESC_NS : %08x", readl(cc_base + 0x11C));
+	DBG("MMSS_DSI1_BYTE_CC : %08x", readl(cc_base + 0x90));
+	DBG("MMSS_DSI1_BYTE_NS : %08x", readl(cc_base + 0xB0));
+	DBG("MMSS_DSI1_PIXEL_MD : %08x", readl(cc_base + 0x134));
+	DBG("MMSS_DSI1_PIXEL_NS : %08x", readl(cc_base + 0x138));
+	DBG("MMSS_DSI1_CC : %08x", readl(cc_base + 0x4c));
+	DBG("MMSS_DSI1_MD : %08x", readl(cc_base + 0x50));
 
+	iounmap(cc_base);
 	return ret;
 }
 
@@ -874,8 +885,9 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	}
 
 	dsi_write(msm_host, REG_DSI_CMD_DMA_CTRL,
-			DSI_CMD_DMA_CTRL_FROM_FRAME_BUFFER |
-			DSI_CMD_DMA_CTRL_LOW_POWER);
+			DSI_CMD_DMA_CTRL_FROM_FRAME_BUFFER);
+			/* DSI_CMD_DMA_CTRL_FROM_FRAME_BUFFER |
+			DSI_CMD_DMA_CTRL_LOW_POWER); */
 
 	data = 0;
 	/* Always assume dedicated TE pin */
@@ -1659,7 +1671,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		goto fail;
 	}
 
-	msm_host->ctrl_base = msm_ioremap(pdev, "dsi_ctrl", "DSI CTRL");
+	msm_host->ctrl_base = msm_ioremap(pdev, "dsi_ctrl", "DSI_CTRL");
 	if (IS_ERR(msm_host->ctrl_base)) {
 		pr_err("%s: unable to map Dsi ctrl base\n", __func__);
 		ret = PTR_ERR(msm_host->ctrl_base);
