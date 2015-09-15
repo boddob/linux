@@ -42,6 +42,7 @@ static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 	 * makes all other registers 4-byte shifted down.
 	 */
 	ver_6g = msm_readl(base + REG_DSI_6G_HW_VERSION);
+	ver_6g = 0; /* XXX HACK for Nexus7 */
 	if (ver_6g == 0) {
 		ver = msm_readl(base + REG_DSI_VERSION);
 		ver = FIELD(ver, DSI_VERSION_MAJOR);
