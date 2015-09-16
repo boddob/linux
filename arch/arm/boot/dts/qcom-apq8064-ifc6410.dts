@@ -180,26 +180,6 @@
 			lvds-vccs-3p3v-supply = <&ext_3p3v>;
 			lvds-pll-vdda-supply = <&pm8921_l2>;
 			lvds-vdda-supply = <&pm8921_lvs7>;
-			
-        		port {
-				lvds_out: endpoint {
-					remote-endpoint = <&auo_in>;
-				};
-			}; 
-		};
-
-		panel_3p3v: panel_3p3v {
-			pinctrl-0 = <&pwm_en_gpios>;
-			pinctrl-names = "default";
-			compatible = "regulator-fixed";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-name = "panel_en_3p3v";
-			regulator-type = "voltage";
-			startup-delay-us = <0>;
-			gpio = <&pm8921_gpio 36 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			regulator-boot-on;
 		};
 
 		backlight: backlight{
@@ -208,20 +188,6 @@
 			compatible = "gpio-backlight";
 			gpios = <&pm8921_gpio 26 GPIO_ACTIVE_HIGH>;
 			default-on;
-		};
-
-		panel: auo,b101xtn01 {
-			status = "okay";
-			compatible = "auo,b101xtn01";
-
-			ddc-i2c-bus = <&i2c3>;
-			backlight = <&backlight>;
-			power-supply = <&panel_3p3v>;
-			port {
-                		auo_in: endpoint {
-                    			remote-endpoint = <&lvds_out>;
-                		};
-            		};
 		};
 
 		dsi0: qcom,mdss_dsi@4700000 {
