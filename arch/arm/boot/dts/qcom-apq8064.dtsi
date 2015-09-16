@@ -422,7 +422,7 @@
 			dsi_panel_pinctrl: dsi-panel-pinctrl {
 				mux {
 					pins = "gpio54";
-					function = "dsi0";
+					function = "gpio";
 					bias-pull-up;
 					drive-strength = <8>;
 				};
