@@ -160,16 +160,18 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
                        0x4a);
        pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_5,
                        0x01);
-       pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_6,
+       pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_5,
                        0x19);
-       pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_7,
+       pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_6,
                        0x62);
-       pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8,
+       pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_7,
                        0x71);
-       pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9,
+       pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8,
                        0xf);
-       pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10,
+       pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9,
                        0x7);
+       pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10,
+                       0x10);
 
 	return 0;
 }
