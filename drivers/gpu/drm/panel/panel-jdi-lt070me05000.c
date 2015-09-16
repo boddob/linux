@@ -331,7 +331,9 @@ static int jdi_panel_prepare(struct drm_panel *panel)
 
 	if (jdi->reset_gpio) {
 		gpiod_set_value(jdi->reset_gpio, 1);
-		msleep(10);
+		msleep(1);
+		gpiod_set_value(jdi->reset_gpio, 1);
+		udelay(50);
 	}
 
 	if (jdi->enable_gpio) {
@@ -389,7 +391,7 @@ static int jdi_panel_enable(struct drm_panel *panel)
 }
 
 static const struct drm_display_mode default_mode = {
-		.clock = 1000000,
+		.clock = 155000,
 		.hdisplay = 1200,
 		.hsync_start = 1200 + 48,
 		.hsync_end = 1200 + 48 + 32,
@@ -477,6 +479,8 @@ static int jdi_panel_add(struct jdi_panel *jdi)
 		gpiod_direction_output(jdi->enable_gpio, 0);
 	}
 
+	/* we don't have backlight right now, proceed further */
+#if 0
 	np = of_parse_phandle(dev->of_node, "backlight", 0);
 	if (np) {
 		jdi->backlight = of_find_backlight_by_node(np);
@@ -485,6 +489,7 @@ static int jdi_panel_add(struct jdi_panel *jdi)
 		if (!jdi->backlight)
 			return -EPROBE_DEFER;
 	}
+#endif
 
 	drm_panel_init(&jdi->base);
 	jdi->base.funcs = &jdi_panel_funcs;
@@ -519,7 +524,9 @@ static int jdi_panel_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_EOT_PACKET;
+	dsi->mode_flags = MIPI_DSI_MODE_EOT_PACKET | MIPI_DSI_MODE_VIDEO |
+			MIPI_DSI_MODE_VIDEO_HFP | MIPI_DSI_MODE_VIDEO_HBP |
+			MIPI_DSI_MODE_VIDEO_HSA | MIPI_DSI_CLOCK_NON_CONTINUOUS;
 
 	jdi = devm_kzalloc(&dsi->dev, sizeof(*jdi), GFP_KERNEL);
 	if (!jdi) {
