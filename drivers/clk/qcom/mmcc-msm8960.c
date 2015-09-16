@@ -2267,7 +2267,7 @@ static struct clk_branch dsi2_byte_clk = {
 
 /* hack, need to calculate pre_div, not hardcode */
 static struct freq_tbl clk_tbl_dsi1_esc[] = {
-	{  .src = P_DSI1_PLL_BYTECLK, .pre_div = 5 },
+	{  .src = P_DSI1_PLL_BYTECLK, .pre_div = 8 },
 	{ }
 };
 
@@ -2306,7 +2306,6 @@ static struct clk_branch dsi1_esc_clk = {
 			.parent_names = (const char *[]){ "dsi1_esc_src" },
 			.num_parents = 1,
                         .ops = &clk_branch_ops,
-			.flags = CLK_SET_RATE_PARENT,
                 },
         },
 };
