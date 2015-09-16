@@ -182,6 +182,8 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
 			goto out;
 		}
 	}
+
+out:
 	return ret;
 }
 

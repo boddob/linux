@@ -249,8 +249,9 @@
 	port {
 		dsi_out: endpoint {
 			remote-endpoint = <&adv_in>;
-		}
+		};
 	};
+};
 
 &lpass {
 	status = "okay";

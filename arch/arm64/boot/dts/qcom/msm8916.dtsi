@@ -748,66 +748,6 @@
 			#interrupt-cells = <4>;
 		};
 
-		spmi_bus: spmi@200f000 {
-			compatible = "qcom,spmi-pmic-arb";
-			reg = <0x200f000 0x001000>,
-			      <0x2400000 0x400000>,
-			      <0x2c00000 0x400000>,
-			      <0x3800000 0x200000>,
-			      <0x200a000 0x002100>;
-			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
-			interrupt-names = "periph_irq";
-			interrupts = <GIC_SPI 190 IRQ_TYPE_NONE>;
-			qcom,ee = <0>;
-			qcom,channel = <0>;
-			#address-cells = <2>;
-			#size-cells = <0>;
-			interrupt-controller;
-			#interrupt-cells = <4>;
-		};
-
-		usb_dev: usb@78d9000 {
-			compatible = "qcom,ci-hdrc";
-			reg = <0x78d9000 0x400>;
-			dr_mode = "peripheral";
-			interrupts = <GIC_SPI 134 IRQ_TYPE_NONE>;
-			usb-phy = <&usb_otg>;
-			status = "disabled";
-		};
-	
-		usb_host: ehci@78d9000 {
-			compatible = "qcom,ehci-host";
-			reg = <0x78d9000 0x400>;
-			interrupts = <GIC_SPI 134 IRQ_TYPE_NONE>;
-			usb-phy = <&usb_otg>;
-			status = "disabled";
-		};
-	
-		usb_otg: phy@78d9000 {
-			compatible = "qcom,usb-otg-snps";
-			reg = <0x78d9000 0x400>;
-			interrupts = <GIC_SPI 134 IRQ_TYPE_EDGE_BOTH>,
-				     <GIC_SPI 140 IRQ_TYPE_EDGE_RISING>;
-	
-//			vddcx-supply = <&pm8916_s1_corner>;
-			v1p8-supply = <&pm8916_l7>;
-			v3p3-supply = <&pm8916_l13>;
-			qcom,vdd-levels = <1 5 7>;
-	
-			qcom,phy-init-sequence = <0x44 0x6B 0x24 0x13>;
-			dr_mode = "peripheral";
-			qcom,otg-control = <2>; // PMIC
-			qcom,manual-pullup;
-
-			clocks = <&gcc GCC_USB_HS_AHB_CLK>,
-				 <&gcc GCC_USB_HS_SYSTEM_CLK>,
-				 <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
-			clock-names = "iface", "core", "sleep";
-	
-			resets = <&gcc GCC_USB2A_PHY_BCR>, <&gcc GCC_USB_HS_BCR>;
-			reset-names = "phy", "link";
-			status = "disabled";
-		};
 
 		acc0: clock-controller@b088000 {
 			compatible = "qcom,arm-cortex-acc";
