@@ -125,30 +125,12 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1,
 			fb_divider & 0xff);
 
-	val = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2);
-
-	val |= (fb_divider >> 8) & 0x07;
-
+	/* maybe we need to read copy write here */
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2,
-			val);
-
-	val = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3);
-
-	val |= (VCO_PREF_DIV_RATIO - 1) & 0x3f;
+			(fb_divider >> 8) & 0x07);
 
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3,
-			val);
-
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_5,
-			0x50);
-
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_6,
-			0xf);
-
-	val = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8);
-	val |= 0x7 << 4;
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8,
-			val);
+			(VCO_PREF_DIV_RATIO - 1) & 0x3f);
 
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1,
                        0x56);
@@ -366,7 +348,7 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm)
 			parent, 0,
 			pll_28nm->mmio +
 			REG_DSI_28nm_8960_PHY_PLL_CTRL_9,
-			0, 8, 0, NULL);
+			0, 7, 0, NULL);
 
 	snprintf(clk_name, 32, "dsi%dpll", pll_28nm->id);
 	/* DIV3 */
