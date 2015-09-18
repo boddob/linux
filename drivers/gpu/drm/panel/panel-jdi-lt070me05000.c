@@ -64,6 +64,9 @@ static char interface_setting[2] = {0xB3, 0x6F};
 static char interface_ID_setting[2] = {0xB4, 0x0C};
 static char DSI_control[3] = {0xB6, 0x3A, 0xD3};
 
+static char set_column_addr[5] = {0x2A, 0x00, 0x00, 0x04, 0xAF};
+static char set_page_addr[5] = {0x2B, 0x00, 0x00, 0x07, 0x7F};
+
 /* for fps control, set fps to 60.32Hz */
 static char LTPS_timing_setting[2] = {0xC6, 0x78};
 static char sequencer_timing_control[2] = {0xD6, 0x01};
@@ -89,9 +92,10 @@ static char backlight_control4[] = {0xCE, 0x7D, 0x40, 0x48, 0x56, 0x67, 0x78,
 static int jdi_panel_init(struct jdi_panel *jdi)
 {
 	struct mipi_dsi_device *dsi = jdi->dsi;
+	u8 format;
 	int ret;
 
-	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+	//dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
 	ret = mipi_dsi_dcs_soft_reset(dsi);
 	if (ret < 0)
@@ -101,6 +105,7 @@ static int jdi_panel_init(struct jdi_panel *jdi)
 	if (ret < 0)
 		return ret;
 
+#if 0
 	ret = mipi_dsi_dcs_set_column_address(dsi, 0x00, 0xAF);
 	if (ret < 0)
 		return ret;
@@ -110,6 +115,12 @@ static int jdi_panel_init(struct jdi_panel *jdi)
 		return ret;
 	mdelay(20);
 
+#else
+	ret = mipi_dsi_dcs_write_buffer(dsi, set_column_addr, sizeof(set_column_addr));
+
+	ret = mipi_dsi_dcs_write_buffer(dsi, set_page_addr, sizeof(set_page_addr));
+	mdelay(120);
+#endif
 	ret = mipi_dsi_dcs_set_tear_on(dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 	if (ret < 0)
 		return ret;
@@ -135,19 +146,22 @@ static int jdi_panel_init(struct jdi_panel *jdi)
 	if (ret < 0)
 		return ret;
 
+	mdelay(120);
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
 	if (ret < 0)
 		return ret;
-	mdelay(5);
+	mdelay(10);
 
 	ret = mipi_dsi_generic_write(dsi, MCAP, sizeof(MCAP));
 	if (ret < 0)
 		return ret;
+	mdelay(10);
 
 	ret = mipi_dsi_generic_write(dsi, interface_setting,
 					sizeof(interface_setting));
 	if (ret < 0)
 		return ret;
+	mdelay(20);
 
         ret = mipi_dsi_generic_write(dsi, backlight_control4,
                                         sizeof(backlight_control4));
@@ -155,6 +169,7 @@ static int jdi_panel_init(struct jdi_panel *jdi)
                 return ret;
 
 	MCAP[1] = 0x03;
+	mdelay(16);
 	ret = mipi_dsi_generic_write(dsi, MCAP, sizeof(MCAP));
 	if (ret < 0)
 		return ret;
