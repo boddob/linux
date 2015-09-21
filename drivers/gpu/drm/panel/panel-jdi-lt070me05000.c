@@ -222,7 +222,7 @@ static int jdi_panel_on(struct jdi_panel *jdi)
 	struct mipi_dsi_device *dsi = jdi->dsi;
 	int ret;
 
-	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+	//dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
 	ret = mipi_dsi_dcs_set_display_on(dsi);
 	if (ret < 0)
@@ -539,9 +539,9 @@ static int jdi_panel_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_EOT_PACKET | MIPI_DSI_MODE_VIDEO |
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
 			MIPI_DSI_MODE_VIDEO_HFP | MIPI_DSI_MODE_VIDEO_HBP |
-			MIPI_DSI_MODE_VIDEO_HSA | MIPI_DSI_CLOCK_NON_CONTINUOUS;
+			MIPI_DSI_CLOCK_NON_CONTINUOUS;
 
 	jdi = devm_kzalloc(&dsi->dev, sizeof(*jdi), GFP_KERNEL);
 	if (!jdi) {
