@@ -2088,7 +2088,6 @@ static struct clk_rcg dsi1_src = {
 			.parent_names = mmcc_pxo_dsi2_dsi1,
 			.num_parents = 3,
 			.ops = &clk_rcg_bypass_ops,
-			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
@@ -2199,7 +2198,6 @@ static struct clk_rcg dsi1_byte_src = {
 			.parent_names = mmcc_pxo_dsi1_dsi2_byte,
 			.num_parents = 3,
 			.ops = &clk_rcg_bypass_ops,
-			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
@@ -2267,7 +2265,7 @@ static struct clk_branch dsi2_byte_clk = {
 
 /* hack, need to calculate pre_div, not hardcode */
 static struct freq_tbl clk_tbl_dsi1_esc[] = {
-	{  .src = P_DSI1_PLL_BYTECLK, .pre_div = 8 },
+	{  .src = P_DSI1_PLL_BYTECLK, .pre_div = 9 },
 	{ }
 };
 
@@ -2290,7 +2288,6 @@ static struct clk_rcg dsi1_esc_src = {
 			.parent_names = mmcc_pxo_dsi1_dsi2_byte,
 			.num_parents = 3,
 			.ops = &clk_rcg_bypass_ops,
-			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
@@ -2306,6 +2303,7 @@ static struct clk_branch dsi1_esc_clk = {
 			.parent_names = (const char *[]){ "dsi1_esc_src" },
 			.num_parents = 1,
                         .ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
                 },
         },
 };
@@ -2351,7 +2349,7 @@ static struct clk_branch dsi2_esc_clk = {
 };
 
 static struct freq_tbl clk_tbl_dsi1_pixel[] = {
-	{  .src = P_DSI1_PLL_DSICLK, .pre_div = 1, },
+	{  .src = P_DSI1_PLL_DSICLK, .pre_div = 3, },
 	{ }
 };
 
@@ -2382,7 +2380,8 @@ static struct clk_rcg dsi1_pixel_src = {
 			.name = "dsi1_pixel_src",
 			.parent_names = mmcc_pxo_dsi2_dsi1,
 			.num_parents = 3,
-			.ops = &clk_rcg_pixel_ops,
+			//.ops = &clk_rcg_pixel_ops,
+			.ops = &clk_rcg_bypass_ops,
 		},
 	},
 };
