@@ -462,7 +462,7 @@ static int dsi_bus_clk_enable_v2(struct msm_dsi_host *msm_host)
 {
 	int ret;
 
-	DBG("id=%d", msm_host->id);
+	//DBG("id=%d", msm_host->id);
 
 	ret = clk_prepare_enable(msm_host->mmss_misc_ahb_clk);
 	//ret = clk_prepare_enable(msm_host->arb_clk);
@@ -497,7 +497,7 @@ static void dsi_bus_clk_disable_6g(struct msm_dsi_host *msm_host)
 
 static void dsi_bus_clk_disable_v2(struct msm_dsi_host *msm_host)
 {
-	DBG("");
+	//DBG("");
 	clk_disable_unprepare(msm_host->ahb_clk);
 	clk_disable_unprepare(msm_host->axi_clk);
 	clk_disable_unprepare(msm_host->mmss_misc_ahb_clk);
@@ -567,27 +567,27 @@ static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
 {
 	int ret;
 
-	DBG("");
+	//DBG("");
 
 	ret = clk_set_rate(msm_host->vco_clk, msm_host->dsi_vco_clk_rate);
 	/* no point in going further, life sucks */
-	printk(KERN_ERR "vco clk ret %d\n", ret);
+	//printk(KERN_ERR "vco clk ret %d\n", ret);
 
 	ret = clk_set_rate(msm_host->src_clk, msm_host->dsi_src_clk_rate);
-	printk(KERN_ERR "src clk ret %d\n", ret);
+	//printk(KERN_ERR "src clk ret %d\n", ret);
 
 	ret = clk_set_rate(msm_host->pixel_clk, msm_host->mode->clock * 1000);
-	printk(KERN_ERR "pclk ret %d\n", ret);
+	//printk(KERN_ERR "pclk ret %d\n", ret);
 
 	ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
-	printk(KERN_ERR "byte_clk ret %d\n", ret);
+	//printk(KERN_ERR "byte_clk ret %d\n", ret);
 
 	ret = clk_set_rate(msm_host->bit_clk, msm_host->byte_clk_rate * 8);
-	printk(KERN_ERR "bit ret %d\n", ret);
+	//printk(KERN_ERR "bit ret %d\n", ret);
 
 	/* temporary */
-	ret = clk_set_rate(msm_host->esc_clk, msm_host->byte_clk_rate / 5);
-	printk(KERN_ERR "esc ret %d\n", ret);
+	ret = clk_set_rate(msm_host->esc_clk, msm_host->byte_clk_rate / 9);
+	//printk(KERN_ERR "esc ret %d\n", ret);
 
 	/* enables the VCO, hey ho */
 	ret = clk_prepare_enable(msm_host->vco_clk);
@@ -598,21 +598,40 @@ static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
 	}
 
 	ret = clk_prepare_enable(msm_host->src_clk);
-	printk(KERN_ERR "enable src ret %d\n", ret);
+	//printk(KERN_ERR "enable src ret %d\n", ret);
 
 	ret = clk_prepare_enable(msm_host->bit_clk);
-	printk(KERN_ERR "enable bit ret %d\n", ret);
-
-	ret = clk_prepare_enable(msm_host->byte_clk);
-	printk(KERN_ERR "enable byte ret %d\n", ret);
-
-	ret = clk_prepare_enable(msm_host->esc_clk);
-	printk(KERN_ERR "enable esc ret %d\n", ret);
+	//printk(KERN_ERR "enable bit ret %d\n", ret);
 
 	ret = clk_prepare_enable(msm_host->pixel_clk);
-	printk(KERN_ERR "enable pixel ret %d\n", ret);
+	//printk(KERN_ERR "enable pixel ret %d\n", ret);
 
-	return ret;
+	ret = clk_prepare_enable(msm_host->byte_clk);
+	//printk(KERN_ERR "enable byte ret %d\n", ret);
+
+	ret = clk_prepare_enable(msm_host->esc_clk);
+	//printk(KERN_ERR "enable esc ret %d\n", ret);
+
+	return 0;
+	//return ret;
+}
+
+static void dump_cc(void)
+{
+	void __iomem *cc_base = ioremap(0x4000000, SZ_4K);
+
+	DBG("MMSS_DSI1_ESC_CC : %08x", readl(cc_base + 0x0CC));
+	DBG("MMSS_DSI1_ESC_NS : %08x", readl(cc_base + 0x11C));
+	DBG("MMSS_DSI1_BYTE_CC : %08x", readl(cc_base + 0x90));
+	DBG("MMSS_DSI1_BYTE_NS : %08x", readl(cc_base + 0xB0));
+	DBG("MMSS_DSI1_PIXEL_CC : %08x", readl(cc_base + 0x130));
+	DBG("MMSS_DSI1_PIXEL_MD : %08x", readl(cc_base + 0x134));
+	DBG("MMSS_DSI1_PIXEL_NS : %08x", readl(cc_base + 0x138));
+	DBG("MMSS_DSI1_CC : %08x", readl(cc_base + 0x4c));
+	DBG("MMSS_DSI1_MD : %08x", readl(cc_base + 0x50));
+	DBG("MMSS_DSI1_NS : %08x", readl(cc_base + 0x54));
+
+	iounmap(cc_base);
 }
 
 static int dsi_link_clk_enable(struct msm_dsi_host *msm_host)
@@ -784,7 +803,7 @@ static void dsi_intr_ctrl(struct msm_dsi_host *msm_host, u32 mask, int enable)
 	else
 		intr &= ~mask;
 
-	DBG("intr=%x enable=%d", intr, enable);
+	DBG("mask=%x intr=%x enable=%d", mask, intr, enable);
 
 	dsi_write(msm_host, REG_DSI_INTR_CTRL, intr);
 	spin_unlock_irqrestore(&msm_host->intr_lock, flags);
@@ -824,6 +843,26 @@ static inline enum dsi_cmd_dst_format dsi_get_cmd_fmt(
 	}
 }
 
+static void hack_pll_powerup(void)
+{
+	void __iomem *base = ioremap(0x4700000, SZ_2K);
+
+	__raw_writel(0x50, base + 0x214);
+
+	iounmap(base);
+}
+
+static void hack_pll_powerdown(void)
+{
+	void __iomem *base = ioremap(0x4700000, SZ_2K);
+
+	__raw_writel(0x5f, base + 0x214);
+	__raw_writel(0x2, base + 0x500);
+	__raw_writel(0x0, base + 0x470);
+	__raw_writel(0x74, base + 0x474);
+
+	iounmap(base);
+}
 static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 				u32 clk_pre, u32 clk_post)
 {
@@ -834,6 +873,7 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 
 	if (!enable) {
 		dsi_write(msm_host, REG_DSI_CTRL, 0);
+		hack_pll_powerdown();
 		return;
 	}
 
@@ -852,8 +892,11 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 		data |= DSI_VID_CFG0_EOF_BLLP_POWER_STOP |
 			DSI_VID_CFG0_BLLP_POWER_STOP;
 		data |= DSI_VID_CFG0_TRAFFIC_MODE(dsi_get_traffic_mode(flags));
-		data |= DSI_VID_CFG0_DST_FORMAT(dsi_get_vid_fmt(mipi_fmt));
+		data |= (0 << 4);//DSI_VID_CFG0_DST_FORMAT(dsi_get_vid_fmt(mipi_fmt));
 		data |= DSI_VID_CFG0_VIRT_CHANNEL(msm_host->channel);
+
+		/* PULSE_MODE_OPT */
+		data |= (1 << 28);
 		dsi_write(msm_host, REG_DSI_VID_CFG0, data);
 
 		/* Do not swap RGB colors */
@@ -874,12 +917,12 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	}
 
 	dsi_write(msm_host, REG_DSI_CMD_DMA_CTRL,
-			DSI_CMD_DMA_CTRL_FROM_FRAME_BUFFER |
-			DSI_CMD_DMA_CTRL_LOW_POWER);
+			DSI_CMD_DMA_CTRL_FROM_FRAME_BUFFER);
+			//DSI_CMD_DMA_CTRL_LOW_POWER);
 
 	data = 0;
 	/* Always assume dedicated TE pin */
-	data |= DSI_TRIG_CTRL_TE;
+	//data |= DSI_TRIG_CTRL_TE;
 	data |= DSI_TRIG_CTRL_MDP_TRIGGER(TRIGGER_NONE);
 	data |= DSI_TRIG_CTRL_DMA_TRIGGER(TRIGGER_SW);
 	data |= DSI_TRIG_CTRL_STREAM(msm_host->channel);
@@ -888,9 +931,13 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 		data |= DSI_TRIG_CTRL_BLOCK_DMA_WITHIN_FRAME;
 	dsi_write(msm_host, REG_DSI_TRIG_CTRL, data);
 
+#if 0
 	data = DSI_CLKOUT_TIMING_CTRL_T_CLK_POST(clk_post) |
 		DSI_CLKOUT_TIMING_CTRL_T_CLK_PRE(clk_pre);
 	dsi_write(msm_host, REG_DSI_CLKOUT_TIMING_CTRL, data);
+#else
+	dsi_write(msm_host, REG_DSI_CLKOUT_TIMING_CTRL, 0x41c);
+#endif
 
 	data = 0;
 	if (!(flags & MIPI_DSI_MODE_EOT_PACKET))
@@ -914,6 +961,8 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	if (!(flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
 		dsi_write(msm_host, REG_DSI_LANE_CTRL,
 			DSI_LANE_CTRL_CLKLN_HS_FORCE_REQUEST);
+
+	hack_pll_powerup();
 
 	data |= DSI_CTRL_ENABLE;
 
@@ -1012,6 +1061,8 @@ static void dsi_set_tx_power_mode(int mode, struct msm_dsi_host *msm_host)
 {
 	u32 data;
 
+	return;
+
 	data = dsi_read(msm_host, REG_DSI_CMD_DMA_CTRL);
 
 	if (mode == 0)
@@ -1100,6 +1151,7 @@ static int dsi_cmd_dma_add(struct drm_gem_object *tx_gem,
 	struct mipi_dsi_packet packet;
 	int len;
 	int ret;
+	int i;
 	u8 *data;
 
 	ret = mipi_dsi_create_packet(&packet, msg);
@@ -1139,6 +1191,13 @@ static int dsi_cmd_dma_add(struct drm_gem_object *tx_gem,
 	/* Append 0xff to the end */
 	if (packet.size < len)
 		memset(data + packet.size, 0xff, len - packet.size);
+
+	printk(KERN_ERR "TX ");
+
+	for (i = 0; i < len; i++)
+		printk("%02x ", data[i]);
+
+	printk(KERN_ERR "\n");
 
 	return len;
 }
@@ -1304,6 +1363,8 @@ static int dsi_cmds2buf_tx(struct msm_dsi_host *msm_host,
 		return -ECOMM;
 	}
 
+	printk(KERN_ERR "STATUS %x\n", dsi_read(msm_host, REG_DSI_STATUS0));
+
 	return len;
 }
 
@@ -1381,6 +1442,8 @@ static void dsi_dln0_phy_err(struct msm_dsi_host *msm_host)
 	u32 status;
 
 	status = dsi_read(msm_host, REG_DSI_DLN0_PHY_ERR);
+
+	printk(KERN_ERR "%s %x\n", __func__, status);
 
 	if (status & (DSI_DLN0_PHY_ERR_DLN0_ERR_ESC |
 			DSI_DLN0_PHY_ERR_DLN0_ERR_SYNC_ESC |
@@ -2042,6 +2105,40 @@ exit:
 	return ret;
 }
 
+static void dump_all(void)
+{
+	void __iomem *dsi;
+	void __iomem *mdp;
+	void __iomem *mdp_dsi;
+	int i;
+
+	dsi = ioremap(0x4700000, SZ_2K);
+	mdp = ioremap(0x5100000, SZ_2K);
+	mdp_dsi = ioremap(0x51e0000, SZ_512);
+
+	printk(KERN_ERR "DSI\n");
+	for (i = 0; i < 343; i++) {
+		printk(KERN_ERR "%x : %x\n", 0x4700000 + 4 * i,
+			__raw_readl(dsi + 4 * i));
+	}
+#if 0
+	printk(KERN_ERR "MDP\n");
+	for (i = 0; i < 309; i++) {
+		printk(KERN_ERR "%x : %x\n", 0x5100000 + 4 * i,
+			__raw_readl(mdp + 4 * i));
+	}
+#endif
+	printk(KERN_ERR "MDP DSI\n");
+	for (i = 0; i < 13; i++) {
+		printk(KERN_ERR "%x : %x\n", 0x51e0000 + 4 * i,
+			__raw_readl(mdp_dsi + 4 * i));
+	}
+
+	iounmap(dsi);
+	iounmap(mdp_dsi);
+	iounmap(mdp);
+}
+
 int msm_dsi_host_enable(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
@@ -2055,6 +2152,9 @@ int msm_dsi_host_enable(struct mipi_dsi_host *host)
 	 */
 	/* if (msm_panel->mode == MSM_DSI_CMD_MODE)
 		dsi_clk_ctrl(msm_host, 0); */
+
+	dump_all();
+	dump_cc();
 
 	return 0;
 }
