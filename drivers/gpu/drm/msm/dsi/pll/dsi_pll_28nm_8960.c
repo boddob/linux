@@ -115,9 +115,13 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct device *dev = &pll_28nm->pdev->dev;
 	void __iomem *base = pll_28nm->mmio;
 	u32 val, temp, fb_divider;
+	int i;
+	u32 timings[] = { 0xf3, 0x31, 0xda, 0x00, 0x10, 0x0f, 0x62, /*panel specific */
+			0x70, 0x07, 0x01, 0x00, 0x14, 0x03, 0x00, 0x02, /*common 8064*/
+			0x0e, 0x01, 0x00, 0x01 };
 
 	printk(KERN_ERR "rate=%lu, parent's=%lu", rate, parent_rate);
-
+#if 0
 	temp = rate / 10;
 	val = VCO_REF_CLK_RATE / 10;
 	fb_divider = (temp * VCO_PREF_DIV_RATIO) / val;
@@ -149,6 +153,28 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	val |= 0x7 << 4;
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8,
 			val);
+#else
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1, 0xf3);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2, 0x31);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3, 0xda);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_4, 0x00);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_5, 0x10);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_6, 0x0f);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_7, 0x62);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8, 0x70);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9, 0x07);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10, 0x01);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_11, 0x00);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_12, 0x14);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_13, 0x03);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_14, 0x00);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_15, 0x02);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_16, 0x0e);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_17, 0x01);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_18, 0x00);
+	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_19, 0x01);
+
+#endif
 
 	return 0;
 }
@@ -221,6 +247,10 @@ static int dsi_pll_28nm_enable_seq(struct msm_dsi_pll *pll)
 	DBG("id=%d", pll_28nm->id);
 
 	pll_28nm_software_reset(pll_28nm);
+	//pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_5,
+	//		0x50);
+
+	mdelay(300);
 
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_0,
 			DSI_28nm_8960_PHY_PLL_CTRL_0_ENABLE);

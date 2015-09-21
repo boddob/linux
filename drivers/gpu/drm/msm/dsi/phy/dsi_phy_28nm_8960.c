@@ -18,7 +18,9 @@ static void dsi_28nm_dphy_set_timing(struct msm_dsi_phy *phy,
 		struct msm_dsi_dphy_timing *timing)
 {
 	void __iomem *base = phy->base;
-
+	int i;
+	u32 regs[] = { 0x66, 0x26, 0x38, 0x00, 0x3e, 0xe6, 0x1e, 0x9b, 0x3e, 0x03, 0x04, 0xa0 };
+#if 0
 	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_0,
 		DSI_28nm_8960_PHY_TIMING_CTRL_0_CLK_ZERO(timing->clk_zero));
 	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_1,
@@ -43,6 +45,21 @@ static void dsi_28nm_dphy_set_timing(struct msm_dsi_phy *phy,
 		DSI_28nm_8960_PHY_TIMING_CTRL_10_TA_GET(timing->ta_get));
 	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_11,
 		DSI_28nm_8960_PHY_TIMING_CTRL_11_TRIG3_CMD(0));
+#else
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_0, 0x66);
+
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_1, 0x26);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_2, 0x38);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_3, 0x0);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_4, 0x3e);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_5, 0xe6);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_6, 0x1e);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_7, 0x9b);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_8, 0x3e);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_9, 0x03);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_10, 0x04);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_TIMING_CTRL_11, 0xa0);
+#endif
 }
 
 static void dsi_28nm_phy_regulator_init(struct msm_dsi_phy *phy)
@@ -64,7 +81,7 @@ static void dsi_28nm_phy_regulator_ctrl(struct msm_dsi_phy *phy)
 	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CTRL_1, 0xa);
 	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CTRL_2, 0x4);
 	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CTRL_3, 0x0);
-	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CTRL_4, 0x120);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CTRL_4, 0x20);
 }
 
 static void dsi_28nm_phy_calibration(struct msm_dsi_phy *phy)
