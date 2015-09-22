@@ -1483,7 +1483,7 @@
 			qcom,dsi-phy-index = <0>;
 			#clock-cells = <1>;
 
-			reg = <0x04700200 0x50>,
+			reg = <0x04700200 0x100>,
 			      <0x04700300 0x200>,
 			      <0x04700500 0x5c>;
 			reg-names = "dsi_pll", "dsi_phy", "dsi_phy_regulator";
