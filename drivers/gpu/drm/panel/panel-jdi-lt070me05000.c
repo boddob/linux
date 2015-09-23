@@ -47,6 +47,12 @@ struct jdi_panel {
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *vcc_gpio;
 
+	struct regulator *backlit;
+	struct regulator *lvs7;
+	struct regulator *avdd;
+	struct regulator *iovdd;
+	struct gpio_desc *pwm_gpio;
+
 	bool prepared;
 	bool enabled;
 
@@ -60,10 +66,11 @@ static inline struct jdi_panel *to_jdi_panel(struct drm_panel *panel)
 
 static char MCAP[2] = {0xB0, 0x00};
 /* static char interface_setting[6] = {0xB3, 0x04, 0x08, 0x00, 0x22, 0x00}; */
-static char interface_setting[2] = {0xB3, 0x6F};
+static char interface_setting[] = {0xB3, 0x6F};//, 0xff, 0xff};
 static char interface_ID_setting[2] = {0xB4, 0x0C};
 static char DSI_control[3] = {0xB6, 0x3A, 0xD3};
 
+static char tear_scan_line[3] = {0x44, 0x03, 0x00};
 static char set_column_addr[5] = {0x2A, 0x00, 0x00, 0x04, 0xAF};
 static char set_page_addr[5] = {0x2B, 0x00, 0x00, 0x07, 0x7F};
 
@@ -101,6 +108,8 @@ static int jdi_panel_init(struct jdi_panel *jdi)
 	if (ret < 0)
 		return ret;
 
+	mdelay(10);
+
 	ret = mipi_dsi_dcs_set_pixel_format(dsi, 0x77);
 	if (ret < 0)
 		return ret;
@@ -119,30 +128,35 @@ static int jdi_panel_init(struct jdi_panel *jdi)
 	ret = mipi_dsi_dcs_write_buffer(dsi, set_column_addr, sizeof(set_column_addr));
 
 	ret = mipi_dsi_dcs_write_buffer(dsi, set_page_addr, sizeof(set_page_addr));
-	mdelay(120);
 #endif
+	mdelay(120);
+
+	//ret = mipi_dsi_dcs_get_pixel_format(dsi, &format);
+	//printk(KERN_ERR "tried to read pixel format, got %d, format %02x\n", ret, format);
+
 	ret = mipi_dsi_dcs_set_tear_on(dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 	if (ret < 0)
 		return ret;
 	mdelay(5);
 
+#if 0
 	ret = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_TEAR_SCANLINE,
 			(u8[]){ 0x03, 0x00 }, 2);
 	if (ret < 0)
 		return ret;
+#else
+	ret = mipi_dsi_generic_write(dsi, tear_scan_line, sizeof(tear_scan_line));
+#endif
 
-	ret = mipi_dsi_dcs_write_buffer(dsi, (u8[]){ write_display_brightness[0],
-					write_display_brightness[1] }, 1);
+	ret = mipi_dsi_dcs_write_buffer(dsi, write_display_brightness, sizeof(write_display_brightness));
 	if (ret < 0)
 		return ret;
 
-	ret = mipi_dsi_dcs_write_buffer(dsi, (u8[]){ write_control_display[0],
-					 write_control_display[1] }, 1);
+	ret = mipi_dsi_dcs_write_buffer(dsi, write_control_display, sizeof(write_control_display));
 	if (ret < 0)
 		return ret;
 
-	ret = mipi_dsi_dcs_write_buffer(dsi, (u8[]){ write_cabc[0],
-					write_cabc[1] }, 1);
+	ret = mipi_dsi_dcs_write_buffer(dsi, write_cabc, sizeof(write_cabc));
 	if (ret < 0)
 		return ret;
 
@@ -161,15 +175,18 @@ static int jdi_panel_init(struct jdi_panel *jdi)
 					sizeof(interface_setting));
 	if (ret < 0)
 		return ret;
-	mdelay(20);
+	mdelay(10);
+
+	backlight_control4[18] = 0x04;
+	backlight_control4[19] = 0x00;
 
         ret = mipi_dsi_generic_write(dsi, backlight_control4,
                                         sizeof(backlight_control4));
         if (ret < 0)
                 return ret;
+	mdelay(20);
 
 	MCAP[1] = 0x03;
-	mdelay(16);
 	ret = mipi_dsi_generic_write(dsi, MCAP, sizeof(MCAP));
 	if (ret < 0)
 		return ret;
@@ -209,10 +226,12 @@ if(0) {
         if (ret < 0)
                 return ret;
 }
+#if 0
 	ret = mipi_dsi_dcs_set_display_on(dsi);
 	if (ret < 0)
 		return ret;
-	mdelay(5);
+#endif
+	mdelay(150);
 
 	return 0;
 }
@@ -333,6 +352,24 @@ static int jdi_panel_prepare(struct drm_panel *panel)
 		msleep(5);
 	}
 
+	ret = regulator_enable(jdi->iovdd);
+	if (ret < 0)
+		return ret;
+
+	ret = regulator_enable(jdi->avdd);
+	if (ret < 0)
+		return ret;
+
+	ret = regulator_enable(jdi->backlit);
+	if (ret < 0)
+		return ret;
+
+	udelay(100);
+
+	ret = regulator_enable(jdi->lvs7);
+	if (ret < 0)
+		return ret;
+
 	ret = regulator_enable(jdi->supply);
 	if (ret < 0)
 		return ret;
@@ -347,8 +384,13 @@ static int jdi_panel_prepare(struct drm_panel *panel)
 	if (jdi->reset_gpio) {
 		gpiod_set_value(jdi->reset_gpio, 1);
 		msleep(1);
-		gpiod_set_value(jdi->reset_gpio, 1);
+		gpiod_set_value(jdi->reset_gpio, 0);
 		udelay(50);
+	}
+
+	if (jdi->pwm_gpio) {
+		gpiod_set_value(jdi->pwm_gpio, 1);
+		msleep(10);
 	}
 
 	if (jdi->enable_gpio) {
@@ -463,9 +505,27 @@ static int jdi_panel_add(struct jdi_panel *jdi)
 
 	jdi->mode = &default_mode;
 
+	/* lvs5 */
 	jdi->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(jdi->supply))
 		return PTR_ERR(jdi->supply);
+
+	/* l17 */
+	jdi->backlit = devm_regulator_get(dev, "backlit");
+	if (IS_ERR(jdi->supply))
+		return PTR_ERR(jdi->supply);
+
+	jdi->lvs7 = devm_regulator_get(dev, "lvs7");
+	if (IS_ERR(jdi->lvs7))
+		return PTR_ERR(jdi->lvs7);
+
+	jdi->avdd = devm_regulator_get(dev, "avdd");
+	if (IS_ERR(jdi->avdd))
+		return PTR_ERR(jdi->avdd);
+
+	jdi->iovdd = devm_regulator_get(dev, "iovdd");
+	if (IS_ERR(jdi->iovdd))
+		return PTR_ERR(jdi->iovdd);
 
 	jdi->vcc_gpio = devm_gpiod_get(dev, "vcc", GPIOD_OUT_LOW);
 	if (IS_ERR(jdi->vcc_gpio)) {
@@ -492,6 +552,15 @@ static int jdi_panel_add(struct jdi_panel *jdi)
 		jdi->enable_gpio = NULL;
 	} else {
 		gpiod_direction_output(jdi->enable_gpio, 0);
+	}
+
+	jdi->pwm_gpio = devm_gpiod_get(dev, "pwm", GPIOD_OUT_LOW);
+	if (IS_ERR(jdi->pwm_gpio)) {
+		dev_err(dev, "cannot get pwm-gpio %ld\n",
+			PTR_ERR(jdi->pwm_gpio));
+		jdi->pwm_gpio = NULL;
+	} else {
+		gpiod_direction_output(jdi->pwm_gpio, 0);
 	}
 
 	/* we don't have backlight right now, proceed further */
