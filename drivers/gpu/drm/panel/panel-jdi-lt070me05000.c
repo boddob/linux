@@ -226,11 +226,10 @@ if(0) {
         if (ret < 0)
                 return ret;
 }
-#if 0
 	ret = mipi_dsi_dcs_set_display_on(dsi);
 	if (ret < 0)
 		return ret;
-#endif
+
 	mdelay(150);
 
 	return 0;
@@ -243,12 +242,13 @@ static int jdi_panel_on(struct jdi_panel *jdi)
 
 	//dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
+#if 0
 	ret = mipi_dsi_dcs_set_display_on(dsi);
 	if (ret < 0)
 		return ret;
 
 	msleep(40);
-
+#endif
 	return 0;
 }
 
@@ -386,6 +386,8 @@ static int jdi_panel_prepare(struct drm_panel *panel)
 		msleep(1);
 		gpiod_set_value(jdi->reset_gpio, 0);
 		udelay(50);
+		gpiod_set_value(jdi->reset_gpio, 1);
+		msleep(5);
 	}
 
 	if (jdi->pwm_gpio) {
