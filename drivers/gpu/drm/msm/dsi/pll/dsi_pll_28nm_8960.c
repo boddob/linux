@@ -107,6 +107,7 @@ static void pll_28nm_software_reset(struct dsi_pll_28nm *pll_28nm)
 /*
  * Clock Callbacks
  */
+static bool rate_set = false;
 static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long parent_rate)
 {
@@ -154,25 +155,31 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8,
 			val);
 #else
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1, 0xf3);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2, 0x31);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3, 0xda);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_4, 0x00);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_5, 0x10);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_6, 0x0f);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_7, 0x62);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8, 0x70);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9, 0x07);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10, 0x01);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_11, 0x00);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_12, 0x14);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_13, 0x03);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_14, 0x00);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_15, 0x02);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_16, 0x0e);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_17, 0x01);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_18, 0x00);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_19, 0x01);
+	if (!rate_set) {
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1, 0xf3);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2, 0x31);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3, 0xda);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_4, 0x00);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_5, 0x10);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_6, 0x0f);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_7, 0x62);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8, 0x70);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9, 0x07);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10, 0x01);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_11, 0x00);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_12, 0x14);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_13, 0x03);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_14, 0x00);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_15, 0x02);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_16, 0x0e);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_17, 0x01);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_18, 0x00);
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_19, 0x01);
+
+		pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_0, 0x0);
+		mdelay(100);
+		rate_set = true;
+	}
 
 #endif
 

@@ -563,6 +563,8 @@ error:
 	return ret;
 }
 
+static void hack_pll_powerup(void);
+
 static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
 {
 	int ret;
@@ -573,21 +575,8 @@ static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
 	/* no point in going further, life sucks */
 	//printk(KERN_ERR "vco clk ret %d\n", ret);
 
-	ret = clk_set_rate(msm_host->src_clk, msm_host->dsi_src_clk_rate);
-	//printk(KERN_ERR "src clk ret %d\n", ret);
-
-	ret = clk_set_rate(msm_host->pixel_clk, msm_host->mode->clock * 1000);
-	//printk(KERN_ERR "pclk ret %d\n", ret);
-
-	ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
-	//printk(KERN_ERR "byte_clk ret %d\n", ret);
-
-	ret = clk_set_rate(msm_host->bit_clk, msm_host->byte_clk_rate * 8);
-	//printk(KERN_ERR "bit ret %d\n", ret);
-
-	/* temporary */
-	ret = clk_set_rate(msm_host->esc_clk, msm_host->byte_clk_rate / 9);
-	//printk(KERN_ERR "esc ret %d\n", ret);
+	hack_pll_powerup();
+	mdelay(100);
 
 	/* enables the VCO, hey ho */
 	ret = clk_prepare_enable(msm_host->vco_clk);
@@ -597,14 +586,31 @@ static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
 		return ret;
 	}
 
-	ret = clk_prepare_enable(msm_host->src_clk);
-	//printk(KERN_ERR "enable src ret %d\n", ret);
 
-	ret = clk_prepare_enable(msm_host->bit_clk);
-	//printk(KERN_ERR "enable bit ret %d\n", ret);
+	ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
+	//printk(KERN_ERR "byte_clk ret %d\n", ret);
+
+	//ret = clk_set_rate(msm_host->bit_clk, msm_host->byte_clk_rate * 8);
+	//printk(KERN_ERR "bit ret %d\n", ret);
+
+	/* temporary */
+	ret = clk_set_rate(msm_host->esc_clk, msm_host->byte_clk_rate / 9);
+	//printk(KERN_ERR "esc ret %d\n", ret);
+
+	ret = clk_set_rate(msm_host->src_clk, msm_host->dsi_src_clk_rate);
+	//printk(KERN_ERR "src clk ret %d\n", ret);
+
+	ret = clk_set_rate(msm_host->pixel_clk, msm_host->mode->clock * 1000);
+	//printk(KERN_ERR "pclk ret %d\n", ret);
 
 	ret = clk_prepare_enable(msm_host->pixel_clk);
 	//printk(KERN_ERR "enable pixel ret %d\n", ret);
+	
+	ret = clk_prepare_enable(msm_host->src_clk);
+	//printk(KERN_ERR "enable src ret %d\n", ret);
+
+	//ret = clk_prepare_enable(msm_host->bit_clk);
+	//printk(KERN_ERR "enable bit ret %d\n", ret);
 
 	ret = clk_prepare_enable(msm_host->byte_clk);
 	//printk(KERN_ERR "enable byte ret %d\n", ret);
@@ -873,7 +879,6 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 
 	if (!enable) {
 		dsi_write(msm_host, REG_DSI_CTRL, 0);
-		hack_pll_powerdown();
 		return;
 	}
 
@@ -961,8 +966,6 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	if (!(flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
 		dsi_write(msm_host, REG_DSI_LANE_CTRL,
 			DSI_LANE_CTRL_CLKLN_HS_FORCE_REQUEST);
-
-	hack_pll_powerup();
 
 	data |= DSI_CTRL_ENABLE;
 
@@ -1882,7 +1885,9 @@ int msm_dsi_host_xfer_prepare(struct mipi_dsi_host *host,
 	 * mdss interrupt is generated in mdp core clock domain
 	 * mdp clock need to be enabled to receive dsi interrupt
 	 */
-	dsi_clk_ctrl(msm_host, 1);
+
+	// don't enable/disable clocks every time we send a commmand
+	//dsi_clk_ctrl(msm_host, 1);
 
 	/* TODO: vote for bus bandwidth */
 
@@ -1912,7 +1917,7 @@ void msm_dsi_host_xfer_restore(struct mipi_dsi_host *host,
 
 	/* TODO: unvote for bus bandwidth */
 
-	dsi_clk_ctrl(msm_host, 0);
+	//dsi_clk_ctrl(msm_host, 0);
 }
 
 int msm_dsi_host_cmd_tx(struct mipi_dsi_host *host,
@@ -2217,6 +2222,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 		goto fail_disable_reg;
 	}
 
+
 	ret = dsi_clk_ctrl(msm_host, 1);
 	if (ret) {
 		pr_err("%s: failed to enable clocks. ret=%d\n", __func__, ret);
@@ -2271,6 +2277,8 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 	msm_dsi_manager_phy_disable(msm_host->id);
 
 	dsi_clk_ctrl(msm_host, 0);
+
+	hack_pll_powerdown();
 
 	dsi_host_regulator_disable(msm_host);
 
