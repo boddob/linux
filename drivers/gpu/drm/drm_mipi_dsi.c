@@ -45,9 +45,26 @@
  * subset of the MIPI DCS command set.
  */
 
+static const struct device_type mipi_dsi_device_type;
+
 static int mipi_dsi_device_match(struct device *dev, struct device_driver *drv)
 {
-	return of_driver_match_device(dev, drv);
+	struct mipi_dsi_device *dsi;
+
+	if (dev->type == &mipi_dsi_device_type)
+		dsi = to_mipi_dsi_device(dev);
+	else
+		return 0;
+
+	/* attempt OF style match */
+	if (of_driver_match_device(dev, drv))
+		return 1;
+
+	/* compare dsi device and driver names */
+	if (!strcmp(dsi->name, drv->name))
+		return 1;
+
+	return 0;
 }
 
 static const struct dev_pm_ops mipi_dsi_device_pm_ops = {
@@ -125,6 +142,7 @@ struct mipi_dsi_device *mipi_dsi_device_new(struct mipi_dsi_host *host,
 	dsi->dev.type = &mipi_dsi_device_type;
 	dsi->dev.of_node = info->node;
 	dsi->channel = info->reg;
+	strlcpy(dsi->name, info->type, sizeof(dsi->name));
 
 	dev_set_name(&dsi->dev, "%s.%d", dev_name(host->dev), info->reg);
 
@@ -147,6 +165,11 @@ of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 	struct mipi_dsi_device_info info = { };
 	int ret;
 	u32 reg;
+
+	if (of_modalias_node(node, info.type, sizeof(info.type)) < 0) {
+		dev_err(dev, "modalias failure on %s\n", node->full_name);
+		return ERR_PTR(-EINVAL);
+	}
 
 	ret = of_property_read_u32(node, "reg", &reg);
 	if (ret) {
