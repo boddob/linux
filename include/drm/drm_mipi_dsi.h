@@ -140,6 +140,19 @@ enum mipi_dsi_pixel_format {
 };
 
 /**
+ * struct mipi_dsi_device_info - template for creating a mipi_dsi_device
+ * @reg: DSI virtual channel assigned to peripheral
+ * @node: pointer to OF device node
+ *
+ * This is populated and passed to mipi_dsi_device_new to create a new
+ * DSI device
+ */
+struct mipi_dsi_device_info {
+	u32 reg;
+	struct device_node *node;
+};
+
+/**
  * struct mipi_dsi_device - DSI peripheral device
  * @host: DSI host for this peripheral
  * @dev: driver model device node for this peripheral
@@ -174,6 +187,8 @@ ssize_t mipi_dsi_generic_write(struct mipi_dsi_device *dsi, const void *payload,
 ssize_t mipi_dsi_generic_read(struct mipi_dsi_device *dsi, const void *params,
 			      size_t num_params, void *data, size_t size);
 
+struct mipi_dsi_device *mipi_dsi_device_new(struct mipi_dsi_host *host,
+					    struct mipi_dsi_device_info *info);
 /**
  * enum mipi_dsi_dcs_tear_mode - Tearing Effect Output Line mode
  * @MIPI_DSI_DCS_TEAR_MODE_VBLANK: the TE output line consists of V-Blanking

@@ -102,9 +102,18 @@ static const struct device_type mipi_dsi_device_type = {
 	.release = mipi_dsi_dev_release,
 };
 
-static struct mipi_dsi_device *mipi_dsi_device_alloc(struct mipi_dsi_host *host)
+struct mipi_dsi_device *mipi_dsi_device_new(struct mipi_dsi_host *host,
+					    struct mipi_dsi_device_info *info)
 {
 	struct mipi_dsi_device *dsi;
+	struct device *dev = host->dev;
+	int ret;
+
+	if (info->reg > 3) {
+		dev_err(dev, "device node has invalid reg property: %u\n",
+			info->reg);
+		return ERR_PTR(-EINVAL);
+	}
 
 	dsi = kzalloc(sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
@@ -114,27 +123,28 @@ static struct mipi_dsi_device *mipi_dsi_device_alloc(struct mipi_dsi_host *host)
 	dsi->dev.bus = &mipi_dsi_bus_type;
 	dsi->dev.parent = host->dev;
 	dsi->dev.type = &mipi_dsi_device_type;
+	dsi->dev.of_node = info->node;
+	dsi->channel = info->reg;
 
-	device_initialize(&dsi->dev);
+	dev_set_name(&dsi->dev, "%s.%d", dev_name(host->dev), info->reg);
+
+	ret = device_register(&dsi->dev);
+	if (ret) {
+		dev_err(dev, "failed to register device: %d\n", ret);
+		kfree(dsi);
+		return ERR_PTR(ret);
+	}
 
 	return dsi;
 }
-
-static int mipi_dsi_device_add(struct mipi_dsi_device *dsi)
-{
-	struct mipi_dsi_host *host = dsi->host;
-
-	dev_set_name(&dsi->dev, "%s.%d", dev_name(host->dev),  dsi->channel);
-
-	return device_add(&dsi->dev);
-}
+EXPORT_SYMBOL(mipi_dsi_device_new);
 
 #if IS_ENABLED(CONFIG_OF)
 static struct mipi_dsi_device *
 of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 {
-	struct mipi_dsi_device *dsi;
 	struct device *dev = host->dev;
+	struct mipi_dsi_device_info info = { };
 	int ret;
 	u32 reg;
 
@@ -145,31 +155,10 @@ of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (reg > 3) {
-		dev_err(dev, "device node %s has invalid reg property: %u\n",
-			node->full_name, reg);
-		return ERR_PTR(-EINVAL);
-	}
+	info.reg = reg;
+	info.node = of_node_get(node);
 
-	dsi = mipi_dsi_device_alloc(host);
-	if (IS_ERR(dsi)) {
-		dev_err(dev, "failed to allocate DSI device %s: %ld\n",
-			node->full_name, PTR_ERR(dsi));
-		return dsi;
-	}
-
-	dsi->dev.of_node = of_node_get(node);
-	dsi->channel = reg;
-
-	ret = mipi_dsi_device_add(dsi);
-	if (ret) {
-		dev_err(dev, "failed to add DSI device %s: %d\n",
-			node->full_name, ret);
-		kfree(dsi);
-		return ERR_PTR(ret);
-	}
-
-	return dsi;
+	return mipi_dsi_device_new(host, &info);
 }
 #else
 static struct mipi_dsi_device *
