@@ -1910,6 +1910,7 @@ int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
 	struct msm_dsi_pll *src_pll)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	struct clk *byte_clk_provider, *pixel_clk_provider;
 	int ret;
 
@@ -1933,6 +1934,22 @@ int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
 		pr_err("%s: can't set parent to pixel_clk_src. ret=%d\n",
 			__func__, ret);
 		goto exit;
+	}
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_V2) {
+		ret = clk_set_parent(msm_host->dsi_clk_src, pixel_clk_provider);
+		if (ret) {
+			pr_err("%s: can't set parent to dsi_clk_src. ret=%d\n",
+				__func__, ret);
+			goto exit;
+		}
+
+		ret = clk_set_parent(msm_host->esc_clk_src, byte_clk_provider);
+		if (ret) {
+			pr_err("%s: can't set parent to esc_clk_src. ret=%d\n",
+				__func__, ret);
+			goto exit;
+		}
 	}
 
 exit:
