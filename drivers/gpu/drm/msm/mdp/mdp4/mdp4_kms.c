@@ -566,7 +566,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 0);
 	mdp4_write(mdp4_kms, REG_MDP4_LCDC_ENABLE, 0);
 	mdp4_write(mdp4_kms, REG_MDP4_DSI_ENABLE, 0);
-	mdp4_disable(mdp4_kms);
+	//mdp4_disable(mdp4_kms);
 	mdelay(16);
 
 	if (config->iommu) {

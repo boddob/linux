@@ -419,6 +419,19 @@ exit:
 	return ret;
 }
 
+static void sfpb_enable(void)
+{
+	void __iomem *base = ioremap(0x5700000, SZ_512);
+	u32 val = readl(base + 0x58);
+
+	val |= 0x1800;
+	writel(val, base + 0x58);
+
+	wmb();
+
+	iounmap(base);
+}
+
 static int dsi_bus_clk_enable(struct msm_dsi_host *msm_host)
 {
 	const struct msm_dsi_config *cfg = msm_host->cfg_hnd->cfg;
@@ -434,6 +447,8 @@ static int dsi_bus_clk_enable(struct msm_dsi_host *msm_host)
 			goto err;
 		}
 	}
+
+	sfpb_enable();
 
 	return 0;
 err:
