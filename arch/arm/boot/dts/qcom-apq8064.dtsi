@@ -1416,6 +1416,11 @@
 			};
 		};
 
+		mmss_sfpb: syscon@5700000 {
+			compatible = "syscon";
+			reg = <0x5700000 0x70>;
+		};
+
 		mdp: qcom,mdp@5100000 {
 			compatible = "qcom,mdp";
 			reg = <0x05100000 0xf0000>;
@@ -1468,6 +1473,8 @@
 				      "src_clk", "byte_clk", "pixel_clk",
 				      "core_clk", "byte_clk_src", "esc_clk_src",
 				      "dsi_clk_src", "pixel_clk_src";
+
+			syscon-sfpb = <&mmss_sfpb>;
 			qcom,dsi-phy = <&dsi0_phy>;
 		};
 
