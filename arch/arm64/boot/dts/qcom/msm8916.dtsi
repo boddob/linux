@@ -944,7 +944,7 @@
 			    "mem_iface_clk",
 			    "alt_mem_iface_clk",
 			    "gfx3d_clk_src";
-
+			power-domains = <&gcc OXILI_GDSC>;
 			qcom,chipid = <0x03000600>;
 			qcom,gpu-pwrlevels {
 				compatible = "qcom,gpu-pwrlevels";
@@ -970,6 +970,8 @@
 
 			connectors = <&mdss_dsi0>;
 			gpus = <&gpu>;
+
+			power-domains = <&gcc MDSS_GDSC>;
 
 			clocks = <&gcc GCC_MDSS_AHB_CLK>,
 				 <&gcc GCC_MDSS_AXI_CLK>,
@@ -1022,6 +1024,8 @@
 			reg-names = "dsi_pll",
 				    "dsi_phy",
 				    "dsi_phy_regulator";
+
+			power-domains = <&gcc MDSS_GDSC>;
 
 			clocks = <&gcc GCC_MDSS_AHB_CLK>;
 			clock-names = "iface_clk";

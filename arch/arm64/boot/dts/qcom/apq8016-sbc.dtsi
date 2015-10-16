@@ -17,7 +17,6 @@
 #include "pm8916.dtsi"
 #include "apq8016-sbc-soc-pins.dtsi"
 #include "apq8016-sbc-pmic-pins.dtsi"
-#include "msm8916-mdss.dtsi"
 / {
 	aliases {
 		serial0 = &blsp1_uart2;
@@ -246,11 +245,20 @@
 &mdss_dsi0 {
 	status = "ok";
 
+                vdda-supply = <&pm8916_l2>;
+                vdd-supply = <&pm8916_l17>;
+                vddio-supply = <&pm8916_l6>;
+
 	port {
 		dsi_out: endpoint {
 			remote-endpoint = <&adv_in>;
 		};
 	};
+};
+
+&mdss_dsi_phy0 {
+	status = "ok";
+        vddio-supply = <&pm8916_l6>;
 };
 
 &lpass {
