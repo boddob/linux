@@ -25,6 +25,8 @@ msm-y := \
 	mdp/mdp_kms.o \
 	mdp/mdp4/mdp4_crtc.o \
 	mdp/mdp4/mdp4_dtv_encoder.o \
+	mdp/mdp4/mdp4_lcdc_encoder.o \
+	mdp/mdp4/mdp4_lvds_connector.o \
 	mdp/mdp4/mdp4_irq.o \
 	mdp/mdp4/mdp4_kms.o \
 	mdp/mdp4/mdp4_plane.o \
@@ -50,9 +52,6 @@ msm-y := \
 
 msm-$(CONFIG_DRM_MSM_FBDEV) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += mdp/mdp4/mdp4_lvds_pll.o
-
-msm-$(CONFIG_DRM_MSM_LVDS) += mdp/mdp4/mdp4_lcdc_encoder.o \
-        mdp/mdp4/mdp4_lvds_connector.o
 
 msm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi.o \
 			mdp/mdp4/mdp4_dsi_encoder.o \
