@@ -321,6 +321,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 		}
 
 		priv->connectors[priv->num_connectors++] = connector;
+		priv->encoders[priv->num_encoders++] = encoder;
 
 		break;
 	case INTF_TYPE_HDMI:
@@ -332,6 +333,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 
 		/* DTV can be hooked to DMA_E: */
 		encoder->possible_crtcs = 1 << 1;
+		priv->encoders[priv->num_encoders++] = encoder;
 
 		if (priv->hdmi) {
 			/* Construct bridge/connector for HDMI: */
@@ -343,12 +345,41 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 		}
 
 		break;
+	case INTF_TYPE_DSI:
+	{
+		struct drm_encoder *dsi_encs[MSM_DSI_ENCODER_NUM];
+		int i, dsi_id = 0;
+
+		if (!priv->dsi[dsi_id])
+			break;
+
+		for (i = 0; i < MSM_DSI_ENCODER_NUM; i++) {
+			dsi_encs[i] = mdp4_dsi_encoder_init(dev);
+			if (IS_ERR(dsi_encs[i])) {
+				ret = PTR_ERR(dsi_encs[i]);
+				dev_err(dev->dev,
+					"failed to construct DSI encoder: %d\n",
+					ret);
+				return ret;
+			}
+
+			dsi_encs[i]->possible_crtcs = 1 << DMA_P;
+			priv->encoders[priv->num_encoders++] = dsi_encs[i];
+		}
+
+		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, dsi_encs);
+		if (ret) {
+			dev_err(dev->dev, "failed to initialize DSI: %d\n", ret);
+			return ret;
+		}
+
+		break;
+	}
+
 	default:
 		dev_err(dev->dev, "Invalid or unsupported interface\n");
 		return -EINVAL;
 	}
-
-	priv->encoders[priv->num_encoders++] = encoder;
 
 	return ret;
 }
@@ -374,6 +405,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	};
 	static const enum mdp4_intf_type mdp4_intfs[] = {
 		INTF_TYPE_LVDS,
+		INTF_TYPE_DSI,
 		INTF_TYPE_HDMI,
 	};
 
@@ -414,6 +446,9 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	 * we currently set up two relatively fixed paths:
 	 *
 	 * LCDC/LVDS path: RGB1 -> DMA_P -> LCDC -> LVDS
+	 *			or
+	 * DSI path: RGB1 -> DMA_P -> DSI1 -> DSI Panel
+	 *
 	 * DTV/HDMI path: RGB2 -> DMA_E -> DTV -> HDMI
 	 */
 
