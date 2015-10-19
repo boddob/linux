@@ -68,6 +68,12 @@ enum mdp4_intf {
 	INTF_EBI2_TV = 3,
 };
 
+enum mdp4_intf_type {
+	INTF_TYPE_LVDS = 0,
+	INTF_TYPE_DSI = 1,
+	INTF_TYPE_HDMI = 2,
+};
+
 enum mdp4_cursor_format {
 	CURSOR_ARGB = 1,
 	CURSOR_XRGB = 2,
