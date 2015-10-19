@@ -237,22 +237,16 @@ static int msm_unload(struct drm_device *dev)
 	return 0;
 }
 
+
 static int get_mdp_ver(struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
-	static const struct of_device_id match_types[] = { {
-		.compatible = "qcom,mdss_mdp",
-		.data	= (void	*)5,
-	}, {
-		/* end node */
-	} };
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
-	match = of_match_node(match_types, dev->of_node);
-	if (match)
-		return (int)(unsigned long)match->data;
-#endif
+
+	return (int) of_device_get_match_data(dev);
+#else
 	return 4;
+#endif
 }
 
 #include <linux/of_address.h>
@@ -1142,8 +1136,8 @@ static const struct platform_device_id msm_id[] = {
 };
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,mdp" },      /* mdp4 */
-	{ .compatible = "qcom,mdss_mdp" }, /* mdp5 */
+	{ .compatible = "qcom,mdp", .data = (void *) 4, },	/* mdp4 */
+	{ .compatible = "qcom,mdss_mdp", .data = (void *) 5 },	/* mdp5 */
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
