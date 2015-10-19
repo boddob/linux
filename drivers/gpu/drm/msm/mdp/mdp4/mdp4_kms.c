@@ -388,7 +388,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int modeset_init(struct mdp4_kms *mdp4_kms)
