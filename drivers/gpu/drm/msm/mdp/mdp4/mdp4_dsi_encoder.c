@@ -89,41 +89,6 @@ static const struct drm_encoder_funcs mdp4_dsi_encoder_funcs = {
 	.destroy = mdp4_dsi_encoder_destroy,
 };
 
-static void mdp4_dsi_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct mdp4_dsi_encoder *mdp4_dsi_encoder = to_mdp4_dsi_encoder(encoder);
-	struct mdp4_kms *mdp4_kms = get_kms(encoder);
-	bool enabled = (mode == DRM_MODE_DPMS_ON);
-
-	DBG("mode=%d", mode);
-
-	if (enabled == mdp4_dsi_encoder->enabled)
-		return;
-
-	if (enabled) {
-
-		bs_set(mdp4_dsi_encoder, 1);
-
-		mdp4_write(mdp4_kms, REG_MDP4_DSI_ENABLE, 1);
-	} else {
-		mdp4_write(mdp4_kms, REG_MDP4_DSI_ENABLE, 0);
-
-		/*
-		 * Wait for a vsync so we know the ENABLE=0 latched before
-		 * the (connector) source of the vsync's gets disabled,
-		 * otherwise we end up in a funny state if we re-enable
-		 * before the disable latches, which results that some of
-		 * the settings changes for the new modeset (like new
-		 * scanout buffer) don't latch properly..
-		 */
-		mdp_irq_wait(&mdp4_kms->base, MDP4_IRQ_PRIMARY_VSYNC);
-
-		bs_set(mdp4_dsi_encoder, 0);
-	}
-
-	mdp4_dsi_encoder->enabled = enabled;
-}
-
 static bool mdp4_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
 		const struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
@@ -193,13 +158,39 @@ static void mdp4_dsi_encoder_mode_set(struct drm_encoder *encoder,
 	mdp4_write(mdp4_kms, REG_MDP4_DSI_ACTIVE_VEND, 0);
 }
 
-static void mdp4_dsi_encoder_prepare(struct drm_encoder *encoder)
+static void mdp4_dsi_encoder_disable(struct drm_encoder *encoder)
 {
-	mdp4_dsi_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+	struct mdp4_dsi_encoder *mdp4_dsi_encoder = to_mdp4_dsi_encoder(encoder);
+	struct mdp4_kms *mdp4_kms = get_kms(encoder);
+
+	if (!mdp4_dsi_encoder->enabled)
+		return;
+
+	mdp4_write(mdp4_kms, REG_MDP4_DSI_ENABLE, 0);
+
+	/*
+	 * Wait for a vsync so we know the ENABLE=0 latched before
+	 * the (connector) source of the vsync's gets disabled,
+	 * otherwise we end up in a funny state if we re-enable
+	 * before the disable latches, which results that some of
+	 * the settings changes for the new modeset (like new
+	 * scanout buffer) don't latch properly..
+	 */
+	mdp_irq_wait(&mdp4_kms->base, MDP4_IRQ_PRIMARY_VSYNC);
+
+	bs_set(mdp4_dsi_encoder, 0);
+
+	mdp4_dsi_encoder->enabled = false;
 }
 
-static void mdp4_dsi_encoder_commit(struct drm_encoder *encoder)
+static void mdp4_dsi_encoder_enable(struct drm_encoder *encoder)
 {
+	struct mdp4_dsi_encoder *mdp4_dsi_encoder = to_mdp4_dsi_encoder(encoder);
+	struct mdp4_kms *mdp4_kms = get_kms(encoder);
+
+	if (mdp4_dsi_encoder->enabled)
+		return;
+
 	 mdp4_crtc_set_config(encoder->crtc,
                         MDP4_DMA_CONFIG_PACK_ALIGN_MSB |
                         MDP4_DMA_CONFIG_DEFLKR_EN |
@@ -208,25 +199,22 @@ static void mdp4_dsi_encoder_commit(struct drm_encoder *encoder)
                         MDP4_DMA_CONFIG_G_BPC(BPC8) |
                         MDP4_DMA_CONFIG_B_BPC(BPC8) |
                         MDP4_DMA_CONFIG_PACK(0x21));
-        mdp4_crtc_set_intf(encoder->crtc, INTF_DSI_VIDEO,0);
 
-	mdp4_dsi_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
+        mdp4_crtc_set_intf(encoder->crtc, INTF_DSI_VIDEO, 0);
+
+	bs_set(mdp4_dsi_encoder, 1);
+
+	mdp4_write(mdp4_kms, REG_MDP4_DSI_ENABLE, 1);
+
+	mdp4_dsi_encoder->enabled = true;
 }
 
 static const struct drm_encoder_helper_funcs mdp4_dsi_encoder_helper_funcs = {
-	.dpms = mdp4_dsi_encoder_dpms,
 	.mode_fixup = mdp4_dsi_encoder_mode_fixup,
 	.mode_set = mdp4_dsi_encoder_mode_set,
-	.prepare = mdp4_dsi_encoder_prepare,
-	.commit = mdp4_dsi_encoder_commit,
+	.disable = mdp4_dsi_encoder_disable,
+	.enable = mdp4_dsi_encoder_enable,
 };
-
-long mdp4_dsi_round_pixclk(struct drm_encoder *encoder, unsigned long rate)
-{
-//	struct mdp4_dsi_encoder *mdp4_dsi_encoder = to_mdp4_dsi_encoder(encoder);
-//	return clk_round_rate(mdp4_dsi_encoder->mdp_p_clk, rate);
-	return 0;
-}
 
 /* initialize encoder */
 struct drm_encoder *mdp4_dsi_encoder_init(struct drm_device *dev)
