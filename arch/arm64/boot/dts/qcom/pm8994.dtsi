@@ -3,14 +3,14 @@
 
 &spmi_bus {
 
-	pmic@0 {
+	pm8994_0: pmic@0 {
 		compatible = "qcom,pm8994", "qcom,spmi-pmic";
 		reg = <0x0 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
 
-	pmic@1 {
+	pm8994_1: pmic@1 {
 		compatible = "qcom,pm8994", "qcom,spmi-pmic";
 		reg = <0x1 SPMI_USID>;
 		#address-cells = <1>;

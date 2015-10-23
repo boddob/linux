@@ -12,10 +12,16 @@
  */
 
 #include "msm8996.dtsi"
+#include "pm8994.dtsi"
+#include "pm8004.dtsi"
+#include "pmi8994.dtsi"
 
 / {
 	aliases {
 		serial0 = &blsp2_uart1;
+		usid0 = &pm8994_0;
+		usid2 = &pmi8994_0;
+		usid4 = &pm8004_0;
 	};
 
 	chosen {
