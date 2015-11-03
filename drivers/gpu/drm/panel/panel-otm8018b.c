@@ -233,7 +233,6 @@ static int otm8018b_panel_init(struct otm8018b_panel *otm8018b)
 	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 	
 	/*truly*/
-if(0){
 
 	ret = mipi_dsi_generic_write(dsi, &write_memory1, sizeof(write_memory1));
 	if (ret < 0)
@@ -644,8 +643,7 @@ if(0){
 
 	ret = mipi_dsi_generic_write(dsi, &write_memory104, sizeof(write_memory104));
 	mdelay(250);
-}
-/*truly*/
+
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
 	if (ret < 0)
 		return ret;
@@ -923,7 +921,7 @@ static int otm8018b_panel_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 2;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO; 
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_EOT_PACKET;
 
 	otm8018b = devm_kzalloc(&dsi->dev, sizeof(*otm8018b), GFP_KERNEL);
 	if (!otm8018b) {
