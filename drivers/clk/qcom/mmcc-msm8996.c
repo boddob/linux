@@ -2925,6 +2925,7 @@ struct gdsc mmagic_video_gdsc = {
 		.name = "mmagic_video",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 struct gdsc mmagic_mdss_gdsc = {
@@ -2934,6 +2935,7 @@ struct gdsc mmagic_mdss_gdsc = {
 		.name = "mmagic_mdss",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 struct gdsc mmagic_camss_gdsc = {
@@ -2943,6 +2945,7 @@ struct gdsc mmagic_camss_gdsc = {
 		.name = "mmagic_camss",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 struct gdsc venus_gdsc = {

@@ -3067,6 +3067,7 @@ static struct gdsc aggre0_noc_gdsc = {
 		.name = "aggre0_noc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc hlos1_vote_aggre0_noc_gdsc = {
@@ -3075,6 +3076,7 @@ static struct gdsc hlos1_vote_aggre0_noc_gdsc = {
 		.name = "hlos1_vote_aggre0_noc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc hlos1_vote_lpass_adsp_gdsc = {
@@ -3083,6 +3085,7 @@ static struct gdsc hlos1_vote_lpass_adsp_gdsc = {
 		.name = "hlos1_vote_lpass_adsp",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc hlos1_vote_lpass_core_gdsc = {
@@ -3091,6 +3094,7 @@ static struct gdsc hlos1_vote_lpass_core_gdsc = {
 		.name = "hlos1_vote_lpass_core",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc usb30_gdsc = {

@@ -65,6 +65,10 @@ static int gdsc_toggle_logic(struct gdsc *sc, bool en)
 	if (ret)
 		return ret;
 
+	/* If disabling votable gdscs, don't poll on status */
+	if ((sc->flags & VOTABLE) && !en)
+		return 0;
+
 	timeout = jiffies + usecs_to_jiffies(TIMEOUT_US);
 
 	if (sc->gds_hw_ctrl) {
