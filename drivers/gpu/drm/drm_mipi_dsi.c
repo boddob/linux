@@ -119,6 +119,22 @@ static const struct device_type mipi_dsi_device_type = {
 	.release = mipi_dsi_dev_release,
 };
 
+static int __dsi_check_chan_busy(struct device *dev, void *data)
+{
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+	u32 *reg = data;
+
+	if (dsi && dsi->channel == *reg)
+		return -EBUSY;
+
+	return 0;
+}
+
+static int mipi_dsi_check_chan_busy(struct mipi_dsi_host *host, u32 reg)
+{
+	return device_for_each_child(host->dev, &reg, __dsi_check_chan_busy);
+}
+
 struct mipi_dsi_device *mipi_dsi_device_new(struct mipi_dsi_host *host,
 					    struct mipi_dsi_device_info *info)
 {
@@ -146,14 +162,20 @@ struct mipi_dsi_device *mipi_dsi_device_new(struct mipi_dsi_host *host,
 
 	dev_set_name(&dsi->dev, "%s.%d", dev_name(host->dev), info->reg);
 
+	ret = mipi_dsi_check_chan_busy(host, info->reg);
+	if (ret)
+		goto err;
+
 	ret = device_register(&dsi->dev);
 	if (ret) {
 		dev_err(dev, "failed to register device: %d\n", ret);
-		kfree(dsi);
-		return ERR_PTR(ret);
+		goto err;
 	}
 
 	return dsi;
+err:
+	kfree(dsi);
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(mipi_dsi_device_new);
 
