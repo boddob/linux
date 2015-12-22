@@ -66,6 +66,7 @@ struct mdp5_kms {
 	struct clk *core_clk;
 	struct clk *lut_clk;
 	struct clk *vsync_clk;
+	struct clk *iommu_clk;
 
 	/*
 	 * lock to protect access to global resources: ie., following register:
