@@ -441,6 +441,23 @@
 			};
 		};
 
+	       mdp_smmu: arm,smmu@d00000 {
+		       compatible = "arm,smmu-v2";
+		       reg = <0xd00000 0x40000>;
+		       #global-interrupts = <1>;
+		       interrupts = <0 353 0>,
+				    <0 348 0>,
+				    <0 349 0>,
+				    <0 350 0>,
+				    <0 351 0>;
+		       #iommu-cells = <1>;
+		       clocks = <&mmcc SMMU_MDP_AXI_CLK>,
+				<&mmcc SMMU_MDP_AHB_CLK>;
+		       clock-names = "iface_clk", "ahb_clk";
+		       #clock-cells = <1>;
+		       status = "okay";
+	       };
+
 		mdss_mdp: qcom,mdss_mdp@900000 {
 			compatible = "qcom,mdss_mdp";
 			reg = <0x00900000 0x90000>,
@@ -457,7 +474,6 @@
 				 <&mmcc MMAGIC_BIMC_AXI_CLK>,
 				 <&mmcc MDP_CLK_SRC>,
 				 <&mmcc MDSS_MDP_CLK>,
-				 <&mmcc SMMU_MDP_AXI_CLK>,
 				 <&mmcc MMAGIC_MDSS_AXI_CLK>,
 				 <&mmcc MDSS_VSYNC_CLK>,
 				 <&mmcc AXI_CLK_SRC>,
