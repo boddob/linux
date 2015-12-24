@@ -500,7 +500,7 @@
 			interrupts = <0 83 0>;
 			interrupt-controller;
 			#interrupt-cells = <1>;
-			//iommus = <&mdp_smmu 0>;
+			iommus = <&mdp_smmu 0>;
 		};
 
 		mdss_hdmi_phy: qcom,hdmi_phy@9a0600 {
