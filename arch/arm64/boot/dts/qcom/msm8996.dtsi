@@ -480,9 +480,6 @@
 
 			power-domains = <&mmcc MDSS_GDSC>;
 
-			//GDSCs hardcoded in driver for now
-			//mmagic-supply = <&gdsc_mmagic_mdss>;
-			//vdd-supply = <&gdsc_mdss>;
 			interrupt-parent = <&intc>;
 			interrupts = <0 83 0>;
 			interrupt-controller;
@@ -490,7 +487,7 @@
 			//iommus = <&mdp_smmu 0>;
 		};
 
-		mdss_hdmi_phy: qcom,hdmi_phy@ {
+		mdss_hdmi_phy: qcom,hdmi_phy@9a0600 {
 			compatible = "qcom,hdmi-phy-8996";
 			reg = <0x9a0600 0xb10>,
 			      <0x9a1200 0x0c8>;
@@ -504,6 +501,9 @@
 			clock-names = "iface_clk",
 				      "mmagic_iface_clk",
 				      "ref_clk";
+
+			//vddio-supply = <&pm8994_l12>;
+			//vcca-supply = <&pm8994_l28>;
 		};
 
 		mdss_hdmi: qcom,hdmi_tx@9a0000 {
