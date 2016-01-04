@@ -3357,6 +3357,8 @@ static int mmcc_msm8996_probe(struct platform_device *pdev)
 			return PTR_ERR(clk);
 	}
 
+	printk(KERN_ERR "MMCC8996 PROBE\n");
+
 	return qcom_cc_really_probe(pdev, &mmcc_msm8996_desc, regmap);
 }
 

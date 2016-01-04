@@ -458,8 +458,10 @@ find_smmu_master_cfg(struct device *dev)
 	struct arm_smmu_master_cfg *cfg = NULL;
 	struct iommu_group *group = iommu_group_get(dev);
 
+	printk("\n group %x", group);
 	if (group) {
 		cfg = iommu_group_get_iommudata(group);
+		//printk("\n cfg  %x", cfg);
 		iommu_group_put(group);
 	}
 
@@ -497,6 +499,8 @@ static int register_smmu_master(struct arm_smmu_device *smmu,
 {
 	int i;
 	struct arm_smmu_master *master;
+
+	dev_err(dev, "register_smmu_master");
 
 	master = find_smmu_master(smmu, masterspec->np);
 	if (master) {
@@ -1195,12 +1199,17 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	/* Looks ok, so add the device to the domain */
 	cfg = find_smmu_master_cfg(dev);
-	if (!cfg)
+	if (!cfg) {
+		printk("\n find master config failed");
 		return -ENODEV;
+	}
 
 	ret = arm_smmu_domain_add_master(smmu_domain, cfg);
 	if (!ret)
 		dev->archdata.iommu = domain;
+
+	dev_err(dev, "arm_smmu_attach_dev returns %d", ret);
+
 	return ret;
 }
 
@@ -1421,6 +1430,8 @@ static struct iommu_group *arm_smmu_device_group(struct device *dev)
 	struct iommu_group *group;
 	int ret;
 
+	dev_err(dev, "arm_smmu_device_group");
+
 	if (dev_is_pci(dev))
 		group = pci_device_group(dev);
 	else
@@ -1438,6 +1449,8 @@ static struct iommu_group *arm_smmu_device_group(struct device *dev)
 		iommu_group_put(group);
 		group = ERR_PTR(ret);
 	}
+
+	dev_err(dev, "arm_smmu_device_group ret %d for dev %s group %d", ret, dev->init_name, group);
 
 	return group;
 }
@@ -1493,6 +1506,7 @@ static int arm_smmu_of_xlate(struct device *dev,
 	struct arm_smmu_master *master;
 	int streamid;
 
+	dev_err(dev, "arm_smmu_of_xlate");
 	spin_lock(&arm_smmu_devices_lock);
 	list_for_each_entry(smmu, &arm_smmu_devices, list) {
 		if (smmu->node == spec->np)
@@ -1509,6 +1523,7 @@ static int arm_smmu_of_xlate(struct device *dev,
 	if (!master) {
 		if (register_smmu_master(smmu, smmu->dev, spec))
 			return -ENODEV;
+		arm_smmu_add_device(dev);
 	} else {
 		streamid = master->cfg.num_streamids;
 		master->cfg.streamids[streamid] = spec->args[0];
@@ -1652,7 +1667,7 @@ static int arm_smmu_init_clocks(struct arm_smmu_device *smmu)
 		if (IS_ERR(c)) {
 			dev_err(dev, "Couldn't get clock: %s",
 				cname);
-			return -ENODEV;
+			return -EPROBE_DEFER;
 		}
 
 		smmu->clocks[i] = c;

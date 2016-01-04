@@ -235,8 +235,10 @@ struct iommu_group *iommu_group_get_by_id(int id)
 	struct iommu_group *group;
 	const char *name;
 
-	if (!iommu_group_kset)
+	if (!iommu_group_kset) {
+		printk("\n iommu_group_kset");
 		return NULL;
+	}
 
 	name = kasprintf(GFP_KERNEL, "%d", id);
 	if (!name)
@@ -245,8 +247,10 @@ struct iommu_group *iommu_group_get_by_id(int id)
 	group_kobj = kset_find_obj(iommu_group_kset, name);
 	kfree(name);
 
-	if (!group_kobj)
+	if (!group_kobj) {
+		printk("\n group_kobj");
 		return NULL;
+	}
 
 	group = container_of(group_kobj, struct iommu_group, kobj);
 	BUG_ON(group->id != id);
@@ -908,6 +912,7 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 	struct iommu_group *group;
 	unsigned long group_action = 0;
 
+	dev_err(dev, "iommu_bus_notifier");
 	/*
 	 * ADD/DEL call into iommu driver ops if provided, which may
 	 * result in ADD/DEL notifiers to group->notifier

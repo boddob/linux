@@ -447,14 +447,12 @@
 		       #global-interrupts = <1>;
 		       interrupts = <0 353 0>,
 				    <0 348 0>,
-				    <0 349 0>,
-				    <0 350 0>,
-				    <0 351 0>;
+				    <0 349 0>;
 		       #iommu-cells = <1>;
-		       clocks = <&mmcc SMMU_MDP_AXI_CLK>,
+		       clocks = <&mmcc MMSS_MMAGIC_AHB_CLK>,
+				<&mmcc SMMU_MDP_AXI_CLK>,
 				<&mmcc SMMU_MDP_AHB_CLK>;
-		       clock-names = "iface_clk", "ahb_clk";
-		       #clock-cells = <1>;
+		       clock-names = "mmagic_iface_clk", "iface_clk", "ahb_clk";
 		       status = "okay";
 	       };
 
@@ -486,7 +484,7 @@
 				"mmagic_bimc_bus_clk",
 				"core_clk_src",
 				"core_clk",
-				"iommu_clk",
+				//"iommu_clk",
 				"mmagic_clk",
 				"vsync_clk",
 				"axi_clk_src",
