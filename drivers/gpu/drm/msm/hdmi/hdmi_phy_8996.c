@@ -287,7 +287,7 @@
 #define HDMI_PHY_PHY_REVISION_ID2             (0xC0)
 #define HDMI_PHY_PHY_REVISION_ID3             (0xC4)
 
-#define HDMI_PLL_POLL_MAX_READS                2500
+#define HDMI_PLL_POLL_MAX_READS                100
 #define HDMI_PLL_POLL_TIMEOUT_MS               150
 
 struct hdmi_pll_8996 {
