@@ -169,6 +169,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 
 	DBG("par=%p, %dx%d", fbi->par, fbi->var.xres, fbi->var.yres);
 	DBG("allocated %dx%d fb", fbdev->fb->width, fbdev->fb->height);
+	printk(KERN_ERR "paddr %x\n", paddr);
 
 	mutex_unlock(&dev->struct_mutex);
 

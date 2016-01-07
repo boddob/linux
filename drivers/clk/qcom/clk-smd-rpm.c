@@ -23,6 +23,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/soc/qcom/smd-rpm.h>
+#include <linux/clk.h>
 
 #include "clk-smd-rpm.h"
 #include <dt-bindings/clock/qcom,rpmcc.h>
@@ -465,6 +466,14 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 	if (ret) {
 		of_clk_del_provider(pdev->dev.of_node);
 		goto err;
+	}
+
+	for (i = 0; i < num_clks; i++) {
+		if (!rpm_smd_clks[i])
+			continue;
+
+		clk_set_rate(clks[i], INT_MAX);
+		clk_prepare_enable(clks[i]);
 	}
 
 	return 0;
