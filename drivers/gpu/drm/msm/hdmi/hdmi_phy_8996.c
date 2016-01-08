@@ -43,12 +43,8 @@ struct hdmi_pll_8996 {
 };
 
 struct hdmi_8996_phy_pll_reg_cfg {
-	u32 tx_l0_lane_mode;
-	u32 tx_l2_lane_mode;
-	u32 tx_l0_tx_band;
-	u32 tx_l1_tx_band;
-	u32 tx_l2_tx_band;
-	u32 tx_l3_tx_band;
+	u32 tx_lx_lane_mode[HDMI_NUM_TX_CHANNEL];
+	u32 tx_lx_tx_band[HDMI_NUM_TX_CHANNEL];
 	u32 com_svs_mode_clk_sel;
 	u32 com_hsclk_sel;
 	u32 com_pll_cctrl_mode0;
@@ -68,26 +64,12 @@ struct hdmi_8996_phy_pll_reg_cfg {
 	u32 com_coreclk_div;
 	u32 com_vco_tune_ctrl;
 
-	u32 tx_l0_tx_drv_lvl;
-	u32 tx_l0_tx_emp_post1_lvl;
-	u32 tx_l1_tx_drv_lvl;
-	u32 tx_l1_tx_emp_post1_lvl;
-	u32 tx_l2_tx_drv_lvl;
-	u32 tx_l2_tx_emp_post1_lvl;
-	u32 tx_l3_tx_drv_lvl;
-	u32 tx_l3_tx_emp_post1_lvl;
-	u32 tx_l0_vmode_ctrl1;
-	u32 tx_l0_vmode_ctrl2;
-	u32 tx_l1_vmode_ctrl1;
-	u32 tx_l1_vmode_ctrl2;
-	u32 tx_l2_vmode_ctrl1;
-	u32 tx_l2_vmode_ctrl2;
-	u32 tx_l3_vmode_ctrl1;
-	u32 tx_l3_vmode_ctrl2;
-	u32 tx_l0_res_code_lane_tx;
-	u32 tx_l1_res_code_lane_tx;
-	u32 tx_l2_res_code_lane_tx;
-	u32 tx_l3_res_code_lane_tx;
+	u32 tx_lx_tx_drv_lvl[HDMI_NUM_TX_CHANNEL];
+	u32 tx_lx_tx_emp_post1_lvl[HDMI_NUM_TX_CHANNEL];
+	u32 tx_lx_vmode_ctrl1[HDMI_NUM_TX_CHANNEL];
+	u32 tx_lx_vmode_ctrl2[HDMI_NUM_TX_CHANNEL];
+	u32 tx_lx_res_code_lane_tx[HDMI_NUM_TX_CHANNEL];
+	u32 tx_lx_hp_pd_enables[HDMI_NUM_TX_CHANNEL];
 
 	u32 phy_mode;
 };
@@ -255,7 +237,7 @@ static int pll_calculate(unsigned long pix_clk, struct hdmi_8996_phy_pll_reg_cfg
 	u32 cctrl;
 	u32 integloop_gain;
 	u64 rem;
-	int ret;
+	int i, ret;
 
 	/* bit clk = 10 * pix_clk */
 	bclk = ((u64)pix_clk) * 10;
@@ -306,11 +288,6 @@ static int pll_calculate(unsigned long pix_clk, struct hdmi_8996_phy_pll_reg_cfg
 	DBG("PLL_CMP: %u", pll_cmp);
 
 	/* Convert these values to register specific values */
-	cfg->tx_l0_tx_band =
-		cfg->tx_l1_tx_band =
-		cfg->tx_l2_tx_band =
-		cfg->tx_l3_tx_band = pd.tx_band_sel + 4;
-
 	if (bclk > HDMI_DIG_FREQ_BIT_CLK_THRESHOLD)
 		cfg->com_svs_mode_clk_sel = 1;
 	else
@@ -335,66 +312,58 @@ static int pll_calculate(unsigned long pix_clk, struct hdmi_8996_phy_pll_reg_cfg
 	cfg->phy_mode = (bclk > HDMI_HIGH_FREQ_BIT_CLK_THRESHOLD) ? 0x10 : 0x0;
 	cfg->com_vco_tune_ctrl = 0x0;
 
-	cfg->tx_l0_lane_mode = 0x43;
-	cfg->tx_l2_lane_mode = 0x43;
+	cfg->tx_lx_lane_mode[0] =
+		cfg->tx_lx_lane_mode[2] = 0x43;
+
+	cfg->tx_lx_hp_pd_enables[0] =
+		cfg->tx_lx_hp_pd_enables[1] =
+		cfg->tx_lx_hp_pd_enables[2] = 0x0c;
+	cfg->tx_lx_hp_pd_enables[3] = 0x3;
+
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+		cfg->tx_lx_tx_band[i] = pd.tx_band_sel + 4;
 
 	if (bclk > HDMI_HIGH_FREQ_BIT_CLK_THRESHOLD) {
-		cfg->tx_l0_tx_drv_lvl = 0x25;
-		cfg->tx_l0_tx_emp_post1_lvl = 0x23;
-		cfg->tx_l1_tx_drv_lvl = 0x25;
-		cfg->tx_l1_tx_emp_post1_lvl = 0x23;
-		cfg->tx_l2_tx_drv_lvl = 0x25;
-		cfg->tx_l2_tx_emp_post1_lvl = 0x23;
-		cfg->tx_l3_tx_drv_lvl = 0x22;
-		cfg->tx_l3_tx_emp_post1_lvl = 0x27;
-		cfg->tx_l0_vmode_ctrl1 = 0x00;
-		cfg->tx_l0_vmode_ctrl2 = 0x0D;
-		cfg->tx_l1_vmode_ctrl1 = 0x00;
-		cfg->tx_l1_vmode_ctrl2 = 0x0D;
-		cfg->tx_l2_vmode_ctrl1 = 0x00;
-		cfg->tx_l2_vmode_ctrl2 = 0x0D;
-		cfg->tx_l3_vmode_ctrl1 = 0x00;
-		cfg->tx_l3_vmode_ctrl2 = 0x00;
+		cfg->tx_lx_tx_drv_lvl[0] =
+			cfg->tx_lx_tx_drv_lvl[1] =
+			cfg->tx_lx_tx_drv_lvl[2] = 0x25;
+		cfg->tx_lx_tx_drv_lvl[3] = 0x22;
+
+		cfg->tx_lx_tx_emp_post1_lvl[0] =
+			cfg->tx_lx_tx_emp_post1_lvl[1] =
+			cfg->tx_lx_tx_emp_post1_lvl[2] = 0x23;
+		cfg->tx_lx_tx_emp_post1_lvl[3] = 0x27;
+
+		cfg->tx_lx_vmode_ctrl1[0] =
+			cfg->tx_lx_vmode_ctrl1[1] =
+			cfg->tx_lx_vmode_ctrl1[2] =
+			cfg->tx_lx_vmode_ctrl1[3] = 0x00;
+
+		cfg->tx_lx_vmode_ctrl2[0] =
+			cfg->tx_lx_vmode_ctrl2[1] =
+			cfg->tx_lx_vmode_ctrl2[2] = 0x0D;
+
+		cfg->tx_lx_vmode_ctrl2[3] = 0x00;
 	} else if (bclk > HDMI_MID_FREQ_BIT_CLK_THRESHOLD) {
-		cfg->tx_l0_tx_drv_lvl = 0x25;
-		cfg->tx_l0_tx_emp_post1_lvl = 0x23;
-		cfg->tx_l1_tx_drv_lvl = 0x25;
-		cfg->tx_l1_tx_emp_post1_lvl = 0x23;
-		cfg->tx_l2_tx_drv_lvl = 0x25;
-		cfg->tx_l2_tx_emp_post1_lvl = 0x23;
-		cfg->tx_l3_tx_drv_lvl = 0x25;
-		cfg->tx_l3_tx_emp_post1_lvl = 0x23;
-		cfg->tx_l0_vmode_ctrl1 = 0x00;
-		cfg->tx_l0_vmode_ctrl2 = 0x0D;
-		cfg->tx_l1_vmode_ctrl1 = 0x00;
-		cfg->tx_l1_vmode_ctrl2 = 0x0D;
-		cfg->tx_l2_vmode_ctrl1 = 0x00;
-		cfg->tx_l2_vmode_ctrl2 = 0x0D;
-		cfg->tx_l3_vmode_ctrl1 = 0x00;
-		cfg->tx_l3_vmode_ctrl2 = 0x00;
+		for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
+			cfg->tx_lx_tx_drv_lvl[i] = 0x25;
+			cfg->tx_lx_tx_emp_post1_lvl[i] = 0x23;
+			cfg->tx_lx_vmode_ctrl1[i] = 0x00;
+		}
+
+		cfg->tx_lx_vmode_ctrl2[0] =
+			cfg->tx_lx_vmode_ctrl2[1] =
+			cfg->tx_lx_vmode_ctrl2[2] = 0x0D;
+		cfg->tx_lx_vmode_ctrl2[3] = 0x00;
 	} else {
-		cfg->tx_l0_tx_drv_lvl = 0x20;
-		cfg->tx_l0_tx_emp_post1_lvl = 0x20;
-		cfg->tx_l1_tx_drv_lvl = 0x20;
-		cfg->tx_l1_tx_emp_post1_lvl = 0x20;
-		cfg->tx_l2_tx_drv_lvl = 0x20;
-		cfg->tx_l2_tx_emp_post1_lvl = 0x20;
-		cfg->tx_l3_tx_drv_lvl = 0x20;
-		cfg->tx_l3_tx_emp_post1_lvl = 0x20;
-		cfg->tx_l0_vmode_ctrl1 = 0x00;
-		cfg->tx_l0_vmode_ctrl2 = 0x0E;
-		cfg->tx_l1_vmode_ctrl1 = 0x00;
-		cfg->tx_l1_vmode_ctrl2 = 0x0E;
-		cfg->tx_l2_vmode_ctrl1 = 0x00;
-		cfg->tx_l2_vmode_ctrl2 = 0x0E;
-		cfg->tx_l3_vmode_ctrl1 = 0x00;
-		cfg->tx_l3_vmode_ctrl2 = 0x0E;
+		for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
+			cfg->tx_lx_tx_drv_lvl[i] = 0x20;
+			cfg->tx_lx_tx_emp_post1_lvl[i] = 0x20;
+			cfg->tx_lx_vmode_ctrl1[i] = 0x00;
+			cfg->tx_lx_vmode_ctrl2[i] = 0x0E;
+		}
 	}
 
-	DBG("tx_l0_tx_band = 0x%x", cfg->tx_l0_tx_band);
-	DBG("tx_l1_tx_band = 0x%x", cfg->tx_l1_tx_band);
-	DBG("tx_l2_tx_band = 0x%x", cfg->tx_l2_tx_band);
-	DBG("tx_l3_tx_band = 0x%x", cfg->tx_l3_tx_band);
 	DBG("com_svs_mode_clk_sel = 0x%x",cfg->com_svs_mode_clk_sel);
 	DBG("com_hsclk_sel = 0x%x", cfg->com_hsclk_sel);
 	DBG("com_lock_cmp_en = 0x%x", cfg->com_lock_cmp_en);
@@ -414,25 +383,17 @@ static int pll_calculate(unsigned long pix_clk, struct hdmi_8996_phy_pll_reg_cfg
 	DBG("com_coreclk_div = 0x%x", cfg->com_coreclk_div);
 	DBG("phy_mode = 0x%x", cfg->phy_mode);
 
-	DBG("tx_l0_lane_mode = 0x%x", cfg->tx_l0_lane_mode);
-	DBG("tx_l2_lane_mode = 0x%x", cfg->tx_l2_lane_mode);
-	DBG("l0_tx_drv_lvl = 0x%x", cfg->tx_l0_tx_drv_lvl);
-	DBG("l0_tx_emp_post1_lvl = 0x%x", cfg->tx_l0_tx_emp_post1_lvl);
-	DBG("l1_tx_drv_lvl = 0x%x", cfg->tx_l1_tx_drv_lvl);
-	DBG("l1_tx_emp_post1_lvl = 0x%x", cfg->tx_l1_tx_emp_post1_lvl);
-	DBG("l2_tx_drv_lvl = 0x%x", cfg->tx_l2_tx_drv_lvl);
-	DBG("l2_tx_emp_post1_lvl = 0x%x", cfg->tx_l2_tx_emp_post1_lvl);
-	DBG("l3_tx_drv_lvl = 0x%x", cfg->tx_l3_tx_drv_lvl);
-	DBG("l3_tx_emp_post1_lvl = 0x%x", cfg->tx_l3_tx_emp_post1_lvl);
+	DBG("tx_l0_lane_mode = 0x%x", cfg->tx_lx_lane_mode[0]);
+	DBG("tx_l2_lane_mode = 0x%x", cfg->tx_lx_lane_mode[2]);
 
-	DBG("l0_vmode_ctrl1 = 0x%x", cfg->tx_l0_vmode_ctrl1);
-	DBG("l0_vmode_ctrl2 = 0x%x", cfg->tx_l0_vmode_ctrl2);
-	DBG("l1_vmode_ctrl1 = 0x%x", cfg->tx_l1_vmode_ctrl1);
-	DBG("l1_vmode_ctrl2 = 0x%x", cfg->tx_l1_vmode_ctrl2);
-	DBG("l2_vmode_ctrl1 = 0x%x", cfg->tx_l2_vmode_ctrl1);
-	DBG("l2_vmode_ctrl2 = 0x%x", cfg->tx_l2_vmode_ctrl2);
-	DBG("l3_vmode_ctrl1 = 0x%x", cfg->tx_l3_vmode_ctrl1);
-	DBG("l3_vmode_ctrl2 = 0x%x", cfg->tx_l3_vmode_ctrl2);
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
+		DBG("tx_l%d_tx_band = 0x%x", i, cfg->tx_lx_tx_band[i]);
+		DBG("tx_l%d_tx_drv_lvl = 0x%x", i, cfg->tx_lx_tx_drv_lvl[i]);
+		DBG("tx_l%d_tx_emp_post1_lvl = 0x%x", i,
+			cfg->tx_lx_tx_emp_post1_lvl[i]);
+		DBG("tx_l%d_vmode_ctrl1 = 0x%x", i, cfg->tx_lx_vmode_ctrl1[i]);
+		DBG("tx_l%d_vmode_ctrl2 = 0x%x", i, cfg->tx_lx_vmode_ctrl2[i]);
+	}
 
 	return 0;
 }
@@ -443,8 +404,10 @@ static int hdmi_8996_pll_set_clk_rate(struct clk_hw *hw, unsigned long rate,
 	struct hdmi_pll *pll = hw_clk_to_pll(hw);
 	struct hdmi_pll_8996 *pll_8996 = to_hdmi_pll_8996(pll);
 	struct hdmi_phy *phy = pll_8996_get_phy(pll_8996);
-	struct hdmi_8996_phy_pll_reg_cfg cfg = { 0 };
-	int ret;
+	struct hdmi_8996_phy_pll_reg_cfg cfg;
+	int i, ret;
+
+	memset(&cfg, 0x00, sizeof(cfg));
 
 	ret = pll_calculate(rate, &cfg);
 	if (ret) {
@@ -465,35 +428,23 @@ static int hdmi_8996_pll_set_clk_rate(struct clk_hw *hw, unsigned long rate,
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_TX0_TX1_LANE_CTL, 0x0F);
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_TX2_TX3_LANE_CTL, 0x0F);
 
-	hdmi_tx_chan_write(pll_8996, 0,
-				     REG_HDMI_PHY_QSERDES_TX_LX_CLKBUF_ENABLE, 0x03);
-	hdmi_tx_chan_write(pll_8996, 1,
-				     REG_HDMI_PHY_QSERDES_TX_LX_CLKBUF_ENABLE, 0x03);
-	hdmi_tx_chan_write(pll_8996, 2,
-				     REG_HDMI_PHY_QSERDES_TX_LX_CLKBUF_ENABLE, 0x03);
-	hdmi_tx_chan_write(pll_8996, 3,
-				     REG_HDMI_PHY_QSERDES_TX_LX_CLKBUF_ENABLE, 0x03);
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+		hdmi_tx_chan_write(pll_8996, i,
+			REG_HDMI_PHY_QSERDES_TX_LX_CLKBUF_ENABLE, 0x03);
 
-	hdmi_tx_chan_write(pll_8996, 0, REG_HDMI_PHY_QSERDES_TX_LX_LANE_MODE, cfg.tx_l0_lane_mode);
-	hdmi_tx_chan_write(pll_8996, 2, REG_HDMI_PHY_QSERDES_TX_LX_LANE_MODE, cfg.tx_l2_lane_mode);
+	hdmi_tx_chan_write(pll_8996, 0, REG_HDMI_PHY_QSERDES_TX_LX_LANE_MODE,
+			cfg.tx_lx_lane_mode[0]);
+	hdmi_tx_chan_write(pll_8996, 2, REG_HDMI_PHY_QSERDES_TX_LX_LANE_MODE,
+			cfg.tx_lx_lane_mode[2]);
 
-	hdmi_tx_chan_write(pll_8996, 0,
-		     REG_HDMI_PHY_QSERDES_TX_LX_TX_BAND, cfg.tx_l0_tx_band);
-	hdmi_tx_chan_write(pll_8996, 1,
-		     REG_HDMI_PHY_QSERDES_TX_LX_TX_BAND, cfg.tx_l1_tx_band);
-	hdmi_tx_chan_write(pll_8996, 2,
-		     REG_HDMI_PHY_QSERDES_TX_LX_TX_BAND, cfg.tx_l2_tx_band);
-	hdmi_tx_chan_write(pll_8996, 3,
-		     REG_HDMI_PHY_QSERDES_TX_LX_TX_BAND, cfg.tx_l3_tx_band);
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+		hdmi_tx_chan_write(pll_8996, i,
+			REG_HDMI_PHY_QSERDES_TX_LX_TX_BAND,
+			cfg.tx_lx_tx_band[i]);
 
-	hdmi_tx_chan_write(pll_8996, 0,
-			       REG_HDMI_PHY_QSERDES_TX_LX_RESET_TSYNC_EN, 0x03);
-	hdmi_tx_chan_write(pll_8996, 1,
-			       REG_HDMI_PHY_QSERDES_TX_LX_RESET_TSYNC_EN, 0x03);
-	hdmi_tx_chan_write(pll_8996, 2,
-			       REG_HDMI_PHY_QSERDES_TX_LX_RESET_TSYNC_EN, 0x03);
-	hdmi_tx_chan_write(pll_8996, 3,
-			       REG_HDMI_PHY_QSERDES_TX_LX_RESET_TSYNC_EN, 0x03);
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+		hdmi_tx_chan_write(pll_8996, i,
+			REG_HDMI_PHY_QSERDES_TX_LX_RESET_TSYNC_EN, 0x03);
 
 	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SYSCLK_BUF_ENABLE, 0x1E);
 	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x07);
@@ -555,109 +506,48 @@ static int hdmi_8996_pll_set_clk_rate(struct clk_hw *hw, unsigned long rate,
 	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_RESCODE_DIV_NUM, 0x15);
 
 	/* TX lanes setup (TX 0/1/2/3) */
-	hdmi_tx_chan_write(pll_8996, 0,
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
+		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL,
-		       cfg.tx_l0_tx_drv_lvl);
-	hdmi_tx_chan_write(pll_8996, 0,
+		       cfg.tx_lx_tx_drv_lvl[i]);
+		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_TX_EMP_POST1_LVL,
-		       cfg.tx_l0_tx_emp_post1_lvl);
+		       cfg.tx_lx_tx_emp_post1_lvl[i]);
+	}
 
-	hdmi_tx_chan_write(pll_8996, 1,
-		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL,
-		       cfg.tx_l1_tx_drv_lvl);
-	hdmi_tx_chan_write(pll_8996, 1,
-		       REG_HDMI_PHY_QSERDES_TX_LX_TX_EMP_POST1_LVL,
-		       cfg.tx_l1_tx_emp_post1_lvl);
-
-	hdmi_tx_chan_write(pll_8996, 2,
-		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL,
-		       cfg.tx_l2_tx_drv_lvl);
-	hdmi_tx_chan_write(pll_8996, 2,
-		       REG_HDMI_PHY_QSERDES_TX_LX_TX_EMP_POST1_LVL,
-		       cfg.tx_l2_tx_emp_post1_lvl);
-
-	hdmi_tx_chan_write(pll_8996, 3,
-		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL,
-		       cfg.tx_l3_tx_drv_lvl);
-	hdmi_tx_chan_write(pll_8996, 3,
-		       REG_HDMI_PHY_QSERDES_TX_LX_TX_EMP_POST1_LVL,
-		       cfg.tx_l3_tx_emp_post1_lvl);
-
-	hdmi_tx_chan_write(pll_8996, 0,
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
+		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL1,
-		       cfg.tx_l0_vmode_ctrl1);
-	hdmi_tx_chan_write(pll_8996, 0,
+		       cfg.tx_lx_vmode_ctrl1[i]);
+		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL2,
-		       cfg.tx_l0_vmode_ctrl2);
+		       cfg.tx_lx_vmode_ctrl2[i]);
+	}
 
-	hdmi_tx_chan_write(pll_8996, 1,
-		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL1,
-		       cfg.tx_l1_vmode_ctrl1);
-	hdmi_tx_chan_write(pll_8996, 1,
-		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL2,
-		       cfg.tx_l1_vmode_ctrl2);
-
-	hdmi_tx_chan_write(pll_8996, 2,
-		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL1,
-		       cfg.tx_l2_vmode_ctrl1);
-	hdmi_tx_chan_write(pll_8996, 2,
-		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL2,
-		       cfg.tx_l2_vmode_ctrl2);
-
-	hdmi_tx_chan_write(pll_8996, 3,
-		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL1,
-		       cfg.tx_l3_vmode_ctrl1);
-	hdmi_tx_chan_write(pll_8996, 3,
-		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL2,
-		       cfg.tx_l3_vmode_ctrl2);
-
-	hdmi_tx_chan_write(pll_8996, 0,
-		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL_OFFSET, 0x00);
-	hdmi_tx_chan_write(pll_8996, 1,
-		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL_OFFSET, 0x00);
-	hdmi_tx_chan_write(pll_8996, 2,
-		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL_OFFSET, 0x00);
-	hdmi_tx_chan_write(pll_8996, 3,
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL_OFFSET, 0x00);
 
-	hdmi_tx_chan_write(pll_8996, 0,
-		       REG_HDMI_PHY_QSERDES_TX_LX_RES_CODE_LANE_OFFSET, 0x00);
-	hdmi_tx_chan_write(pll_8996, 1,
-		       REG_HDMI_PHY_QSERDES_TX_LX_RES_CODE_LANE_OFFSET, 0x00);
-	hdmi_tx_chan_write(pll_8996, 2,
-		       REG_HDMI_PHY_QSERDES_TX_LX_RES_CODE_LANE_OFFSET, 0x00);
-	hdmi_tx_chan_write(pll_8996, 3,
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_RES_CODE_LANE_OFFSET, 0x00);
 
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_MODE, cfg.phy_mode);
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_PD_CTL, 0x1F);
 
-	hdmi_tx_chan_write(pll_8996, 0,
-			REG_HDMI_PHY_QSERDES_TX_LX_TRAN_DRVR_EMP_EN, 0x03);
-	hdmi_tx_chan_write(pll_8996, 1,
-			REG_HDMI_PHY_QSERDES_TX_LX_TRAN_DRVR_EMP_EN, 0x03);
-	hdmi_tx_chan_write(pll_8996, 2,
-			REG_HDMI_PHY_QSERDES_TX_LX_TRAN_DRVR_EMP_EN, 0x03);
-	hdmi_tx_chan_write(pll_8996, 3,
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+		hdmi_tx_chan_write(pll_8996, i,
 			REG_HDMI_PHY_QSERDES_TX_LX_TRAN_DRVR_EMP_EN, 0x03);
 
-	hdmi_tx_chan_write(pll_8996, 0,
-			REG_HDMI_PHY_QSERDES_TX_LX_PARRATE_REC_DETECT_IDLE_EN, 0x40);
-	hdmi_tx_chan_write(pll_8996, 1,
-			REG_HDMI_PHY_QSERDES_TX_LX_PARRATE_REC_DETECT_IDLE_EN, 0x40);
-	hdmi_tx_chan_write(pll_8996, 2,
-			REG_HDMI_PHY_QSERDES_TX_LX_PARRATE_REC_DETECT_IDLE_EN, 0x40);
-	hdmi_tx_chan_write(pll_8996, 3,
-			REG_HDMI_PHY_QSERDES_TX_LX_PARRATE_REC_DETECT_IDLE_EN, 0x40);
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+		hdmi_tx_chan_write(pll_8996, i,
+			REG_HDMI_PHY_QSERDES_TX_LX_PARRATE_REC_DETECT_IDLE_EN,
+			0x40);
 
-	hdmi_tx_chan_write(pll_8996, 0,
-		       REG_HDMI_PHY_QSERDES_TX_LX_HP_PD_ENABLES, 0x0C);
-	hdmi_tx_chan_write(pll_8996, 1,
-		       REG_HDMI_PHY_QSERDES_TX_LX_HP_PD_ENABLES, 0x0C);
-	hdmi_tx_chan_write(pll_8996, 2,
-		       REG_HDMI_PHY_QSERDES_TX_LX_HP_PD_ENABLES, 0x0C);
-	hdmi_tx_chan_write(pll_8996, 3,
-		       REG_HDMI_PHY_QSERDES_TX_LX_HP_PD_ENABLES, 0x03);
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+		hdmi_tx_chan_write(pll_8996, i,
+			REG_HDMI_PHY_QSERDES_TX_LX_HP_PD_ENABLES,
+			cfg.tx_lx_hp_pd_enables[i]);
 
 	/*
 	 * Ensure that vco configuration gets flushed to hardware before
