@@ -14,7 +14,6 @@
 
 #include "hdmi.h"
 
-/* CONSTANTS */
 #define HDMI_HIGH_FREQ_BIT_CLK_THRESHOLD	3400000000
 #define HDMI_DIG_FREQ_BIT_CLK_THRESHOLD		1500000000
 #define HDMI_MID_FREQ_BIT_CLK_THRESHOLD		750000000
@@ -22,279 +21,23 @@
 #define HDMI_REF_CLOCK				19200000
 #define HDMI_PLL_CMP_CNT			1024
 
-#define HDMI_VCO_MAX_FREQ                        12000000000
-#define HDMI_VCO_MIN_FREQ                        8000000000
+#define HDMI_VCO_MAX_FREQ			12000000000
+#define HDMI_VCO_MIN_FREQ			8000000000
 
-/* PLL REGISTERS */
-#define QSERDES_COM_ATB_SEL1                     (0x000)
-#define QSERDES_COM_ATB_SEL2                     (0x004)
-#define QSERDES_COM_FREQ_UPDATE                  (0x008)
-#define QSERDES_COM_BG_TIMER                     (0x00C)
-#define QSERDES_COM_SSC_EN_CENTER                (0x010)
-#define QSERDES_COM_SSC_ADJ_PER1                 (0x014)
-#define QSERDES_COM_SSC_ADJ_PER2                 (0x018)
-#define QSERDES_COM_SSC_PER1                     (0x01C)
-#define QSERDES_COM_SSC_PER2                     (0x020)
-#define QSERDES_COM_SSC_STEP_SIZE1               (0x024)
-#define QSERDES_COM_SSC_STEP_SIZE2               (0x028)
-#define QSERDES_COM_POST_DIV                     (0x02C)
-#define QSERDES_COM_POST_DIV_MUX                 (0x030)
-#define QSERDES_COM_BIAS_EN_CLKBUFLR_EN          (0x034)
-#define QSERDES_COM_CLK_ENABLE1                  (0x038)
-#define QSERDES_COM_SYS_CLK_CTRL                 (0x03C)
-#define QSERDES_COM_SYSCLK_BUF_ENABLE            (0x040)
-#define QSERDES_COM_PLL_EN                       (0x044)
-#define QSERDES_COM_PLL_IVCO                     (0x048)
-#define QSERDES_COM_LOCK_CMP1_MODE0              (0x04C)
-#define QSERDES_COM_LOCK_CMP2_MODE0              (0x050)
-#define QSERDES_COM_LOCK_CMP3_MODE0              (0x054)
-#define QSERDES_COM_LOCK_CMP1_MODE1              (0x058)
-#define QSERDES_COM_LOCK_CMP2_MODE1              (0x05C)
-#define QSERDES_COM_LOCK_CMP3_MODE1              (0x060)
-#define QSERDES_COM_LOCK_CMP1_MODE2              (0x064)
-#define QSERDES_COM_CMN_RSVD0                    (0x064)
-#define QSERDES_COM_LOCK_CMP2_MODE2              (0x068)
-#define QSERDES_COM_EP_CLOCK_DETECT_CTRL         (0x068)
-#define QSERDES_COM_LOCK_CMP3_MODE2              (0x06C)
-#define QSERDES_COM_SYSCLK_DET_COMP_STATUS       (0x06C)
-#define QSERDES_COM_BG_TRIM                      (0x070)
-#define QSERDES_COM_CLK_EP_DIV                   (0x074)
-#define QSERDES_COM_CP_CTRL_MODE0                (0x078)
-#define QSERDES_COM_CP_CTRL_MODE1                (0x07C)
-#define QSERDES_COM_CP_CTRL_MODE2                (0x080)
-#define QSERDES_COM_CMN_RSVD1                    (0x080)
-#define QSERDES_COM_PLL_RCTRL_MODE0              (0x084)
-#define QSERDES_COM_PLL_RCTRL_MODE1              (0x088)
-#define QSERDES_COM_PLL_RCTRL_MODE2              (0x08C)
-#define QSERDES_COM_CMN_RSVD2                    (0x08C)
-#define QSERDES_COM_PLL_CCTRL_MODE0              (0x090)
-#define QSERDES_COM_PLL_CCTRL_MODE1              (0x094)
-#define QSERDES_COM_PLL_CCTRL_MODE2              (0x098)
-#define QSERDES_COM_CMN_RSVD3                    (0x098)
-#define QSERDES_COM_PLL_CNTRL                    (0x09C)
-#define QSERDES_COM_PHASE_SEL_CTRL               (0x0A0)
-#define QSERDES_COM_PHASE_SEL_DC                 (0x0A4)
-#define QSERDES_COM_CORE_CLK_IN_SYNC_SEL         (0x0A8)
-#define QSERDES_COM_BIAS_EN_CTRL_BY_PSM          (0x0A8)
-#define QSERDES_COM_SYSCLK_EN_SEL                (0x0AC)
-#define QSERDES_COM_CML_SYSCLK_SEL               (0x0B0)
-#define QSERDES_COM_RESETSM_CNTRL                (0x0B4)
-#define QSERDES_COM_RESETSM_CNTRL2               (0x0B8)
-#define QSERDES_COM_RESTRIM_CTRL                 (0x0BC)
-#define QSERDES_COM_RESTRIM_CTRL2                (0x0C0)
-#define QSERDES_COM_RESCODE_DIV_NUM              (0x0C4)
-#define QSERDES_COM_LOCK_CMP_EN                  (0x0C8)
-#define QSERDES_COM_LOCK_CMP_CFG                 (0x0CC)
-#define QSERDES_COM_DEC_START_MODE0              (0x0D0)
-#define QSERDES_COM_DEC_START_MODE1              (0x0D4)
-#define QSERDES_COM_DEC_START_MODE2              (0x0D8)
-#define QSERDES_COM_VCOCAL_DEADMAN_CTRL          (0x0D8)
-#define QSERDES_COM_DIV_FRAC_START1_MODE0        (0x0DC)
-#define QSERDES_COM_DIV_FRAC_START2_MODE0        (0x0E0)
-#define QSERDES_COM_DIV_FRAC_START3_MODE0        (0x0E4)
-#define QSERDES_COM_DIV_FRAC_START1_MODE1        (0x0E8)
-#define QSERDES_COM_DIV_FRAC_START2_MODE1        (0x0EC)
-#define QSERDES_COM_DIV_FRAC_START3_MODE1        (0x0F0)
-#define QSERDES_COM_DIV_FRAC_START1_MODE2        (0x0F4)
-#define QSERDES_COM_VCO_TUNE_MINVAL1             (0x0F4)
-#define QSERDES_COM_DIV_FRAC_START2_MODE2        (0x0F8)
-#define QSERDES_COM_VCO_TUNE_MINVAL2             (0x0F8)
-#define QSERDES_COM_DIV_FRAC_START3_MODE2        (0x0FC)
-#define QSERDES_COM_CMN_RSVD4                    (0x0FC)
-#define QSERDES_COM_INTEGLOOP_INITVAL            (0x100)
-#define QSERDES_COM_INTEGLOOP_EN                 (0x104)
-#define QSERDES_COM_INTEGLOOP_GAIN0_MODE0        (0x108)
-#define QSERDES_COM_INTEGLOOP_GAIN1_MODE0        (0x10C)
-#define QSERDES_COM_INTEGLOOP_GAIN0_MODE1        (0x110)
-#define QSERDES_COM_INTEGLOOP_GAIN1_MODE1        (0x114)
-#define QSERDES_COM_INTEGLOOP_GAIN0_MODE2        (0x118)
-#define QSERDES_COM_VCO_TUNE_MAXVAL1             (0x118)
-#define QSERDES_COM_INTEGLOOP_GAIN1_MODE2        (0x11C)
-#define QSERDES_COM_VCO_TUNE_MAXVAL2             (0x11C)
-#define QSERDES_COM_RES_TRIM_CONTROL2            (0x120)
-#define QSERDES_COM_VCO_TUNE_CTRL                (0x124)
-#define QSERDES_COM_VCO_TUNE_MAP                 (0x128)
-#define QSERDES_COM_VCO_TUNE1_MODE0              (0x12C)
-#define QSERDES_COM_VCO_TUNE2_MODE0              (0x130)
-#define QSERDES_COM_VCO_TUNE1_MODE1              (0x134)
-#define QSERDES_COM_VCO_TUNE2_MODE1              (0x138)
-#define QSERDES_COM_VCO_TUNE1_MODE2              (0x13C)
-#define QSERDES_COM_VCO_TUNE_INITVAL1            (0x13C)
-#define QSERDES_COM_VCO_TUNE2_MODE2              (0x140)
-#define QSERDES_COM_VCO_TUNE_INITVAL2            (0x140)
-#define QSERDES_COM_VCO_TUNE_TIMER1              (0x144)
-#define QSERDES_COM_VCO_TUNE_TIMER2              (0x148)
-#define QSERDES_COM_SAR                          (0x14C)
-#define QSERDES_COM_SAR_CLK                      (0x150)
-#define QSERDES_COM_SAR_CODE_OUT_STATUS          (0x154)
-#define QSERDES_COM_SAR_CODE_READY_STATUS        (0x158)
-#define QSERDES_COM_CMN_STATUS                   (0x15C)
-#define QSERDES_COM_RESET_SM_STATUS              (0x160)
-#define QSERDES_COM_RESTRIM_CODE_STATUS          (0x164)
-#define QSERDES_COM_PLLCAL_CODE1_STATUS          (0x168)
-#define QSERDES_COM_PLLCAL_CODE2_STATUS          (0x16C)
-#define QSERDES_COM_BG_CTRL                      (0x170)
-#define QSERDES_COM_CLK_SELECT                   (0x174)
-#define QSERDES_COM_HSCLK_SEL                    (0x178)
-#define QSERDES_COM_INTEGLOOP_BINCODE_STATUS     (0x17C)
-#define QSERDES_COM_PLL_ANALOG                   (0x180)
-#define QSERDES_COM_CORECLK_DIV                  (0x184)
-#define QSERDES_COM_SW_RESET                     (0x188)
-#define QSERDES_COM_CORE_CLK_EN                  (0x18C)
-#define QSERDES_COM_C_READY_STATUS               (0x190)
-#define QSERDES_COM_CMN_CONFIG                   (0x194)
-#define QSERDES_COM_CMN_RATE_OVERRIDE            (0x198)
-#define QSERDES_COM_SVS_MODE_CLK_SEL             (0x19C)
-#define QSERDES_COM_DEBUG_BUS0                   (0x1A0)
-#define QSERDES_COM_DEBUG_BUS1                   (0x1A4)
-#define QSERDES_COM_DEBUG_BUS2                   (0x1A8)
-#define QSERDES_COM_DEBUG_BUS3                   (0x1AC)
-#define QSERDES_COM_DEBUG_BUS_SEL                (0x1B0)
-#define QSERDES_COM_CMN_MISC1                    (0x1B4)
-#define QSERDES_COM_CMN_MISC2                    (0x1B8)
-#define QSERDES_COM_CORECLK_DIV_MODE1            (0x1BC)
-#define QSERDES_COM_CORECLK_DIV_MODE2            (0x1C0)
-#define QSERDES_COM_CMN_RSVD5                    (0x1C0)
+#define HDMI_PLL_POLL_MAX_READS			100
+#define HDMI_PLL_POLL_TIMEOUT_MS		150
 
-/* Tx Channel base addresses */
-#define HDMI_TX_L0_BASE_OFFSET                   (0x400)
-#define HDMI_TX_L1_BASE_OFFSET                   (0x600)
-#define HDMI_TX_L2_BASE_OFFSET                   (0x800)
-#define HDMI_TX_L3_BASE_OFFSET                   (0xA00)
-
-/* Tx Channel PHY registers */
-#define QSERDES_TX_L0_BIST_MODE_LANENO                    (0x000)
-#define QSERDES_TX_L0_BIST_INVERT                         (0x004)
-#define QSERDES_TX_L0_CLKBUF_ENABLE                       (0x008)
-#define QSERDES_TX_L0_CMN_CONTROL_ONE                     (0x00C)
-#define QSERDES_TX_L0_CMN_CONTROL_TWO                     (0x010)
-#define QSERDES_TX_L0_CMN_CONTROL_THREE                   (0x014)
-#define QSERDES_TX_L0_TX_EMP_POST1_LVL                    (0x018)
-#define QSERDES_TX_L0_TX_POST2_EMPH                       (0x01C)
-#define QSERDES_TX_L0_TX_BOOST_LVL_UP_DN                  (0x020)
-#define QSERDES_TX_L0_HP_PD_ENABLES                       (0x024)
-#define QSERDES_TX_L0_TX_IDLE_LVL_LARGE_AMP               (0x028)
-#define QSERDES_TX_L0_TX_DRV_LVL                          (0x02C)
-#define QSERDES_TX_L0_TX_DRV_LVL_OFFSET                   (0x030)
-#define QSERDES_TX_L0_RESET_TSYNC_EN                      (0x034)
-#define QSERDES_TX_L0_PRE_STALL_LDO_BOOST_EN              (0x038)
-#define QSERDES_TX_L0_TX_BAND                             (0x03C)
-#define QSERDES_TX_L0_SLEW_CNTL                           (0x040)
-#define QSERDES_TX_L0_INTERFACE_SELECT                    (0x044)
-#define QSERDES_TX_L0_LPB_EN                              (0x048)
-#define QSERDES_TX_L0_RES_CODE_LANE_TX                    (0x04C)
-#define QSERDES_TX_L0_RES_CODE_LANE_RX                    (0x050)
-#define QSERDES_TX_L0_RES_CODE_LANE_OFFSET                (0x054)
-#define QSERDES_TX_L0_PERL_LENGTH1                        (0x058)
-#define QSERDES_TX_L0_PERL_LENGTH2                        (0x05C)
-#define QSERDES_TX_L0_SERDES_BYP_EN_OUT                   (0x060)
-#define QSERDES_TX_L0_DEBUG_BUS_SEL                       (0x064)
-#define QSERDES_TX_L0_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN    (0x068)
-#define QSERDES_TX_L0_TX_POL_INV                          (0x06C)
-#define QSERDES_TX_L0_PARRATE_REC_DETECT_IDLE_EN          (0x070)
-#define QSERDES_TX_L0_BIST_PATTERN1                       (0x074)
-#define QSERDES_TX_L0_BIST_PATTERN2                       (0x078)
-#define QSERDES_TX_L0_BIST_PATTERN3                       (0x07C)
-#define QSERDES_TX_L0_BIST_PATTERN4                       (0x080)
-#define QSERDES_TX_L0_BIST_PATTERN5                       (0x084)
-#define QSERDES_TX_L0_BIST_PATTERN6                       (0x088)
-#define QSERDES_TX_L0_BIST_PATTERN7                       (0x08C)
-#define QSERDES_TX_L0_BIST_PATTERN8                       (0x090)
-#define QSERDES_TX_L0_LANE_MODE                           (0x094)
-#define QSERDES_TX_L0_IDAC_CAL_LANE_MODE                  (0x098)
-#define QSERDES_TX_L0_IDAC_CAL_LANE_MODE_CONFIGURATION    (0x09C)
-#define QSERDES_TX_L0_ATB_SEL1                            (0x0A0)
-#define QSERDES_TX_L0_ATB_SEL2                            (0x0A4)
-#define QSERDES_TX_L0_RCV_DETECT_LVL                      (0x0A8)
-#define QSERDES_TX_L0_RCV_DETECT_LVL_2                    (0x0AC)
-#define QSERDES_TX_L0_PRBS_SEED1                          (0x0B0)
-#define QSERDES_TX_L0_PRBS_SEED2                          (0x0B4)
-#define QSERDES_TX_L0_PRBS_SEED3                          (0x0B8)
-#define QSERDES_TX_L0_PRBS_SEED4                          (0x0BC)
-#define QSERDES_TX_L0_RESET_GEN                           (0x0C0)
-#define QSERDES_TX_L0_RESET_GEN_MUXES                     (0x0C4)
-#define QSERDES_TX_L0_TRAN_DRVR_EMP_EN                    (0x0C8)
-#define QSERDES_TX_L0_TX_INTERFACE_MODE                   (0x0CC)
-#define QSERDES_TX_L0_PWM_CTRL                            (0x0D0)
-#define QSERDES_TX_L0_PWM_ENCODED_OR_DATA                 (0x0D4)
-#define QSERDES_TX_L0_PWM_GEAR_1_DIVIDER_BAND2            (0x0D8)
-#define QSERDES_TX_L0_PWM_GEAR_2_DIVIDER_BAND2            (0x0DC)
-#define QSERDES_TX_L0_PWM_GEAR_3_DIVIDER_BAND2            (0x0E0)
-#define QSERDES_TX_L0_PWM_GEAR_4_DIVIDER_BAND2            (0x0E4)
-#define QSERDES_TX_L0_PWM_GEAR_1_DIVIDER_BAND0_1          (0x0E8)
-#define QSERDES_TX_L0_PWM_GEAR_2_DIVIDER_BAND0_1          (0x0EC)
-#define QSERDES_TX_L0_PWM_GEAR_3_DIVIDER_BAND0_1          (0x0F0)
-#define QSERDES_TX_L0_PWM_GEAR_4_DIVIDER_BAND0_1          (0x0F4)
-#define QSERDES_TX_L0_VMODE_CTRL1                         (0x0F8)
-#define QSERDES_TX_L0_VMODE_CTRL2                         (0x0FC)
-#define QSERDES_TX_L0_TX_ALOG_INTF_OBSV_CNTL              (0x100)
-#define QSERDES_TX_L0_BIST_STATUS                         (0x104)
-#define QSERDES_TX_L0_BIST_ERROR_COUNT1                   (0x108)
-#define QSERDES_TX_L0_BIST_ERROR_COUNT2                   (0x10C)
-#define QSERDES_TX_L0_TX_ALOG_INTF_OBSV                   (0x110)
-
-/* HDMI PHY REGISTERS */
-#define HDMI_PHY_BASE_OFFSET                  (0xC00)
-
-#define HDMI_PHY_CFG                          (0x00)
-#define HDMI_PHY_PD_CTL                       (0x04)
-#define HDMI_PHY_MODE                         (0x08)
-#define HDMI_PHY_MISR_CLEAR                   (0x0C)
-#define HDMI_PHY_TX0_TX1_BIST_CFG0            (0x10)
-#define HDMI_PHY_TX0_TX1_BIST_CFG1            (0x14)
-#define HDMI_PHY_TX0_TX1_PRBS_SEED_BYTE0      (0x18)
-#define HDMI_PHY_TX0_TX1_PRBS_SEED_BYTE1      (0x1C)
-#define HDMI_PHY_TX0_TX1_BIST_PATTERN0        (0x20)
-#define HDMI_PHY_TX0_TX1_BIST_PATTERN1        (0x24)
-#define HDMI_PHY_TX2_TX3_BIST_CFG0            (0x28)
-#define HDMI_PHY_TX2_TX3_BIST_CFG1            (0x2C)
-#define HDMI_PHY_TX2_TX3_PRBS_SEED_BYTE0      (0x30)
-#define HDMI_PHY_TX2_TX3_PRBS_SEED_BYTE1      (0x34)
-#define HDMI_PHY_TX2_TX3_BIST_PATTERN0        (0x38)
-#define HDMI_PHY_TX2_TX3_BIST_PATTERN1        (0x3C)
-#define HDMI_PHY_DEBUG_BUS_SEL                (0x40)
-#define HDMI_PHY_TXCAL_CFG0                   (0x44)
-#define HDMI_PHY_TXCAL_CFG1                   (0x48)
-#define HDMI_PHY_TX0_TX1_LANE_CTL             (0x4C)
-#define HDMI_PHY_TX2_TX3_LANE_CTL             (0x50)
-#define HDMI_PHY_LANE_BIST_CONFIG             (0x54)
-#define HDMI_PHY_CLOCK                        (0x58)
-#define HDMI_PHY_MISC1                        (0x5C)
-#define HDMI_PHY_MISC2                        (0x60)
-#define HDMI_PHY_TX0_TX1_BIST_STATUS0         (0x64)
-#define HDMI_PHY_TX0_TX1_BIST_STATUS1         (0x68)
-#define HDMI_PHY_TX0_TX1_BIST_STATUS2         (0x6C)
-#define HDMI_PHY_TX2_TX3_BIST_STATUS0         (0x70)
-#define HDMI_PHY_TX2_TX3_BIST_STATUS1         (0x74)
-#define HDMI_PHY_TX2_TX3_BIST_STATUS2         (0x78)
-#define HDMI_PHY_PRE_MISR_STATUS0             (0x7C)
-#define HDMI_PHY_PRE_MISR_STATUS1             (0x80)
-#define HDMI_PHY_PRE_MISR_STATUS2             (0x84)
-#define HDMI_PHY_PRE_MISR_STATUS3             (0x88)
-#define HDMI_PHY_POST_MISR_STATUS0            (0x8C)
-#define HDMI_PHY_POST_MISR_STATUS1            (0x90)
-#define HDMI_PHY_POST_MISR_STATUS2            (0x94)
-#define HDMI_PHY_POST_MISR_STATUS3            (0x98)
-#define HDMI_PHY_STATUS                       (0x9C)
-#define HDMI_PHY_MISC3_STATUS                 (0xA0)
-#define HDMI_PHY_MISC4_STATUS                 (0xA4)
-#define HDMI_PHY_DEBUG_BUS0                   (0xA8)
-#define HDMI_PHY_DEBUG_BUS1                   (0xAC)
-#define HDMI_PHY_DEBUG_BUS2                   (0xB0)
-#define HDMI_PHY_DEBUG_BUS3                   (0xB4)
-#define HDMI_PHY_PHY_REVISION_ID0             (0xB8)
-#define HDMI_PHY_PHY_REVISION_ID1             (0xBC)
-#define HDMI_PHY_PHY_REVISION_ID2             (0xC0)
-#define HDMI_PHY_PHY_REVISION_ID3             (0xC4)
-
-#define HDMI_PLL_POLL_MAX_READS                100
-#define HDMI_PLL_POLL_TIMEOUT_MS               150
+#define HDMI_NUM_TX_CHANNEL			4
 
 struct hdmi_pll_8996 {
 	struct hdmi_pll base;
 
 	struct platform_device *pdev;
-	void __iomem *mmio;
+
+	/* pll mmio base */
+	void __iomem *mmio_qserdes_com;
+	/* tx channel base */
+	void __iomem *mmio_qserdes_tx[HDMI_NUM_TX_CHANNEL];
 
 	unsigned long pixclk;
 };
@@ -365,6 +108,23 @@ static inline struct hdmi_pll_8996 *to_hdmi_pll_8996(struct hdmi_pll *pll)
 static inline struct hdmi_phy *pll_8996_get_phy(struct hdmi_pll_8996 *pll_8996)
 {
 	return platform_get_drvdata(pll_8996->pdev);
+}
+
+static inline void hdmi_pll_write(struct hdmi_pll_8996 *pll_8996, int offset,
+				  u32 data)
+{
+	msm_writel(data, pll_8996->mmio_qserdes_com + offset);
+}
+
+static inline u32 hdmi_pll_read(struct hdmi_pll_8996 *pll_8996, int offset)
+{
+	return msm_readl(pll_8996->mmio_qserdes_com + offset);
+}
+
+static inline void hdmi_tx_chan_write(struct hdmi_pll_8996 *pll_8996,
+				      int channel, int offset, int data)
+{
+	 msm_writel(data, pll_8996->mmio_qserdes_tx[channel] + offset);
 }
 
 static inline u32 pll_get_cpctrl(u64 frac_start, bool gen_ssc)
@@ -677,17 +437,6 @@ static int pll_calculate(unsigned long pix_clk, struct hdmi_8996_phy_pll_reg_cfg
 	return 0;
 }
 
-/* since we have weird base registers, let's just pass the iomem address */
-static inline void hdmi_pll_write(void __iomem *reg, u32 data)
-{
-	msm_writel(data, reg);
-}
-
-static inline u32 hdmi_pll_read(void __iomem *reg)
-{
-	return msm_readl(reg);
-}
-
 static int hdmi_8996_pll_set_clk_rate(struct clk_hw *hw, unsigned long rate,
 				      unsigned long parent_rate)
 {
@@ -705,211 +454,210 @@ static int hdmi_8996_pll_set_clk_rate(struct clk_hw *hw, unsigned long rate,
 
 	/* Initially shut down PHY */
 	DBG("Disabling PHY");
-	hdmi_phy_write(phy, HDMI_PHY_PD_CTL, 0x0);
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_PD_CTL, 0x0);
 	udelay(500);
 
 	/* Power up sequence */
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_BG_CTRL, 0x04);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_BG_CTRL, 0x04);
 
-	hdmi_phy_write(phy, HDMI_PHY_PD_CTL, 0x1);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_RESETSM_CNTRL, 0x20);
-	hdmi_phy_write(phy, HDMI_PHY_TX0_TX1_LANE_CTL, 0x0F);
-	hdmi_phy_write(phy, HDMI_PHY_TX2_TX3_LANE_CTL, 0x0F);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-				     QSERDES_TX_L0_CLKBUF_ENABLE, 0x03);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-				     QSERDES_TX_L0_CLKBUF_ENABLE, 0x03);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-				     QSERDES_TX_L0_CLKBUF_ENABLE, 0x03);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-				     QSERDES_TX_L0_CLKBUF_ENABLE, 0x03);
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_PD_CTL, 0x1);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_RESETSM_CNTRL, 0x20);
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_TX0_TX1_LANE_CTL, 0x0F);
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_TX2_TX3_LANE_CTL, 0x0F);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-		     QSERDES_TX_L0_LANE_MODE, cfg.tx_l0_lane_mode);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-		     QSERDES_TX_L0_LANE_MODE, cfg.tx_l2_lane_mode);
+	hdmi_tx_chan_write(pll_8996, 0,
+				     REG_HDMI_PHY_QSERDES_TX_LX_CLKBUF_ENABLE, 0x03);
+	hdmi_tx_chan_write(pll_8996, 1,
+				     REG_HDMI_PHY_QSERDES_TX_LX_CLKBUF_ENABLE, 0x03);
+	hdmi_tx_chan_write(pll_8996, 2,
+				     REG_HDMI_PHY_QSERDES_TX_LX_CLKBUF_ENABLE, 0x03);
+	hdmi_tx_chan_write(pll_8996, 3,
+				     REG_HDMI_PHY_QSERDES_TX_LX_CLKBUF_ENABLE, 0x03);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-		     QSERDES_TX_L0_TX_BAND, cfg.tx_l0_tx_band);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-		     QSERDES_TX_L0_TX_BAND, cfg.tx_l1_tx_band);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-		     QSERDES_TX_L0_TX_BAND, cfg.tx_l2_tx_band);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-		     QSERDES_TX_L0_TX_BAND, cfg.tx_l3_tx_band);
+	hdmi_tx_chan_write(pll_8996, 0, REG_HDMI_PHY_QSERDES_TX_LX_LANE_MODE, cfg.tx_l0_lane_mode);
+	hdmi_tx_chan_write(pll_8996, 2, REG_HDMI_PHY_QSERDES_TX_LX_LANE_MODE, cfg.tx_l2_lane_mode);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-			       QSERDES_TX_L0_RESET_TSYNC_EN, 0x03);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-			       QSERDES_TX_L0_RESET_TSYNC_EN, 0x03);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-			       QSERDES_TX_L0_RESET_TSYNC_EN, 0x03);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-			       QSERDES_TX_L0_RESET_TSYNC_EN, 0x03);
+	hdmi_tx_chan_write(pll_8996, 0,
+		     REG_HDMI_PHY_QSERDES_TX_LX_TX_BAND, cfg.tx_l0_tx_band);
+	hdmi_tx_chan_write(pll_8996, 1,
+		     REG_HDMI_PHY_QSERDES_TX_LX_TX_BAND, cfg.tx_l1_tx_band);
+	hdmi_tx_chan_write(pll_8996, 2,
+		     REG_HDMI_PHY_QSERDES_TX_LX_TX_BAND, cfg.tx_l2_tx_band);
+	hdmi_tx_chan_write(pll_8996, 3,
+		     REG_HDMI_PHY_QSERDES_TX_LX_TX_BAND, cfg.tx_l3_tx_band);
 
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_SYSCLK_BUF_ENABLE, 0x1E);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x07);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_SYSCLK_EN_SEL, 0x37);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_SYS_CLK_CTRL, 0x02);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_CLK_ENABLE1, 0x0E);
+	hdmi_tx_chan_write(pll_8996, 0,
+			       REG_HDMI_PHY_QSERDES_TX_LX_RESET_TSYNC_EN, 0x03);
+	hdmi_tx_chan_write(pll_8996, 1,
+			       REG_HDMI_PHY_QSERDES_TX_LX_RESET_TSYNC_EN, 0x03);
+	hdmi_tx_chan_write(pll_8996, 2,
+			       REG_HDMI_PHY_QSERDES_TX_LX_RESET_TSYNC_EN, 0x03);
+	hdmi_tx_chan_write(pll_8996, 3,
+			       REG_HDMI_PHY_QSERDES_TX_LX_RESET_TSYNC_EN, 0x03);
+
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SYSCLK_BUF_ENABLE, 0x1E);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x07);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SYSCLK_EN_SEL, 0x37);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SYS_CLK_CTRL, 0x02);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_CLK_ENABLE1, 0x0E);
 
 	/* Bypass VCO calibration */
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_SVS_MODE_CLK_SEL,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SVS_MODE_CLK_SEL,
 					cfg.com_svs_mode_clk_sel);
 
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_BG_TRIM, 0x0F);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_PLL_IVCO, 0x0F);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_VCO_TUNE_CTRL,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_BG_TRIM, 0x0F);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_PLL_IVCO, 0x0F);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_VCO_TUNE_CTRL,
 			cfg.com_vco_tune_ctrl);
 
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_BG_CTRL, 0x06);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_BG_CTRL, 0x06);
 
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_CLK_SELECT, 0x30);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_HSCLK_SEL,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_CLK_SELECT, 0x30);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_HSCLK_SEL,
 		       cfg.com_hsclk_sel);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_LOCK_CMP_EN,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_LOCK_CMP_EN,
 		       cfg.com_lock_cmp_en);
 
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_PLL_CCTRL_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_PLL_CCTRL_MODE0,
 		       cfg.com_pll_cctrl_mode0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_PLL_RCTRL_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_PLL_RCTRL_MODE0,
 		       cfg.com_pll_rctrl_mode0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_CP_CTRL_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_CP_CTRL_MODE0,
 		       cfg.com_cp_ctrl_mode0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_DEC_START_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_DEC_START_MODE0,
 		       cfg.com_dec_start_mode0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_DIV_FRAC_START1_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_DIV_FRAC_START1_MODE0,
 		       cfg.com_div_frac_start1_mode0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_DIV_FRAC_START2_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_DIV_FRAC_START2_MODE0,
 		       cfg.com_div_frac_start2_mode0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_DIV_FRAC_START3_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_DIV_FRAC_START3_MODE0,
 		       cfg.com_div_frac_start3_mode0);
 
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_INTEGLOOP_GAIN0_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_INTEGLOOP_GAIN0_MODE0,
 			cfg.com_integloop_gain0_mode0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_INTEGLOOP_GAIN1_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_INTEGLOOP_GAIN1_MODE0,
 			cfg.com_integloop_gain1_mode0);
 
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_LOCK_CMP1_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_LOCK_CMP1_MODE0,
 			cfg.com_lock_cmp1_mode0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_LOCK_CMP2_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_LOCK_CMP2_MODE0,
 			cfg.com_lock_cmp2_mode0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_LOCK_CMP3_MODE0,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_LOCK_CMP3_MODE0,
 			cfg.com_lock_cmp3_mode0);
 
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_VCO_TUNE_MAP, 0x00);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_CORE_CLK_EN,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_VCO_TUNE_MAP, 0x00);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_CORE_CLK_EN,
 		       cfg.com_core_clk_en);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_CORECLK_DIV,
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_CORECLK_DIV,
 		       cfg.com_coreclk_div);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_CMN_CONFIG, 0x02);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_CMN_CONFIG, 0x02);
 
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_RESCODE_DIV_NUM, 0x15);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_RESCODE_DIV_NUM, 0x15);
 
 	/* TX lanes setup (TX 0/1/2/3) */
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_DRV_LVL,
+	hdmi_tx_chan_write(pll_8996, 0,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL,
 		       cfg.tx_l0_tx_drv_lvl);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_EMP_POST1_LVL,
+	hdmi_tx_chan_write(pll_8996, 0,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_EMP_POST1_LVL,
 		       cfg.tx_l0_tx_emp_post1_lvl);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_DRV_LVL,
+	hdmi_tx_chan_write(pll_8996, 1,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL,
 		       cfg.tx_l1_tx_drv_lvl);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_EMP_POST1_LVL,
+	hdmi_tx_chan_write(pll_8996, 1,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_EMP_POST1_LVL,
 		       cfg.tx_l1_tx_emp_post1_lvl);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_DRV_LVL,
+	hdmi_tx_chan_write(pll_8996, 2,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL,
 		       cfg.tx_l2_tx_drv_lvl);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_EMP_POST1_LVL,
+	hdmi_tx_chan_write(pll_8996, 2,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_EMP_POST1_LVL,
 		       cfg.tx_l2_tx_emp_post1_lvl);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_DRV_LVL,
+	hdmi_tx_chan_write(pll_8996, 3,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL,
 		       cfg.tx_l3_tx_drv_lvl);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_EMP_POST1_LVL,
+	hdmi_tx_chan_write(pll_8996, 3,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_EMP_POST1_LVL,
 		       cfg.tx_l3_tx_emp_post1_lvl);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-		       QSERDES_TX_L0_VMODE_CTRL1,
+	hdmi_tx_chan_write(pll_8996, 0,
+		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL1,
 		       cfg.tx_l0_vmode_ctrl1);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-		       QSERDES_TX_L0_VMODE_CTRL2,
+	hdmi_tx_chan_write(pll_8996, 0,
+		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL2,
 		       cfg.tx_l0_vmode_ctrl2);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-		       QSERDES_TX_L0_VMODE_CTRL1,
+	hdmi_tx_chan_write(pll_8996, 1,
+		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL1,
 		       cfg.tx_l1_vmode_ctrl1);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-		       QSERDES_TX_L0_VMODE_CTRL2,
+	hdmi_tx_chan_write(pll_8996, 1,
+		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL2,
 		       cfg.tx_l1_vmode_ctrl2);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-		       QSERDES_TX_L0_VMODE_CTRL1,
+	hdmi_tx_chan_write(pll_8996, 2,
+		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL1,
 		       cfg.tx_l2_vmode_ctrl1);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-		       QSERDES_TX_L0_VMODE_CTRL2,
+	hdmi_tx_chan_write(pll_8996, 2,
+		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL2,
 		       cfg.tx_l2_vmode_ctrl2);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-		       QSERDES_TX_L0_VMODE_CTRL1,
+	hdmi_tx_chan_write(pll_8996, 3,
+		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL1,
 		       cfg.tx_l3_vmode_ctrl1);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-		       QSERDES_TX_L0_VMODE_CTRL2,
+	hdmi_tx_chan_write(pll_8996, 3,
+		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL2,
 		       cfg.tx_l3_vmode_ctrl2);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_DRV_LVL_OFFSET, 0x00);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_DRV_LVL_OFFSET, 0x00);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_DRV_LVL_OFFSET, 0x00);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-		       QSERDES_TX_L0_TX_DRV_LVL_OFFSET, 0x00);
+	hdmi_tx_chan_write(pll_8996, 0,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL_OFFSET, 0x00);
+	hdmi_tx_chan_write(pll_8996, 1,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL_OFFSET, 0x00);
+	hdmi_tx_chan_write(pll_8996, 2,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL_OFFSET, 0x00);
+	hdmi_tx_chan_write(pll_8996, 3,
+		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL_OFFSET, 0x00);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-		       QSERDES_TX_L0_RES_CODE_LANE_OFFSET, 0x00);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-		       QSERDES_TX_L0_RES_CODE_LANE_OFFSET, 0x00);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-		       QSERDES_TX_L0_RES_CODE_LANE_OFFSET, 0x00);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-		       QSERDES_TX_L0_RES_CODE_LANE_OFFSET, 0x00);
+	hdmi_tx_chan_write(pll_8996, 0,
+		       REG_HDMI_PHY_QSERDES_TX_LX_RES_CODE_LANE_OFFSET, 0x00);
+	hdmi_tx_chan_write(pll_8996, 1,
+		       REG_HDMI_PHY_QSERDES_TX_LX_RES_CODE_LANE_OFFSET, 0x00);
+	hdmi_tx_chan_write(pll_8996, 2,
+		       REG_HDMI_PHY_QSERDES_TX_LX_RES_CODE_LANE_OFFSET, 0x00);
+	hdmi_tx_chan_write(pll_8996, 3,
+		       REG_HDMI_PHY_QSERDES_TX_LX_RES_CODE_LANE_OFFSET, 0x00);
 
-	hdmi_phy_write(phy, HDMI_PHY_MODE, cfg.phy_mode);
-	hdmi_phy_write(phy, HDMI_PHY_PD_CTL, 0x1F);
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_MODE, cfg.phy_mode);
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_PD_CTL, 0x1F);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-			QSERDES_TX_L0_TRAN_DRVR_EMP_EN, 0x03);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-			QSERDES_TX_L0_TRAN_DRVR_EMP_EN, 0x03);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-			QSERDES_TX_L0_TRAN_DRVR_EMP_EN, 0x03);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-			QSERDES_TX_L0_TRAN_DRVR_EMP_EN, 0x03);
+	hdmi_tx_chan_write(pll_8996, 0,
+			REG_HDMI_PHY_QSERDES_TX_LX_TRAN_DRVR_EMP_EN, 0x03);
+	hdmi_tx_chan_write(pll_8996, 1,
+			REG_HDMI_PHY_QSERDES_TX_LX_TRAN_DRVR_EMP_EN, 0x03);
+	hdmi_tx_chan_write(pll_8996, 2,
+			REG_HDMI_PHY_QSERDES_TX_LX_TRAN_DRVR_EMP_EN, 0x03);
+	hdmi_tx_chan_write(pll_8996, 3,
+			REG_HDMI_PHY_QSERDES_TX_LX_TRAN_DRVR_EMP_EN, 0x03);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-			QSERDES_TX_L0_PARRATE_REC_DETECT_IDLE_EN, 0x40);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-			QSERDES_TX_L0_PARRATE_REC_DETECT_IDLE_EN, 0x40);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-			QSERDES_TX_L0_PARRATE_REC_DETECT_IDLE_EN, 0x40);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-			QSERDES_TX_L0_PARRATE_REC_DETECT_IDLE_EN, 0x40);
+	hdmi_tx_chan_write(pll_8996, 0,
+			REG_HDMI_PHY_QSERDES_TX_LX_PARRATE_REC_DETECT_IDLE_EN, 0x40);
+	hdmi_tx_chan_write(pll_8996, 1,
+			REG_HDMI_PHY_QSERDES_TX_LX_PARRATE_REC_DETECT_IDLE_EN, 0x40);
+	hdmi_tx_chan_write(pll_8996, 2,
+			REG_HDMI_PHY_QSERDES_TX_LX_PARRATE_REC_DETECT_IDLE_EN, 0x40);
+	hdmi_tx_chan_write(pll_8996, 3,
+			REG_HDMI_PHY_QSERDES_TX_LX_PARRATE_REC_DETECT_IDLE_EN, 0x40);
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-		       QSERDES_TX_L0_HP_PD_ENABLES, 0x0C);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-		       QSERDES_TX_L0_HP_PD_ENABLES, 0x0C);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-		       QSERDES_TX_L0_HP_PD_ENABLES, 0x0C);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-		       QSERDES_TX_L0_HP_PD_ENABLES, 0x03);
+	hdmi_tx_chan_write(pll_8996, 0,
+		       REG_HDMI_PHY_QSERDES_TX_LX_HP_PD_ENABLES, 0x0C);
+	hdmi_tx_chan_write(pll_8996, 1,
+		       REG_HDMI_PHY_QSERDES_TX_LX_HP_PD_ENABLES, 0x0C);
+	hdmi_tx_chan_write(pll_8996, 2,
+		       REG_HDMI_PHY_QSERDES_TX_LX_HP_PD_ENABLES, 0x0C);
+	hdmi_tx_chan_write(pll_8996, 3,
+		       REG_HDMI_PHY_QSERDES_TX_LX_HP_PD_ENABLES, 0x03);
 
 	/*
 	 * Ensure that vco configuration gets flushed to hardware before
@@ -930,7 +678,7 @@ static int hdmi_8996_phy_ready_status(struct hdmi_phy *phy)
 	DBG("Waiting for PHY ready");
 
 	while (nb_tries--) {
-		status = hdmi_phy_read(phy, HDMI_PHY_STATUS);
+		status = hdmi_phy_read(phy, REG_HDMI_8996_PHY_STATUS);
 		phy_ready = status & BIT(0);
 
 		if (phy_ready)
@@ -955,7 +703,7 @@ static int hdmi_8996_pll_lock_status(struct hdmi_pll *pll)
 	DBG("Waiting for PLL lock");
 
 	while (nb_tries--) {
-		status = hdmi_pll_read(pll_8996->mmio + QSERDES_COM_C_READY_STATUS);
+		status = hdmi_pll_read(pll_8996, REG_HDMI_PHY_QSERDES_COM_C_READY_STATUS);
 		pll_locked = status & BIT(0);
 
 		if (pll_locked)
@@ -976,44 +724,44 @@ static int hdmi_8996_pll_prepare(struct clk_hw *hw)
 	struct hdmi_pll_8996 *pll_8996 = to_hdmi_pll_8996(pll);
 	struct hdmi_phy *phy = pll_8996_get_phy(pll_8996);
 
-	hdmi_phy_write(phy, HDMI_PHY_CFG, 0x1);
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_CFG, 0x1);
 	udelay(100);
 
-	hdmi_phy_write(phy, HDMI_PHY_CFG, 0x19);
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_CFG, 0x19);
 	udelay(100);
 
 	rc = hdmi_8996_pll_lock_status(pll);
 	if (!rc)
 		return rc;
 
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L0_BASE_OFFSET +
-		       QSERDES_TX_L0_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
+	hdmi_tx_chan_write(pll_8996, 0,
+		       REG_HDMI_PHY_QSERDES_TX_LX_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
 		       0x6F);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L1_BASE_OFFSET +
-		       QSERDES_TX_L0_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
+	hdmi_tx_chan_write(pll_8996, 1,
+		       REG_HDMI_PHY_QSERDES_TX_LX_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
 		       0x6F);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L2_BASE_OFFSET +
-		       QSERDES_TX_L0_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
+	hdmi_tx_chan_write(pll_8996, 2,
+		       REG_HDMI_PHY_QSERDES_TX_LX_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
 		       0x6F);
-	hdmi_pll_write(pll_8996->mmio + HDMI_TX_L3_BASE_OFFSET +
-		       QSERDES_TX_L0_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
+	hdmi_tx_chan_write(pll_8996, 3,
+		       REG_HDMI_PHY_QSERDES_TX_LX_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
 		       0x6F);
 
 	/* Disable SSC */
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_SSC_PER1, 0x0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_SSC_PER2, 0x0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_SSC_STEP_SIZE1, 0x0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_SSC_STEP_SIZE2, 0x0);
-	hdmi_pll_write(pll_8996->mmio + QSERDES_COM_SSC_EN_CENTER, 0x2);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SSC_PER1, 0x0);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SSC_PER2, 0x0);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SSC_STEP_SIZE1, 0x0);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SSC_STEP_SIZE2, 0x0);
+	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SSC_EN_CENTER, 0x2);
 
 	rc = hdmi_8996_phy_ready_status(phy);
 	if (!rc)
 		return rc;
 
 	/* Restart the retiming buffer */
-	hdmi_phy_write(phy, HDMI_PHY_CFG, 0x18);
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_CFG, 0x18);
 	udelay(1);
-	hdmi_phy_write(phy, HDMI_PHY_CFG, 0x19);
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_CFG, 0x19);
 
 	return 0;
 }
@@ -1034,9 +782,9 @@ static unsigned long hdmi_8996_pll_recalc_rate(struct clk_hw *hw,
 	u64 fdata;
 	u32 cmp1, cmp2, cmp3, pll_cmp;
 
-	cmp1 = hdmi_pll_read(pll_8996->mmio + QSERDES_COM_LOCK_CMP1_MODE0);
-	cmp2 = hdmi_pll_read(pll_8996->mmio + QSERDES_COM_LOCK_CMP2_MODE0);
-	cmp3 = hdmi_pll_read(pll_8996->mmio + QSERDES_COM_LOCK_CMP3_MODE0);
+	cmp1 = hdmi_pll_read(pll_8996, REG_HDMI_PHY_QSERDES_COM_LOCK_CMP1_MODE0);
+	cmp2 = hdmi_pll_read(pll_8996, REG_HDMI_PHY_QSERDES_COM_LOCK_CMP2_MODE0);
+	cmp3 = hdmi_pll_read(pll_8996, REG_HDMI_PHY_QSERDES_COM_LOCK_CMP3_MODE0);
 
 	pll_cmp = cmp1 | (cmp2 << 8) | (cmp3 << 16);
 
@@ -1084,6 +832,7 @@ struct hdmi_pll *hdmi_pll_8996_init(struct platform_device *pdev)
 	struct hdmi_pll_8996 *pll_8996;
 	struct hdmi_pll *pll;
 	struct clk *clk;
+	int i;
 
 	pll_8996 = devm_kzalloc(dev, sizeof(*pll_8996), GFP_KERNEL);
 	if (!pll_8996)
@@ -1093,12 +842,24 @@ struct hdmi_pll *hdmi_pll_8996_init(struct platform_device *pdev)
 
 	pll = &pll_8996->base;
 
-	pll_8996->mmio = msm_ioremap(pdev, "hdmi_pll", "HDMI_PLL");
-	if (IS_ERR(pll_8996->mmio)) {
+	pll_8996->mmio_qserdes_com = msm_ioremap(pdev, "hdmi_pll", "HDMI_PLL");
+	if (IS_ERR(pll_8996->mmio_qserdes_com)) {
 		dev_err(dev, "failed to map pll base\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
+		char name[32], label[32];
+
+		snprintf(name, sizeof(name), "hdmi_tx_l%d", i);
+		snprintf(label, sizeof(label), "HDMI_TX_L%d", i);
+
+		pll_8996->mmio_qserdes_tx[i] = msm_ioremap(pdev, name, label);
+		if (IS_ERR(pll_8996->mmio_qserdes_tx[i])) {
+			dev_err(dev, "failed to map pll base\n");
+			return ERR_PTR(-ENOMEM);
+		}
+	}
 	pll->clk_hw.init = &pll_init;
 
 	clk = devm_clk_register(dev, &pll->clk_hw);
