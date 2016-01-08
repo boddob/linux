@@ -428,23 +428,20 @@ static int hdmi_8996_pll_set_clk_rate(struct clk_hw *hw, unsigned long rate,
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_TX0_TX1_LANE_CTL, 0x0F);
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_TX2_TX3_LANE_CTL, 0x0F);
 
-	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
 		hdmi_tx_chan_write(pll_8996, i,
 			REG_HDMI_PHY_QSERDES_TX_LX_CLKBUF_ENABLE, 0x03);
+		hdmi_tx_chan_write(pll_8996, i,
+			REG_HDMI_PHY_QSERDES_TX_LX_TX_BAND,
+			cfg.tx_lx_tx_band[i]);
+		hdmi_tx_chan_write(pll_8996, i,
+			REG_HDMI_PHY_QSERDES_TX_LX_RESET_TSYNC_EN, 0x03);
+	}
 
 	hdmi_tx_chan_write(pll_8996, 0, REG_HDMI_PHY_QSERDES_TX_LX_LANE_MODE,
 			cfg.tx_lx_lane_mode[0]);
 	hdmi_tx_chan_write(pll_8996, 2, REG_HDMI_PHY_QSERDES_TX_LX_LANE_MODE,
 			cfg.tx_lx_lane_mode[2]);
-
-	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
-		hdmi_tx_chan_write(pll_8996, i,
-			REG_HDMI_PHY_QSERDES_TX_LX_TX_BAND,
-			cfg.tx_lx_tx_band[i]);
-
-	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
-		hdmi_tx_chan_write(pll_8996, i,
-			REG_HDMI_PHY_QSERDES_TX_LX_RESET_TSYNC_EN, 0x03);
 
 	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SYSCLK_BUF_ENABLE, 0x1E);
 	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x07);
@@ -513,41 +510,31 @@ static int hdmi_8996_pll_set_clk_rate(struct clk_hw *hw, unsigned long rate,
 		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_TX_EMP_POST1_LVL,
 		       cfg.tx_lx_tx_emp_post1_lvl[i]);
-	}
-
-	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
 		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL1,
 		       cfg.tx_lx_vmode_ctrl1[i]);
 		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_VMODE_CTRL2,
 		       cfg.tx_lx_vmode_ctrl2[i]);
-	}
-
-	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
 		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL_OFFSET, 0x00);
-
-	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
 		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_RES_CODE_LANE_OFFSET, 0x00);
+	}
 
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_MODE, cfg.phy_mode);
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_PD_CTL, 0x1F);
 
-	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
 		hdmi_tx_chan_write(pll_8996, i,
 			REG_HDMI_PHY_QSERDES_TX_LX_TRAN_DRVR_EMP_EN, 0x03);
-
-	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
 		hdmi_tx_chan_write(pll_8996, i,
 			REG_HDMI_PHY_QSERDES_TX_LX_PARRATE_REC_DETECT_IDLE_EN,
 			0x40);
-
-	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
 		hdmi_tx_chan_write(pll_8996, i,
 			REG_HDMI_PHY_QSERDES_TX_LX_HP_PD_ENABLES,
 			cfg.tx_lx_hp_pd_enables[i]);
+	}
 
 	/*
 	 * Ensure that vco configuration gets flushed to hardware before
