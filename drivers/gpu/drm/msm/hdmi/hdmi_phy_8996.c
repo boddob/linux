@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -14,15 +14,18 @@
 
 #include "hdmi.h"
 
+#define HDMI_VCO_MAX_FREQ			12000000000
+#define HDMI_VCO_MIN_FREQ			8000000000
+
+#define HDMI_PCLK_MAX_FREQ			6000000000
+#define HDMI_PCLK_MIN_FREQ			25000000
+
 #define HDMI_HIGH_FREQ_BIT_CLK_THRESHOLD	3400000000
 #define HDMI_DIG_FREQ_BIT_CLK_THRESHOLD		1500000000
 #define HDMI_MID_FREQ_BIT_CLK_THRESHOLD		750000000
 #define HDMI_CORECLK_DIV			5
 #define HDMI_REF_CLOCK				19200000
 #define HDMI_PLL_CMP_CNT			1024
-
-#define HDMI_VCO_MAX_FREQ			12000000000
-#define HDMI_VCO_MIN_FREQ			8000000000
 
 #define HDMI_PLL_POLL_MAX_READS			100
 #define HDMI_PLL_POLL_TIMEOUT_MS		150
@@ -38,8 +41,6 @@ struct hdmi_pll_8996 {
 	void __iomem *mmio_qserdes_com;
 	/* tx channel base */
 	void __iomem *mmio_qserdes_tx[HDMI_NUM_TX_CHANNEL];
-
-	unsigned long pixclk;
 };
 
 struct hdmi_8996_phy_pll_reg_cfg {
@@ -223,7 +224,8 @@ retry:
 	return -EINVAL;
 }
 
-static int pll_calculate(unsigned long pix_clk, struct hdmi_8996_phy_pll_reg_cfg *cfg)
+static int pll_calculate(unsigned long pix_clk,
+			 struct hdmi_8996_phy_pll_reg_cfg *cfg)
 {
 	struct hdmi_8996_post_divider pd;
 	u64 fdata, tmds_clk;
@@ -520,12 +522,6 @@ static int hdmi_8996_pll_set_clk_rate(struct clk_hw *hw, unsigned long rate,
 		       REG_HDMI_PHY_QSERDES_TX_LX_TX_DRV_LVL_OFFSET, 0x00);
 		hdmi_tx_chan_write(pll_8996, i,
 		       REG_HDMI_PHY_QSERDES_TX_LX_RES_CODE_LANE_OFFSET, 0x00);
-	}
-
-	hdmi_phy_write(phy, REG_HDMI_8996_PHY_MODE, cfg.phy_mode);
-	hdmi_phy_write(phy, REG_HDMI_8996_PHY_PD_CTL, 0x1F);
-
-	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
 		hdmi_tx_chan_write(pll_8996, i,
 			REG_HDMI_PHY_QSERDES_TX_LX_TRAN_DRVR_EMP_EN, 0x03);
 		hdmi_tx_chan_write(pll_8996, i,
@@ -535,6 +531,9 @@ static int hdmi_8996_pll_set_clk_rate(struct clk_hw *hw, unsigned long rate,
 			REG_HDMI_PHY_QSERDES_TX_LX_HP_PD_ENABLES,
 			cfg.tx_lx_hp_pd_enables[i]);
 	}
+
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_MODE, cfg.phy_mode);
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_PD_CTL, 0x1F);
 
 	/*
 	 * Ensure that vco configuration gets flushed to hardware before
@@ -580,7 +579,8 @@ static int hdmi_8996_pll_lock_status(struct hdmi_pll *pll)
 	DBG("Waiting for PLL lock");
 
 	while (nb_tries--) {
-		status = hdmi_pll_read(pll_8996, REG_HDMI_PHY_QSERDES_COM_C_READY_STATUS);
+		status = hdmi_pll_read(pll_8996,
+				REG_HDMI_PHY_QSERDES_COM_C_READY_STATUS);
 		pll_locked = status & BIT(0);
 
 		if (pll_locked)
@@ -596,10 +596,10 @@ static int hdmi_8996_pll_lock_status(struct hdmi_pll *pll)
 
 static int hdmi_8996_pll_prepare(struct clk_hw *hw)
 {
-	int rc = 0;
 	struct hdmi_pll *pll = hw_clk_to_pll(hw);
 	struct hdmi_pll_8996 *pll_8996 = to_hdmi_pll_8996(pll);
 	struct hdmi_phy *phy = pll_8996_get_phy(pll_8996);
+	int i, ret = 0;
 
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_CFG, 0x1);
 	udelay(100);
@@ -607,22 +607,14 @@ static int hdmi_8996_pll_prepare(struct clk_hw *hw)
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_CFG, 0x19);
 	udelay(100);
 
-	rc = hdmi_8996_pll_lock_status(pll);
-	if (!rc)
-		return rc;
+	ret = hdmi_8996_pll_lock_status(pll);
+	if (!ret)
+		return ret;
 
-	hdmi_tx_chan_write(pll_8996, 0,
-		       REG_HDMI_PHY_QSERDES_TX_LX_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
-		       0x6F);
-	hdmi_tx_chan_write(pll_8996, 1,
-		       REG_HDMI_PHY_QSERDES_TX_LX_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
-		       0x6F);
-	hdmi_tx_chan_write(pll_8996, 2,
-		       REG_HDMI_PHY_QSERDES_TX_LX_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
-		       0x6F);
-	hdmi_tx_chan_write(pll_8996, 3,
-		       REG_HDMI_PHY_QSERDES_TX_LX_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
-		       0x6F);
+	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++)
+		hdmi_tx_chan_write(pll_8996, i,
+			REG_HDMI_PHY_QSERDES_TX_LX_HIGHZ_TRANSCEIVEREN_BIAS_DRVR_EN,
+			0x6F);
 
 	/* Disable SSC */
 	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SSC_PER1, 0x0);
@@ -631,9 +623,9 @@ static int hdmi_8996_pll_prepare(struct clk_hw *hw)
 	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SSC_STEP_SIZE2, 0x0);
 	hdmi_pll_write(pll_8996, REG_HDMI_PHY_QSERDES_COM_SSC_EN_CENTER, 0x2);
 
-	rc = hdmi_8996_phy_ready_status(phy);
-	if (!rc)
-		return rc;
+	ret = hdmi_8996_phy_ready_status(phy);
+	if (!ret)
+		return ret;
 
 	/* Restart the retiming buffer */
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_CFG, 0x18);
@@ -646,9 +638,15 @@ static int hdmi_8996_pll_prepare(struct clk_hw *hw)
 long hdmi_8996_pll_round_rate(struct clk_hw *hw,
 		unsigned long rate, unsigned long *parent_rate)
 {
-	DBG("rrate=%ld\n", rate);
+	struct hdmi_pll *pll = hw_clk_to_pll(hw);
+	struct hdmi_pll_8996 *pll_8996 = to_hdmi_pll_8996(pll);
 
-	return rate;
+	if (rate < HDMI_PCLK_MIN_FREQ)
+		return HDMI_PCLK_MIN_FREQ;
+	else if (rate > HDMI_PCLK_MAX_FRQ)
+		return HDMI_PCLK_MAX_FREQ;
+	else
+		return rate;
 }
 
 static unsigned long hdmi_8996_pll_recalc_rate(struct clk_hw *hw,

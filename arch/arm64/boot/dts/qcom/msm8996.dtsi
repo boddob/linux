@@ -531,9 +531,18 @@
 
 		mdss_hdmi_phy: qcom,hdmi_phy@9a0600 {
 			compatible = "qcom,hdmi-phy-8996";
-			reg = <0x9a0600 0xb10>,
+			reg = <0x9a0600 0x1c4>,
+			      <0x9a0a00 0x124>,
+			      <0x9a0c00 0x124>,
+			      <0x9a0e00 0x124>,
+			      <0x9a1000 0x124>,
 			      <0x9a1200 0x0c8>;
-			reg-names = "hdmi_pll", "hdmi_phy";
+			reg-names = "hdmi_pll",
+				    "hdmi_tx_l0",
+				    "hdmi_tx_l1",
+				    "hdmi_tx_l2",
+				    "hdmi_tx_l3",
+				    "hdmi_phy";
 
 			power-domains = <&mmcc MDSS_GDSC>;
 
