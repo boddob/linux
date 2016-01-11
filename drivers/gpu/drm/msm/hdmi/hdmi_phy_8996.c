@@ -24,7 +24,7 @@
 #define HDMI_DIG_FREQ_BIT_CLK_THRESHOLD		1500000000
 #define HDMI_MID_FREQ_BIT_CLK_THRESHOLD		750000000
 #define HDMI_CORECLK_DIV			5
-#define HDMI_REF_CLOCK				19200000
+#define HDMI_DEFAULT_REF_CLOCK			19200000
 #define HDMI_PLL_CMP_CNT			1024
 
 #define HDMI_PLL_POLL_MAX_READS			100
@@ -110,10 +110,11 @@ static inline void hdmi_tx_chan_write(struct hdmi_pll_8996 *pll_8996,
 	 msm_writel(data, pll_8996->mmio_qserdes_tx[channel] + offset);
 }
 
-static inline u32 pll_get_cpctrl(u64 frac_start, bool gen_ssc)
+static inline u32 pll_get_cpctrl(u64 frac_start, unsigned long ref_clk,
+				 bool gen_ssc)
 {
 	if ((frac_start != 0) || (gen_ssc == true))
-		return (11000000 / (HDMI_REF_CLOCK / 20));
+		return (11000000 / (ref_clk / 20));
 
 	return 0x23;
 }
@@ -137,11 +138,11 @@ static inline u32 pll_get_cctrl(u64 frac_start, bool gen_ssc)
 static inline u32 pll_get_integloop_gain(u64 frac_start, u64 bclk, u32 ref_clk,
 					 bool gen_ssc)
 {
-	u64 digclk_divsel = bclk >= HDMI_DIG_FREQ_BIT_CLK_THRESHOLD ? 1 : 2;
+	int digclk_divsel = bclk >= HDMI_DIG_FREQ_BIT_CLK_THRESHOLD ? 1 : 2;
 	u64 base;
 
 	if ((frac_start != 0) || (gen_ssc == true))
-		base = (64 * ref_clk) / HDMI_REF_CLOCK;
+		base = (64 * ref_clk) / HDMI_DEFAULT_REF_CLOCK;
 	else
 		base = (1022 * ref_clk) / 100;
 
@@ -150,11 +151,11 @@ static inline u32 pll_get_integloop_gain(u64 frac_start, u64 bclk, u32 ref_clk,
 	return (base <= 2046 ? base : 2046);
 }
 
-static inline u32 pll_get_pll_cmp(u64 fdata)
+static inline u32 pll_get_pll_cmp(u64 fdata, unsigned long ref_clk)
 {
 	u64 dividend = HDMI_PLL_CMP_CNT * fdata;
-	u64 divisor = HDMI_REF_CLOCK * 10;
-	u64 rem;
+	u32 divisor = ref_clk * 10;
+	u32 rem;
 
 	rem = do_div(dividend, divisor);
 	if (rem > (divisor >> 1))
@@ -163,9 +164,9 @@ static inline u32 pll_get_pll_cmp(u64 fdata)
 	return dividend - 1;
 }
 
-static inline u64 pll_cmp_to_fdata(u32 pll_cmp)
+static inline u64 pll_cmp_to_fdata(u32 pll_cmp, unsigned long ref_clk)
 {
-	u64 fdata = ((u64)pll_cmp) * HDMI_REF_CLOCK * 10;
+	u64 fdata = ((u64)pll_cmp) * ref_clk * 10;
 
 	do_div(fdata, HDMI_PLL_CMP_CNT);
 
@@ -224,21 +225,22 @@ retry:
 	return -EINVAL;
 }
 
-static int pll_calculate(unsigned long pix_clk,
+static int pll_calculate(unsigned long pix_clk, unsigned long ref_clk,
 			 struct hdmi_8996_phy_pll_reg_cfg *cfg)
 {
 	struct hdmi_8996_post_divider pd;
-	u64 fdata, tmds_clk;
 	u64 bclk;
-	u32 pll_cmp;
+	u64 tmds_clk;
 	u64 dec_start;
 	u64 frac_start;
-	u64 pll_divisor;
+	u64 fdata;
+	u32 pll_divisor;
+	u32 rem;
 	u32 cpctrl;
 	u32 rctrl;
 	u32 cctrl;
 	u32 integloop_gain;
-	u64 rem;
+	u32 pll_cmp;
 	int i, ret;
 
 	/* bit clk = 10 * pix_clk */
@@ -254,7 +256,7 @@ static int pll_calculate(unsigned long pix_clk,
 		return ret;
 
 	dec_start = pd.vco_freq;
-	pll_divisor = 4 * HDMI_REF_CLOCK;
+	pll_divisor = 4 * ref_clk;
 	do_div(dec_start, pll_divisor);
 
 	frac_start = pd.vco_freq * (1 << 20);
@@ -264,16 +266,16 @@ static int pll_calculate(unsigned long pix_clk,
 	if (rem > (pll_divisor >> 1))
 		frac_start++;
 
-	cpctrl = pll_get_cpctrl(frac_start, false);
+	cpctrl = pll_get_cpctrl(frac_start, ref_clk, false);
 	rctrl = pll_get_rctrl(frac_start, false);
 	cctrl = pll_get_cctrl(frac_start, false);
 	integloop_gain = pll_get_integloop_gain(frac_start, bclk,
-				HDMI_REF_CLOCK, false);
+				ref_clk, false);
 
 	fdata = pd.vco_freq;
 	do_div(fdata, pd.vco_ratio);
 
-	pll_cmp = pll_get_pll_cmp(fdata);
+	pll_cmp = pll_get_pll_cmp(fdata, ref_clk);
 
 	DBG("VCO freq: %llu", pd.vco_freq);
 	DBG("fdata: %llu", fdata);
@@ -411,7 +413,7 @@ static int hdmi_8996_pll_set_clk_rate(struct clk_hw *hw, unsigned long rate,
 
 	memset(&cfg, 0x00, sizeof(cfg));
 
-	ret = pll_calculate(rate, &cfg);
+	ret = pll_calculate(rate, parent_rate, &cfg);
 	if (ret) {
 		DRM_ERROR("PLL calculation failed\n");
 		return ret;
@@ -660,7 +662,7 @@ static unsigned long hdmi_8996_pll_recalc_rate(struct clk_hw *hw,
 
 	pll_cmp = cmp1 | (cmp2 << 8) | (cmp3 << 16);
 
-	fdata = pll_cmp_to_fdata(pll_cmp + 1);
+	fdata = pll_cmp_to_fdata(pll_cmp + 1, parent_rate);
 
 	do_div(fdata, 10);
 
