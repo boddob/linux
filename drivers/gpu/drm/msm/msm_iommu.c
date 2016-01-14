@@ -38,7 +38,7 @@ static int msm_iommu_attach(struct msm_mmu *mmu, const char **names, int cnt)
 	struct device *dev = mmu->dev;
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
 	int i, ret;
-
+#if 0
 	for (i = 0; i < cnt; i++) {
 		struct device *msm_iommu_get_ctx(const char *ctx_name);
 		struct device *ctx = msm_iommu_get_ctx(names[i]);
@@ -58,7 +58,7 @@ static int msm_iommu_attach(struct msm_mmu *mmu, const char **names, int cnt)
 			return ret;
 		}
 	}
-
+#endif
 	return 0;
 }
 
@@ -67,6 +67,7 @@ static void msm_iommu_detach(struct msm_mmu *mmu, const char **names, int cnt)
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
 	int i;
 
+#if 0
 	for (i = 0; i < cnt; i++) {
 		struct device *msm_iommu_get_ctx(const char *ctx_name);
 		struct device *ctx = msm_iommu_get_ctx(names[i]);
@@ -80,6 +81,7 @@ static void msm_iommu_detach(struct msm_mmu *mmu, const char **names, int cnt)
 			iommu_detach_device(iommu->domain, ctx);
 		}
 	}
+#endif
 }
 
 static int msm_iommu_map(struct msm_mmu *mmu, uint32_t iova,
