@@ -254,7 +254,7 @@ static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 	ret = clk_prepare_enable(phy->ahb_clk);
 	if (ret) {
 		dev_err(dev, "%s: can't enable ahb clk, %d\n", __func__, ret);
-		pm_runtime_put_sync(dev);
+		//pm_runtime_put_sync(dev);
 	}
 
 	return ret;
@@ -263,7 +263,7 @@ static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 static void dsi_phy_disable_resource(struct msm_dsi_phy *phy)
 {
 	clk_disable_unprepare(phy->ahb_clk);
-	pm_runtime_put_sync(&phy->pdev->dev);
+	//pm_runtime_put_sync(&phy->pdev->dev);
 }
 
 static const struct of_device_id dsi_phy_dt_match[] = {
@@ -338,6 +338,8 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	pm_runtime_enable(dev);
+
 	/* PLL init will call into clk_register which requires
 	 * register access, so we need to enable power and ahb clock.
 	 */
@@ -355,20 +357,29 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, phy);
 
+	printk(KERN_ERR "PHY REGISTERED YAAY\n");
+
 	return 0;
 
 fail:
 	return ret;
 }
 
-static int dsi_phy_driver_remove(struct platform_device *pdev)
+void dsi_phy_uninit(struct platform_device *pdev)
 {
 	struct msm_dsi_phy *phy = platform_get_drvdata(pdev);
 
 	if (phy && phy->pll) {
 		msm_dsi_pll_destroy(phy->pll);
+		pm_runtime_disable(&pdev->dev);
 		phy->pll = NULL;
 	}
+}
+
+static int dsi_phy_driver_remove(struct platform_device *pdev)
+{
+
+	dsi_phy_uninit(pdev);
 
 	platform_set_drvdata(pdev, NULL);
 

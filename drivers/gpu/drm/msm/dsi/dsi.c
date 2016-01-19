@@ -36,8 +36,10 @@ static int dsi_get_phy(struct msm_dsi *msm_dsi)
 	}
 
 	phy_pdev = of_find_device_by_node(phy_node);
-	if (phy_pdev)
+	if (phy_pdev) {
 		msm_dsi->phy = platform_get_drvdata(phy_pdev);
+		msm_dsi->phy_pdev = phy_pdev;
+	}
 
 	of_node_put(phy_node);
 
@@ -57,14 +59,18 @@ static void dsi_destroy(struct msm_dsi *msm_dsi)
 		return;
 
 	msm_dsi_manager_unregister(msm_dsi);
-
+#if 0
 	if (msm_dsi->phy_dev) {
+		printk(KERN_ERR "%s destroying phy\n", __func__);
+		dsi_phy_uninit(msm_dsi->phy_pdev);
 		put_device(msm_dsi->phy_dev);
 		msm_dsi->phy = NULL;
 		msm_dsi->phy_dev = NULL;
+		msm_dsi->phy_pdev = NULL;
 	}
-
+#endif
 	if (msm_dsi->host) {
+		printk(KERN_ERR "%s destroying host\n", __func__);
 		msm_dsi_host_destroy(msm_dsi->host);
 		msm_dsi->host = NULL;
 	}
@@ -85,6 +91,7 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 		return ERR_PTR(-ENOMEM);
 	DBG("dsi probed=%p", msm_dsi);
 
+
 	msm_dsi->pdev = pdev;
 	platform_set_drvdata(pdev, msm_dsi);
 
@@ -93,13 +100,17 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 	if (ret)
 		goto destroy_dsi;
 
+	/* Register to dsi manager */
+	ret = msm_dsi_manager_register(msm_dsi);
+	if (ret)
+		goto destroy_dsi;
+
 	/* GET dsi PHY */
 	ret = dsi_get_phy(msm_dsi);
 	if (ret)
 		goto destroy_dsi;
 
-	/* Register to dsi manager */
-	ret = msm_dsi_manager_register(msm_dsi);
+	ret = msm_dsi_manager_register2(msm_dsi);
 	if (ret)
 		goto destroy_dsi;
 
@@ -148,6 +159,8 @@ static const struct component_ops dsi_ops = {
 
 static int dsi_dev_probe(struct platform_device *pdev)
 {
+	printk(KERN_ERR "TRYING DSI PROBE AGAIN\n");
+
 	return component_add(&pdev->dev, &dsi_ops);
 }
 

@@ -78,15 +78,16 @@ static int dsi_mgr_host_register(int id)
 	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
 	struct msm_dsi *clk_master_dsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
 	struct msm_dsi_pll *src_pll;
+	volatile int i = 1;
 	int ret;
 
 	if (!IS_DUAL_DSI()) {
 		ret = msm_dsi_host_register(msm_dsi->host, true);
+		printk("%s, got %d\n", __func__, ret);
+		//while (i);
 		if (ret)
 			return ret;
 
-		src_pll = msm_dsi_phy_get_pll(msm_dsi->phy);
-		ret = msm_dsi_host_set_src_pll(msm_dsi->host, src_pll);
 	} else if (!other_dsi) {
 		ret = 0;
 	} else {
@@ -791,6 +792,20 @@ bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 iova, u32 len)
 	return true;
 }
 
+int msm_dsi_manager_register2(struct msm_dsi *msm_dsi)
+{
+	struct msm_dsi_pll *src_pll;
+	int ret;
+
+	src_pll = msm_dsi_phy_get_pll(msm_dsi->phy);
+
+	ret = msm_dsi_host_set_src_pll(msm_dsi->host, src_pll);
+	if (ret)
+		printk(KERN_ERR "%s ret %d\n", __func__, ret);
+
+	return ret;
+}
+
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 {
 	struct msm_dsi_manager *msm_dsim = &msm_dsim_glb;
@@ -822,6 +837,8 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 		goto fail;
 	}
 
+	printk(KERN_ERR "after host register %d\n", ret);
+
 	return 0;
 
 fail:
@@ -833,8 +850,11 @@ void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi)
 {
 	struct msm_dsi_manager *msm_dsim = &msm_dsim_glb;
 
+	printk(KERN_ERR "%s\n", __func__);
+
 	if (msm_dsi->host)
 		msm_dsi_host_unregister(msm_dsi->host);
+
 	msm_dsim->dsi[msm_dsi->id] = NULL;
 }
 

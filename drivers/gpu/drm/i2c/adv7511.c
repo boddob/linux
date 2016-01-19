@@ -1423,7 +1423,11 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		}
 	}
 
-	adv7511_audio_init(dev);
+	ret = adv7511_audio_init(dev);
+	if (ret) {
+		printk(KERN_ERR "audio init err %d\n", ret);
+		goto err_i2c_unregister_cec;
+	}
 
 	return 0;
 

@@ -71,6 +71,7 @@ struct msm_dsi {
 	unsigned long device_flags;
 
 	struct device *phy_dev;
+	struct platform_device *phy_pdev;
 	bool phy_enabled;
 
 	/* the encoders we are hooked to (outside of dsi block) */
@@ -91,6 +92,7 @@ void msm_dsi_manager_phy_disable(int id);
 int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg);
 bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 iova, u32 len);
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi);
+int msm_dsi_manager_register2(struct msm_dsi *msm_dsi);
 void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi);
 
 /* msm dsi */
@@ -172,6 +174,7 @@ void msm_dsi_phy_disable(struct msm_dsi_phy *phy);
 void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,
 					u32 *clk_pre, u32 *clk_post);
 struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy);
+void dsi_phy_uninit(struct platform_device *pdev);
 
 #endif /* __DSI_CONNECTOR_H__ */
 

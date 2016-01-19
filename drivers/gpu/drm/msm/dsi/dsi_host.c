@@ -1492,9 +1492,9 @@ void msm_dsi_host_destroy(struct mipi_dsi_host *host)
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 
 	DBG("");
-	dsi_tx_buf_free(msm_host);
+	//dsi_tx_buf_free(msm_host);
 	if (msm_host->workqueue) {
-		flush_workqueue(msm_host->workqueue);
+		//flush_workqueue(msm_host->workqueue);
 		destroy_workqueue(msm_host->workqueue);
 		msm_host->workqueue = NULL;
 	}
@@ -1544,14 +1544,6 @@ int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer)
 
 	/* Register mipi dsi host */
 	if (!msm_host->registered) {
-		host->dev = &msm_host->pdev->dev;
-		host->ops = &dsi_host_ops;
-		ret = mipi_dsi_host_register(host);
-		if (ret)
-			return ret;
-
-		msm_host->registered = true;
-
 		/* If the panel driver has not been probed after host register,
 		 * we should defer the host's probe.
 		 * It makes sure panel is connected when fbcon detects
@@ -1565,6 +1557,14 @@ int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer)
 				if (!of_drm_find_bridge(msm_host->device_node))
 					return -EPROBE_DEFER;
 		}
+
+		host->dev = &msm_host->pdev->dev;
+		host->ops = &dsi_host_ops;
+		ret = mipi_dsi_host_register(host);
+		if (ret)
+			return ret;
+
+		msm_host->registered = true;
 	}
 
 	return 0;
@@ -1574,7 +1574,9 @@ void msm_dsi_host_unregister(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 
+	printk(KERN_ERR "%s\n", __func__);
 	if (msm_host->registered) {
+		printk(KERN_ERR "%s inside!!\n", __func__);
 		mipi_dsi_host_unregister(host);
 		host->dev = NULL;
 		host->ops = NULL;
