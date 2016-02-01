@@ -172,6 +172,22 @@ static const struct mdp_kms_funcs kms_funcs = {
 	.set_irqmask         = mdp5_set_irqmask,
 };
 
+static void mdp5_disable_bus_clocks(struct mdp5_kms *mdp5_kms)
+{
+	if (mdp5_kms->mmagic_mdss_axi_clk)
+		clk_disable_unprepare(mdp5_kms->mmagic_mdss_axi_clk);
+	if (mdp5_kms->rpm_mmaxi_clk)
+		 clk_disable_unprepare(mdp5_kms->rpm_mmaxi_clk);
+}
+
+static void mdp5_enable_bus_clocks(struct mdp5_kms *mdp5_kms)
+{
+	if (mdp5_kms->rpm_mmaxi_clk)
+		clk_prepare_enable(mdp5_kms->rpm_mmaxi_clk);
+	if (mdp5_kms->mmagic_mdss_axi_clk)
+		clk_prepare_enable(mdp5_kms->mmagic_mdss_axi_clk);
+}
+
 int mdp5_disable(struct mdp5_kms *mdp5_kms)
 {
 	DBG("");
@@ -186,12 +202,15 @@ int mdp5_disable(struct mdp5_kms *mdp5_kms)
 	if (mdp5_kms->mmagic_ahb_clk)
 		clk_disable_unprepare(mdp5_kms->mmagic_ahb_clk);
 
+	mdp5_disable_bus_clocks(mdp5_kms);
 	return 0;
 }
 
 int mdp5_enable(struct mdp5_kms *mdp5_kms)
 {
 	DBG("");
+
+	mdp5_enable_bus_clocks(mdp5_kms);
 
 	if (mdp5_kms->mmagic_ahb_clk)
 		clk_prepare_enable(mdp5_kms->mmagic_ahb_clk);
@@ -599,6 +618,23 @@ static u32 mdp5_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	return mdp5_encoder_get_framecount(encoder);
 }
 
+/* HACK: enable bimc gdsc */
+static void enable_mmagic_bimc_gdsc(void)
+{
+	void __iomem *base = ioremap(0x8c5000, SZ_1K);
+	u32 val;
+
+	val = ioread32(base + 0x29c);
+	val &= ~0x1;
+	iowrite32(val, base + 0x29c);
+
+	wmb();
+
+	iounmap(base);
+
+	msleep(5);
+}
+
 struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 {
 	struct platform_device *pdev = dev->platformdev;
@@ -637,6 +673,8 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
+	enable_mmagic_bimc_gdsc();
+
 	mdp5_kms->vdd = devm_regulator_get(&pdev->dev, "vdd");
 	if (IS_ERR(mdp5_kms->vdd)) {
 		ret = PTR_ERR(mdp5_kms->vdd);
@@ -671,6 +709,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	get_clk(pdev, &mdp5_kms->mmagic_ahb_clk, "mmagic_iface_clk", false);
 	get_clk(pdev, &mdp5_kms->iommu_clk, "iommu_clk", false);
 
+	/* HACK: get bus clock */
+	get_clk(pdev, &mdp5_kms->mmagic_mdss_axi_clk, "mmagic_mdss_bus_clk",
+		false);
+	get_clk(pdev, &mdp5_kms->rpm_mmaxi_clk, "rpm_mmaxi_clk",
+		false);
+
 	/* we need to set a default rate before enabling.  Set a safe
 	 * rate first, then figure out hw revision, and then set a
 	 * more optimal rate:
@@ -691,6 +735,10 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 	/* TODO: compute core clock rate at runtime */
 	clk_set_rate(mdp5_kms->src_clk, config->hw->max_clk);
+
+	/* HACK : set the axi clock to some valid rate */
+	if (mdp5_kms->mmagic_mdss_axi_clk)
+		clk_set_rate(mdp5_kms->mmagic_mdss_axi_clk, 75000000);
 
 	/*
 	 * Some chipsets have a Shared Memory Pool (SMP), while others
