@@ -130,6 +130,23 @@ static void remove_component(struct master *master, struct component *c)
 			master->match->compare[i].component = NULL;
 }
 
+/* Detach all components from associated master */
+static void master_remove_components(struct master *master)
+{
+	struct component_match *match = master->match;
+	size_t i;
+
+	if (!match)
+		return;
+
+	for (i = 0; i < match->num; i++) {
+		struct component *c = match->compare[i].component;
+
+		if (c)
+			c->master = NULL;
+	}
+}
+
 /*
  * Try to bring up a master.  If component is NULL, we're interested in
  * this master, otherwise it's a component which must be present to try
@@ -140,34 +157,39 @@ static void remove_component(struct master *master, struct component *c)
 static int try_to_bring_up_master(struct master *master,
 	struct component *component)
 {
-	int ret;
+	int ret = 0;
 
 	dev_dbg(master->dev, "trying to bring up master\n");
 
 	if (find_components(master)) {
 		dev_dbg(master->dev, "master has incomplete components\n");
-		return 0;
+		goto err;
 	}
 
 	if (component && component->master != master) {
 		dev_dbg(master->dev, "master is not for this component (%s)\n",
 			dev_name(component->dev));
-		return 0;
+		goto err;
 	}
 
-	if (!devres_open_group(master->dev, NULL, GFP_KERNEL))
-		return -ENOMEM;
+	if (!devres_open_group(master->dev, NULL, GFP_KERNEL)) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	/* Found all components */
 	ret = master->ops->bind(master->dev);
 	if (ret < 0) {
 		devres_release_group(master->dev, NULL);
 		dev_info(master->dev, "master bind failed: %d\n", ret);
-		return ret;
+		goto err;
 	}
 
 	master->bound = true;
 	return 1;
+err:
+	master_remove_components(master);
+	return ret;
 }
 
 static int try_to_bring_up_masters(struct component *component)
@@ -324,24 +346,15 @@ void component_master_del(struct device *dev,
 	const struct component_master_ops *ops)
 {
 	struct master *master;
-	int i;
 
 	mutex_lock(&component_mutex);
 	master = __master_find(dev, ops);
 	if (master) {
-		struct component_match *match = master->match;
-
 		take_down_master(master);
 
 		list_del(&master->node);
 
-		if (match) {
-			for (i = 0; i < match->num; i++) {
-				struct component *c = match->compare[i].component;
-				if (c)
-					c->master = NULL;
-			}
-		}
+		master_remove_components(master);
 		kfree(master);
 	}
 	mutex_unlock(&component_mutex);
