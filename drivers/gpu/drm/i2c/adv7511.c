@@ -1379,7 +1379,7 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 				adv7533_cec_fixed_registers,
 				ARRAY_SIZE(adv7533_cec_fixed_registers));
 		if (ret)
-			return ret;
+			goto err_i2c_unregister_cec;
 	}
 
 	if (i2c->irq) {
