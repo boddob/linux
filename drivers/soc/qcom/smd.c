@@ -1317,7 +1317,6 @@ static int qcom_smd_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, smd);
-	qcom_ipc_bus_register(&qcom_ipc_bus);
 
 	return 0;
 }
@@ -1378,9 +1377,22 @@ void qcom_ipc_bus_register(struct bus_type *bus)
 	ipc_bus = bus;
 }
 
+static const struct of_device_id smd_of_device_ids[] __initconst = {
+	{ .compatible = "qcom,smd" },
+	{}
+};
+
 static int __init qcom_ipc_init(void)
 {
-	return platform_driver_register(&qcom_smd_driver);
+	struct device_node *np;
+
+	np = of_find_matching_node(NULL, smd_of_device_ids);
+	if (np) {
+		qcom_ipc_bus_register(&qcom_ipc_bus);
+		return platform_driver_register(&qcom_smd_driver);
+	}
+
+	return 0;
 }
 postcore_initcall(qcom_ipc_init);
 
