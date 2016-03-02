@@ -65,7 +65,8 @@ done:
 	if (last_temp & CODE_SIGN_BIT)
 		last_temp |= ~CODE_SIGN_BIT;
 
-	*temp = last_temp;
+	/* Temperatures are in deciCelicius */
+	*temp = last_temp * 100;
 
 	return 0;
 }
