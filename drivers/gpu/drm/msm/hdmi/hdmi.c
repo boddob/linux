@@ -556,9 +556,9 @@ static int msm_hdmi_audio_hw_params(struct device *dev,
 		channel_allocation  = 0;
 
 	//FIXME..
-	hdmi_audio_set_sample_rate(hdmi, rate);
+	msm_hdmi_audio_set_sample_rate(hdmi, rate);
 
-	hdmi_audio_info_setup(hdmi, 1, chan,
+	msm_hdmi_audio_info_setup(hdmi, 1, chan,
 			channel_allocation, level_shift, down_mix);
 
 
@@ -584,7 +584,7 @@ static void msm_hdmi_audio_shutdown(struct device *dev)
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	hdmi_audio_info_setup(hdmi, 0, 0, 0, 0, 0);
+	msm_hdmi_audio_info_setup(hdmi, 0, 0, 0, 0, 0);
 }
 
 static const struct hdmi_codec_ops msm_hdmi_audio_codec_ops = {
