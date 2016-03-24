@@ -310,6 +310,7 @@ static int qup_i2c_wait_ready(struct qup_i2c_dev *qup, int op, bool val,
 	u32 opflags;
 	u32 status;
 	u32 shift = __ffs(op);
+	int ret = 0;
 
 	len *= qup->one_byte_t;
 	/* timeout after a wait of twice the max time */
@@ -321,18 +322,31 @@ static int qup_i2c_wait_ready(struct qup_i2c_dev *qup, int op, bool val,
 
 		if (((opflags & op) >> shift) == val) {
 			if ((op == QUP_OUT_NOT_EMPTY) && qup->is_last) {
-				if (!(status & I2C_STATUS_BUS_ACTIVE))
-					return 0;
+				if (!(status & I2C_STATUS_BUS_ACTIVE)) {
+					ret = 0;
+					goto done;
+				}
 			} else {
-				return 0;
+				ret = 0;
+				goto done;
 			}
 		}
 
-		if (time_after(jiffies, timeout))
-			return -ETIMEDOUT;
-
+		if (time_after(jiffies, timeout)) {
+			ret = -ETIMEDOUT;
+			goto done;
+		}
 		usleep_range(len, len * 2);
 	}
+
+done:
+	if (qup->bus_err || qup->qup_err) {
+		if (qup->bus_err & QUP_I2C_NACK_FLAG)
+			dev_err(qup->dev, "NACK from %x\n", qup->msg->addr);
+		ret = -EIO;
+	}
+
+	return ret;
 }
 
 static void qup_i2c_set_write_mode_v2(struct qup_i2c_dev *qup,
@@ -796,7 +810,6 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 		if (qup->bus_err & QUP_I2C_NACK_FLAG) {
 			msg--;
 			dev_err(qup->dev, "NACK from %x\n", msg->addr);
-			ret = -EIO;
 
 			if (qup_i2c_change_state(qup, QUP_RUN_STATE)) {
 				dev_err(qup->dev, "change to run state timed out");
@@ -818,6 +831,7 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 
 			qup_i2c_rel_dma(qup);
 		}
+		ret = -EIO;
 	}
 
 	dma_unmap_sg(qup->dev, qup->btx.sg, tx_nents, DMA_TO_DEVICE);
@@ -840,9 +854,6 @@ static int qup_i2c_bam_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 
 	if (ret)
 		goto out;
-
-	qup->bus_err = 0;
-	qup->qup_err = 0;
 
 	writel(0, qup->base + QUP_MX_INPUT_CNT);
 	writel(0, qup->base + QUP_MX_OUTPUT_CNT);
@@ -882,10 +893,9 @@ static int qup_i2c_wait_for_complete(struct qup_i2c_dev *qup,
 	}
 
 	if (qup->bus_err || qup->qup_err) {
-		if (qup->bus_err & QUP_I2C_NACK_FLAG) {
+		if (qup->bus_err & QUP_I2C_NACK_FLAG)
 			dev_err(qup->dev, "NACK from %x\n", msg->addr);
-			ret = -EIO;
-		}
+		ret = -EIO;
 	}
 
 	return ret;
@@ -1178,6 +1188,9 @@ static int qup_i2c_xfer(struct i2c_adapter *adap,
 	if (ret < 0)
 		goto out;
 
+	qup->bus_err = 0;
+	qup->qup_err = 0;
+
 	writel(1, qup->base + QUP_SW_RESET);
 	ret = qup_i2c_poll_state(qup, QUP_RESET_STATE);
 	if (ret)
@@ -1226,6 +1239,9 @@ static int qup_i2c_xfer_v2(struct i2c_adapter *adap,
 {
 	struct qup_i2c_dev *qup = i2c_get_adapdata(adap);
 	int ret, len, idx = 0, use_dma = 0;
+
+	qup->bus_err = 0;
+	qup->qup_err = 0;
 
 	ret = pm_runtime_get_sync(qup->dev);
 	if (ret < 0)
