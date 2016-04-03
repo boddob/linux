@@ -326,6 +326,124 @@ static int msm_init_vram(struct drm_device *dev)
 	return ret;
 }
 
+static int msm_drm_init(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *drmdev;
+	struct msm_drm_private *priv;
+	struct msm_kms *kms;
+	int ret;
+
+	drmdev = drm_dev_alloc(&msm_driver, dev);
+	if (!drmdev) {
+		dev_err(dev, "failed to allocate drm_device\n");
+		return -ENOMEM;
+	}
+
+	platform_set_drvdata(pdev, drmdev);
+	drmdev->platformdev = pdev;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		dev_err(dev, "failed to allocate private data\n");
+		return -ENOMEM;
+	}
+
+	drmdev->dev_private = priv;
+
+	priv->wq = alloc_ordered_workqueue("msm", 0);
+	priv->atomic_wq = alloc_ordered_workqueue("msm:atomic", 0);
+	init_waitqueue_head(&priv->pending_crtcs_event);
+
+	INIT_LIST_HEAD(&priv->inactive_list);
+	INIT_LIST_HEAD(&priv->vblank_ctrl.event_list);
+	INIT_WORK(&priv->vblank_ctrl.work, vblank_ctrl_worker);
+	spin_lock_init(&priv->vblank_ctrl.lock);
+
+	drm_mode_config_init(drmdev);
+
+	platform_set_drvdata(pdev, drmdev);
+
+	/* Bind all our sub-components: */
+	ret = component_bind_all(dev, drmdev);
+	if (ret)
+		return ret;
+
+	ret = msm_init_vram(drmdev);
+	if (ret)
+		goto fail;
+
+	switch (get_mdp_ver(pdev)) {
+	case 4:
+		kms = mdp4_kms_init(drmdev);
+		break;
+	case 5:
+		kms = mdp5_kms_init(drmdev);
+		break;
+	default:
+		kms = ERR_PTR(-ENODEV);
+		break;
+	}
+
+	if (IS_ERR(kms)) {
+		/*
+		 * NOTE: once we have GPU support, having no kms should not
+		 * be considered fatal.. ideally we would still support gpu
+		 * and (for example) use dmabuf/prime to share buffers with
+		 * imx drm driver on iMX5
+		 */
+		dev_err(dev, "failed to load kms\n");
+		ret = PTR_ERR(kms);
+		goto fail;
+	}
+
+	priv->kms = kms;
+
+	if (kms) {
+		pm_runtime_enable(dev);
+		ret = kms->funcs->hw_init(kms);
+		if (ret) {
+			dev_err(dev, "kms hw init failed: %d\n", ret);
+			goto fail;
+		}
+	}
+
+	drmdev->mode_config.funcs = &mode_config_funcs;
+
+	ret = drm_vblank_init(drmdev, priv->num_crtcs);
+	if (ret < 0) {
+		dev_err(dev, "failed to initialize vblank\n");
+		goto fail;
+	}
+
+	pm_runtime_get_sync(dev);
+	ret = drm_irq_install(drmdev, platform_get_irq(pdev, 0));
+	pm_runtime_put_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to install IRQ handler\n");
+		goto fail;
+	}
+
+	drm_mode_config_reset(drmdev);
+
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+	if (fbdev)
+		priv->fbdev = msm_fbdev_init(drmdev);
+#endif
+
+	ret = msm_debugfs_late_init(drmdev);
+	if (ret)
+		goto fail;
+
+	drm_kms_helper_poll_init(drmdev);
+
+	return 0;
+
+fail:
+	msm_unload(dev);
+	return ret;
+}
+
 static int msm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct platform_device *pdev = dev->platformdev;
