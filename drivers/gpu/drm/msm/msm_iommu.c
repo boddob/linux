@@ -41,11 +41,15 @@ static int msm_iommu_attach(struct msm_mmu *mmu, const char * const *names,
 	int i, ret;
 
 	for (i = 0; i < cnt; i++) {
-		struct device *ctx = msm_iommu_get_ctx(names[i]);
-		if (IS_ERR_OR_NULL(ctx)) {
-			dev_warn(dev, "couldn't get %s context", names[i]);
-			continue;
-		}
+		struct device *ctx;// = msm_iommu_get_ctx(names[i]);
+
+		/* force to dummy context */
+		//if (IS_ERR_OR_NULL(ctx)) {
+		//	dev_warn(dev, "couldn't get %s context", names[i]);
+		//	continue;
+		//}
+
+		ctx = (struct device *)DUMMY_CONTEXT;
 
 		if (ctx == (struct device *)DUMMY_CONTEXT) {
 			return iommu_attach_device(iommu->domain, mmu->dev);
@@ -69,10 +73,13 @@ static void msm_iommu_detach(struct msm_mmu *mmu, const char * const *names,
 	int i;
 
 	for (i = 0; i < cnt; i++) {
-		struct device *ctx = msm_iommu_get_ctx(names[i]);
-		if (IS_ERR_OR_NULL(ctx))
-			continue;
+		struct device *ctx;// = msm_iommu_get_ctx(names[i]);
 
+		/* force to dummy context */
+		//if (IS_ERR_OR_NULL(ctx))
+		//	continue;
+
+		ctx = (struct device *)DUMMY_CONTEXT;
 		if (ctx == (struct device *)DUMMY_CONTEXT) {
 			iommu_detach_device(iommu->domain, mmu->dev);
 			break;
@@ -99,7 +106,7 @@ static int msm_iommu_map(struct msm_mmu *mmu, uint32_t iova,
 		u32 pa = sg_phys(sg) - sg->offset;
 		size_t bytes = sg->length + sg->offset;
 
-		VERB("map[%d]: %08x %08x(%zx)", i, iova, pa, bytes);
+		VERB("map[%d]: %08x %08x(%zx)", i, da, pa, bytes);
 
 		ret = iommu_map(domain, da, pa, bytes, prot);
 		if (ret)
@@ -138,7 +145,7 @@ static int msm_iommu_unmap(struct msm_mmu *mmu, uint32_t iova,
 		if (unmapped < bytes)
 			return unmapped;
 
-		VERB("unmap[%d]: %08x(%zx)", i, iova, bytes);
+		VERB("unmap[%d]: %08x(%zx)", i, da, bytes);
 
 		BUG_ON(!PAGE_ALIGNED(bytes));
 

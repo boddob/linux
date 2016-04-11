@@ -1518,6 +1518,7 @@ static int arm_smmu_of_xlate(struct device *dev,
 	if (!master) {
 		if (register_smmu_master(smmu, smmu->dev, spec))
 			return -ENODEV;
+		arm_smmu_add_device(dev);
 	} else {
 		streamid = master->cfg.num_streamids;
 		master->cfg.streamids[streamid] = spec->args[0];
@@ -1661,7 +1662,7 @@ static int arm_smmu_init_clocks(struct arm_smmu_device *smmu)
 		if (IS_ERR(c)) {
 			dev_err(dev, "Couldn't get clock: %s",
 				cname);
-			return -ENODEV;
+			return -EPROBE_DEFER;
 		}
 
 		smmu->clocks[i] = c;
@@ -1848,6 +1849,56 @@ static const struct of_device_id arm_smmu_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, arm_smmu_of_match);
 
+static void enable_gdscs(void)
+{
+	void __iomem *base = ioremap(0x8c0000, SZ_64K);
+	u32 val;
+
+	/* 1. MMAGIC BIMC GDSCR */
+	val = ioread32(base + 0x529c);
+	printk(KERN_ERR "gdsc mmagic bimc before %x, hw %x\n", val, ioread32(base + 0x529c));
+	val = val & ~0x1;
+	iowrite32(val, base + 0x529c);
+
+	wmb();
+
+	mdelay(10);
+
+	printk(KERN_ERR "gdsc mmagic bimc after %x\n", ioread32(base + 0x529c));
+
+	/* 2. MMAGIC MDSS GDSCR */
+	val = ioread32(base + 0x247c);
+	printk(KERN_ERR "gdsc mmagic mdss before %x, hw %x\n", val, ioread32(base + 0x2480));
+	val = val & ~0x1;
+	iowrite32(val, base + 0x247c);
+
+	wmb();
+
+	mdelay(10);
+
+	printk(KERN_ERR "gdsc mmagic mdss after %x\n", ioread32(base + 0x2480));
+
+	/* 3. MDSS GDSCR */
+	val = ioread32(base + 0x2304);
+	printk(KERN_ERR "gdsc mdss before %x\n", val);
+	val = val & ~0x1;
+	iowrite32(val, base + 0x2304);
+
+	wmb();
+
+	mdelay(100);
+
+	printk(KERN_ERR "gdsc mdss after %x\n", ioread32(base + 0x2304));
+
+	printk(KERN_ERR "smmu mdp vote clks:\n");
+	printk(KERN_ERR "%x\n", ioread32(base + 0x6008));
+	printk(KERN_ERR "%x\n", ioread32(base + 0x7008));
+	printk(KERN_ERR "%x\n", ioread32(base + 0x8008));
+	printk(KERN_ERR "%x\n", ioread32(base + 0x9008));
+
+	iounmap(base);
+}
+
 static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
@@ -1909,6 +1960,8 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		}
 		smmu->irqs[i] = irq;
 	}
+
+	enable_gdscs();
 
 	err = arm_smmu_init_regulators(smmu);
 	if (err)
