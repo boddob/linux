@@ -1518,6 +1518,7 @@ static int arm_smmu_of_xlate(struct device *dev,
 	if (!master) {
 		if (register_smmu_master(smmu, smmu->dev, spec))
 			return -ENODEV;
+		arm_smmu_add_device(dev);
 	} else {
 		streamid = master->cfg.num_streamids;
 		master->cfg.streamids[streamid] = spec->args[0];
@@ -1661,7 +1662,7 @@ static int arm_smmu_init_clocks(struct arm_smmu_device *smmu)
 		if (IS_ERR(c)) {
 			dev_err(dev, "Couldn't get clock: %s",
 				cname);
-			return -ENODEV;
+			return -EPROBE_DEFER;
 		}
 
 		smmu->clocks[i] = c;
