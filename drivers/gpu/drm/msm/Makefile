@@ -22,6 +22,7 @@ msm-y := \
 	edp/edp_connector.o \
 	edp/edp_ctrl.o \
 	edp/edp_phy.o \
+	mdp/mdp.o \
 	mdp/mdp_format.o \
 	mdp/mdp_kms.o \
 	mdp/mdp4/mdp4_crtc.o \
