@@ -178,7 +178,6 @@ static int msm_drm_uninit(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *ddev = platform_get_drvdata(pdev);
 	struct msm_drm_private *priv = ddev->dev_private;
-	struct msm_kms *kms = priv->kms;
 	struct msm_gpu *gpu = priv->gpu;
 	struct msm_vblank_ctrl *vbl_ctrl = &priv->vblank_ctrl;
 	struct vblank_event *vbl_ev, *tmp;
@@ -212,11 +211,6 @@ static int msm_drm_uninit(struct device *dev)
 	flush_workqueue(priv->wq);
 	destroy_workqueue(priv->wq);
 
-	if (kms) {
-		pm_runtime_disable(dev);
-		kms->funcs->destroy(kms);
-	}
-
 	if (gpu) {
 		mutex_lock(&ddev->struct_mutex);
 		gpu->funcs->pm_suspend(gpu);
@@ -240,13 +234,6 @@ static int msm_drm_uninit(struct device *dev)
 	kfree(priv);
 
 	return 0;
-}
-
-static int get_mdp_ver(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-
-	return (int) (unsigned long) of_device_get_match_data(dev);
 }
 
 #include <linux/of_address.h>
@@ -328,7 +315,6 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *ddev;
 	struct msm_drm_private *priv;
-	struct msm_kms *kms;
 	struct drm_connector *connector;
 	int ret;
 
@@ -374,40 +360,6 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	if (ret)
 		goto fail;
 
-	switch (get_mdp_ver(pdev)) {
-	case 4:
-		kms = mdp4_kms_init(ddev);
-		break;
-	case 5:
-		kms = mdp5_kms_init(ddev);
-		break;
-	default:
-		kms = ERR_PTR(-ENODEV);
-		break;
-	}
-
-	if (IS_ERR(kms)) {
-		/*
-		 * NOTE: once we have GPU support, having no kms should not
-		 * be considered fatal.. ideally we would still support gpu
-		 * and (for example) use dmabuf/prime to share buffers with
-		 * imx drm driver on iMX5
-		 */
-		dev_err(dev, "failed to load kms\n");
-		ret = PTR_ERR(kms);
-		goto fail;
-	}
-
-	priv->kms = kms;
-
-	if (kms) {
-		pm_runtime_enable(dev);
-		ret = kms->funcs->hw_init(kms);
-		if (ret) {
-			dev_err(dev, "kms hw init failed: %d\n", ret);
-			goto fail;
-		}
-	}
 
 	ddev->mode_config.funcs = &mode_config_funcs;
 
@@ -1124,16 +1076,8 @@ static int msm_pdev_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id msm_id[] = {
-	{ "mdp", 0 },
-	{ }
-};
-
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,mdp4", .data = (void *) 4 },	/* mdp4 */
-	{ .compatible = "qcom,mdp5", .data = (void *) 5 },	/* mdp5 */
-	/* to support downstream DT files */
-	{ .compatible = "qcom,mdss_mdp", .data = (void *) 5 },  /* mdp5 */
+	{ .compatible = "qcom,mdss", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
@@ -1142,11 +1086,10 @@ static struct platform_driver msm_platform_driver = {
 	.probe      = msm_pdev_probe,
 	.remove     = msm_pdev_remove,
 	.driver     = {
-		.name   = "msm",
+		.name   = "msm_mdss",
 		.of_match_table = dt_match,
 		.pm     = &msm_pm_ops,
 	},
-	.id_table   = msm_id,
 };
 
 static int __init msm_drm_register(void)
