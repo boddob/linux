@@ -31,12 +31,14 @@ static int mdp_bind(struct device *dev, struct device *master, void *data)
 	struct msm_kms *kms;
 	int ret;
 
+	DBG("");
+
 	switch (get_mdp_ver(pdev)) {
 	case 4:
-		kms = mdp4_kms_init(ddev);
+		kms = mdp4_kms_init(pdev, ddev);
 		break;
 	case 5:
-		kms = mdp5_kms_init(ddev);
+		kms = mdp5_kms_init(pdev, ddev);
 		break;
 	default:
 		kms = ERR_PTR(-ENODEV);

@@ -468,10 +468,10 @@ fail:
 	return ret;
 }
 
-struct msm_kms *mdp4_kms_init(struct drm_device *dev)
+struct msm_kms *mdp4_kms_init(struct platform_device *pdev, struct drm_device *ddev)
 {
-	struct platform_device *pdev = dev->platformdev;
 	struct mdp4_platform_config *config = mdp4_get_config(pdev);
+	struct device *dev = &pdev->dev;
 	struct mdp4_kms *mdp4_kms;
 	struct msm_kms *kms = NULL;
 	struct msm_mmu *mmu;
@@ -479,7 +479,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms) {
-		dev_err(dev->dev, "failed to allocate kms\n");
+		dev_err(dev, "failed to allocate kms\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -488,7 +488,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 
 	kms = &mdp4_kms->base.base;
 
-	mdp4_kms->dev = dev;
+	mdp4_kms->dev = ddev;
 
 	mdp4_kms->mmio = msm_ioremap(pdev, NULL, "MDP4");
 	if (IS_ERR(mdp4_kms->mmio)) {
@@ -497,12 +497,12 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	}
 
 	mdp4_kms->dsi_pll_vdda =
-			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vdda");
+			devm_regulator_get_optional(dev, "dsi_pll_vdda");
 	if (IS_ERR(mdp4_kms->dsi_pll_vdda))
 		mdp4_kms->dsi_pll_vdda = NULL;
 
 	mdp4_kms->dsi_pll_vddio =
-			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vddio");
+			devm_regulator_get_optional(dev, "dsi_pll_vddio");
 	if (IS_ERR(mdp4_kms->dsi_pll_vddio))
 		mdp4_kms->dsi_pll_vddio = NULL;
 
@@ -510,40 +510,40 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	 * _get_exclusive() and ignore the error if it does not exist
 	 * (and hope that the bootloader left it on for us)
 	 */
-	mdp4_kms->vdd = devm_regulator_get_exclusive(&pdev->dev, "vdd");
+	mdp4_kms->vdd = devm_regulator_get_exclusive(dev, "vdd");
 	if (IS_ERR(mdp4_kms->vdd))
 		mdp4_kms->vdd = NULL;
 
 	if (mdp4_kms->vdd) {
 		ret = regulator_enable(mdp4_kms->vdd);
 		if (ret) {
-			dev_err(dev->dev, "failed to enable regulator vdd: %d\n", ret);
+			dev_err(dev, "failed to enable regulator vdd: %d\n", ret);
 			goto fail;
 		}
 	}
 
-	mdp4_kms->clk = devm_clk_get(&pdev->dev, "core_clk");
+	mdp4_kms->clk = devm_clk_get(dev, "core_clk");
 	if (IS_ERR(mdp4_kms->clk)) {
-		dev_err(dev->dev, "failed to get core_clk\n");
+		dev_err(dev, "failed to get core_clk\n");
 		ret = PTR_ERR(mdp4_kms->clk);
 		goto fail;
 	}
 
-	mdp4_kms->pclk = devm_clk_get(&pdev->dev, "iface_clk");
+	mdp4_kms->pclk = devm_clk_get(dev, "iface_clk");
 	if (IS_ERR(mdp4_kms->pclk))
 		mdp4_kms->pclk = NULL;
 
 	// XXX if (rev >= MDP_REV_42) { ???
-	mdp4_kms->lut_clk = devm_clk_get(&pdev->dev, "lut_clk");
+	mdp4_kms->lut_clk = devm_clk_get(dev, "lut_clk");
 	if (IS_ERR(mdp4_kms->lut_clk)) {
-		dev_err(dev->dev, "failed to get lut_clk\n");
+		dev_err(dev, "failed to get lut_clk\n");
 		ret = PTR_ERR(mdp4_kms->lut_clk);
 		goto fail;
 	}
 
-	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "mdp_axi_clk");
+	mdp4_kms->axi_clk = devm_clk_get(dev, "mdp_axi_clk");
 	if (IS_ERR(mdp4_kms->axi_clk)) {
-		dev_err(dev->dev, "failed to get axi_clk\n");
+		dev_err(dev, "failed to get axi_clk\n");
 		ret = PTR_ERR(mdp4_kms->axi_clk);
 		goto fail;
 	}
@@ -563,7 +563,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	mdelay(16);
 
 	if (config->iommu) {
-		mmu = msm_iommu_new(&pdev->dev, config->iommu);
+		mmu = msm_iommu_new(dev, config->iommu);
 		if (IS_ERR(mmu)) {
 			ret = PTR_ERR(mmu);
 			goto fail;
@@ -575,30 +575,30 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 
 		mdp4_kms->mmu = mmu;
 	} else {
-		dev_info(dev->dev, "no iommu, fallback to phys "
+		dev_info(dev, "no iommu, fallback to phys "
 				"contig buffers for scanout\n");
 		mmu = NULL;
 	}
 
-	mdp4_kms->id = msm_register_mmu(dev, mmu);
+	mdp4_kms->id = msm_register_mmu(ddev, mmu);
 	if (mdp4_kms->id < 0) {
 		ret = mdp4_kms->id;
-		dev_err(dev->dev, "failed to register mdp4 iommu: %d\n", ret);
+		dev_err(dev, "failed to register mdp4 iommu: %d\n", ret);
 		goto fail;
 	}
 
 	ret = modeset_init(mdp4_kms);
 	if (ret) {
-		dev_err(dev->dev, "modeset_init failed: %d\n", ret);
+		dev_err(dev, "modeset_init failed: %d\n", ret);
 		goto fail;
 	}
 
-	mutex_lock(&dev->struct_mutex);
-	mdp4_kms->blank_cursor_bo = msm_gem_new(dev, SZ_16K, MSM_BO_WC);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_lock(&ddev->struct_mutex);
+	mdp4_kms->blank_cursor_bo = msm_gem_new(ddev, SZ_16K, MSM_BO_WC);
+	mutex_unlock(&ddev->struct_mutex);
 	if (IS_ERR(mdp4_kms->blank_cursor_bo)) {
 		ret = PTR_ERR(mdp4_kms->blank_cursor_bo);
-		dev_err(dev->dev, "could not allocate blank-cursor bo: %d\n", ret);
+		dev_err(dev, "could not allocate blank-cursor bo: %d\n", ret);
 		mdp4_kms->blank_cursor_bo = NULL;
 		goto fail;
 	}
@@ -606,14 +606,14 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	ret = msm_gem_get_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id,
 			&mdp4_kms->blank_cursor_iova);
 	if (ret) {
-		dev_err(dev->dev, "could not pin blank-cursor bo: %d\n", ret);
+		dev_err(dev, "could not pin blank-cursor bo: %d\n", ret);
 		goto fail;
 	}
 
-	dev->mode_config.min_width = 0;
-	dev->mode_config.min_height = 0;
-	dev->mode_config.max_width = 2048;
-	dev->mode_config.max_height = 2048;
+	ddev->mode_config.min_width = 0;
+	ddev->mode_config.min_height = 0;
+	ddev->mode_config.max_width = 2048;
+	ddev->mode_config.max_height = 2048;
 
 	return kms;
 

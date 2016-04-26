@@ -635,9 +635,9 @@ static void enable_mmagic_bimc_gdsc(void)
 	msleep(5);
 }
 
-struct msm_kms *mdp5_kms_init(struct drm_device *dev)
+struct msm_kms *mdp5_kms_init(struct platform_device *pdev, struct drm_device *ddev)
 {
-	struct platform_device *pdev = dev->platformdev;
+	struct device *dev = &pdev->dev;
 	struct mdp5_cfg *config;
 	struct mdp5_kms *mdp5_kms;
 	struct msm_kms *kms = NULL;
@@ -647,10 +647,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 	mdp5_kms = kzalloc(sizeof(*mdp5_kms), GFP_KERNEL);
 	if (!mdp5_kms) {
-		dev_err(dev->dev, "failed to allocate kms\n");
+		dev_err(dev, "failed to allocate kms\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
+
+	DBG("");
 
 	spin_lock_init(&mdp5_kms->resource_lock);
 
@@ -658,7 +660,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 	kms = &mdp5_kms->base.base;
 
-	mdp5_kms->dev = dev;
+	mdp5_kms->dev = ddev;
 
 	/* mdp5_kms->mmio actually represents the MDSS base address */
 	mdp5_kms->mmio = msm_ioremap(pdev, "mdp_phys", "MDP5");
@@ -673,9 +675,11 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	enable_mmagic_bimc_gdsc();
+	DBG("");
 
-	mdp5_kms->vdd = devm_regulator_get(&pdev->dev, "vdd");
+	//enable_mmagic_bimc_gdsc();
+
+	mdp5_kms->vdd = devm_regulator_get(dev, "vdd");
 	if (IS_ERR(mdp5_kms->vdd)) {
 		ret = PTR_ERR(mdp5_kms->vdd);
 		goto fail;
@@ -683,7 +687,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 	ret = regulator_enable(mdp5_kms->vdd);
 	if (ret) {
-		dev_err(dev->dev, "failed to enable regulator vdd: %d\n", ret);
+		dev_err(dev, "failed to enable regulator vdd: %d\n", ret);
 		goto fail;
 	}
 
@@ -703,6 +707,8 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	ret = get_clk(pdev, &mdp5_kms->vsync_clk, "vsync_clk", true);
 	if (ret)
 		goto fail;
+
+	DBG("");
 
 	/* optional clocks: */
 	get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk", false);
@@ -740,6 +746,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	if (mdp5_kms->mmagic_mdss_axi_clk)
 		clk_set_rate(mdp5_kms->mmagic_mdss_axi_clk, 75000000);
 
+	DBG("");
 	/*
 	 * Some chipsets have a Shared Memory Pool (SMP), while others
 	 * have dedicated latency buffering per source pipe instead;
@@ -754,13 +761,14 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		}
 	}
 
-	mdp5_kms->ctlm = mdp5_ctlm_init(dev, mdp5_kms->mmio, mdp5_kms->cfg);
+	mdp5_kms->ctlm = mdp5_ctlm_init(ddev, mdp5_kms->mmio, mdp5_kms->cfg);
 	if (IS_ERR(mdp5_kms->ctlm)) {
 		ret = PTR_ERR(mdp5_kms->ctlm);
 		mdp5_kms->ctlm = NULL;
 		goto fail;
 	}
 
+	DBG("");
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if
 	 * we don't disable):
@@ -779,10 +787,10 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	mdelay(16);
 
 	if (config->platform.iommu) {
-		mmu = msm_iommu_new(&pdev->dev, config->platform.iommu);
+		mmu = msm_iommu_new(dev, config->platform.iommu);
 		if (IS_ERR(mmu)) {
 			ret = PTR_ERR(mmu);
-			dev_err(dev->dev, "failed to init iommu: %d\n", ret);
+			dev_err(dev, "failed to init iommu: %d\n", ret);
 			iommu_domain_free(config->platform.iommu);
 			goto fail;
 		}
@@ -790,40 +798,42 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		ret = mmu->funcs->attach(mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
 		if (ret) {
-			dev_err(dev->dev, "failed to attach iommu: %d\n", ret);
+			dev_err(dev, "failed to attach iommu: %d\n", ret);
 			mmu->funcs->destroy(mmu);
 			goto fail;
 		}
 	} else {
-		dev_info(dev->dev, "no iommu, fallback to phys "
+		dev_info(dev, "no iommu, fallback to phys "
 				"contig buffers for scanout\n");
 		mmu = NULL;
 	}
 	mdp5_kms->mmu = mmu;
 
-	mdp5_kms->id = msm_register_mmu(dev, mmu);
+	mdp5_kms->id = msm_register_mmu(ddev, mmu);
 	if (mdp5_kms->id < 0) {
 		ret = mdp5_kms->id;
-		dev_err(dev->dev, "failed to register mdp5 iommu: %d\n", ret);
+		dev_err(dev, "failed to register mdp5 iommu: %d\n", ret);
 		goto fail;
 	}
 
 	ret = modeset_init(mdp5_kms);
 	if (ret) {
-		dev_err(dev->dev, "modeset_init failed: %d\n", ret);
+		dev_err(dev, "modeset_init failed: %d\n", ret);
 		goto fail;
 	}
 
-	dev->mode_config.min_width = 0;
-	dev->mode_config.min_height = 0;
-	dev->mode_config.max_width = config->hw->lm.max_width;
-	dev->mode_config.max_height = config->hw->lm.max_height;
+	DBG("");
 
-	dev->driver->get_vblank_timestamp = mdp5_get_vblank_timestamp;
-	dev->driver->get_scanout_position = mdp5_get_scanoutpos;
-	dev->driver->get_vblank_counter = mdp5_get_vblank_counter;
-	dev->max_vblank_count = 0xffffffff;
-	dev->vblank_disable_immediate = true;
+	ddev->mode_config.min_width = 0;
+	ddev->mode_config.min_height = 0;
+	ddev->mode_config.max_width = config->hw->lm.max_width;
+	ddev->mode_config.max_height = config->hw->lm.max_height;
+
+	ddev->driver->get_vblank_timestamp = mdp5_get_vblank_timestamp;
+	ddev->driver->get_scanout_position = mdp5_get_scanoutpos;
+	ddev->driver->get_vblank_counter = mdp5_get_vblank_counter;
+	ddev->max_vblank_count = 0xffffffff;
+	ddev->vblank_disable_immediate = true;
 
 	return kms;
 
