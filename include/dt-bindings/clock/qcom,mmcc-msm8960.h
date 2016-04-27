@@ -141,5 +141,6 @@
 #define VCAP_CLK					124
 #define VCAP_NPL_CLK					125
 #define PLL15						126
+#define LVDS_CLK					127
 
 #endif

@@ -45,6 +45,7 @@ enum {
 	P_DSI2_PLL_DSICLK,
 	P_DSI1_PLL_BYTECLK,
 	P_DSI2_PLL_BYTECLK,
+	P_LVDS_PLL,
 };
 
 #define F_MN(f, s, _m, _n) { .freq = f, .src = s, .m = _m, .n = _n }
@@ -98,6 +99,20 @@ static const struct parent_map mmcc_pxo_dsi2_dsi1_map[] = {
 static const char * const mmcc_pxo_dsi2_dsi1[] = {
 	"pxo",
 	"dsi2pll",
+	"dsi1pll",
+};
+
+static const struct parent_map mmcc_pxo_dsi2_lvds_dsi1_map[] = {
+	{ P_PXO, 0 },
+	{ P_DSI2_PLL_DSICLK, 1 },
+	{ P_LVDS_PLL, 2 },
+	{ P_DSI1_PLL_DSICLK, 3 },
+};
+
+static const char * const mmcc_pxo_dsi2_lvds_dsi1[] = {
+	"pxo",
+	"dsi2pll",
+	"lvdspll",
 	"dsi1pll",
 };
 
@@ -2398,6 +2413,37 @@ static struct clk_rcg dsi2_pixel_src = {
 	},
 };
 
+static struct clk_rcg dsi2_pixel_src_8064 = {
+	.ns_reg = 0x00e4,
+	.md_reg = 0x00b8,
+	.mn = {
+		.mnctr_en_bit = 5,
+		.mnctr_reset_bit = 7,
+		.mnctr_mode_shift = 6,
+		.n_val_shift = 16,
+		.m_val_shift = 8,
+		.width = 8,
+	},
+	.p = {
+		.pre_div_shift = 12,
+		.pre_div_width = 4,
+	},
+	.s = {
+		.src_sel_shift = 0,
+		.parent_map = mmcc_pxo_dsi2_lvds_dsi1_map,
+	},
+	.clkr = {
+		.enable_reg = 0x0094,
+		.enable_mask = BIT(2),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi2_pixel_src",
+			.parent_names = mmcc_pxo_dsi2_lvds_dsi1,
+			.num_parents = 4,
+			.ops = &clk_rcg_pixel_ops,
+		},
+	},
+};
+
 static struct clk_branch dsi2_pixel_clk = {
 	.halt_reg = 0x01d0,
 	.halt_bit = 19,
@@ -2406,6 +2452,22 @@ static struct clk_branch dsi2_pixel_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "mdp_pclk2_clk",
+			.parent_names = (const char *[]){ "dsi2_pixel_src" },
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_branch lvds_clk = {
+	.halt_reg = 0x024c,
+	.halt_bit = 6,
+	.clkr = {
+		.enable_reg = 0x0264,	/* DSI2_PIXEL_CC2 and DSI2_PIXEL_CC */
+		.enable_mask = BIT(1),
+		.hw.init = &(struct clk_init_data){
+			.name = "lvds_clk",
 			.parent_names = (const char *[]){ "dsi2_pixel_src" },
 			.num_parents = 1,
 			.ops = &clk_branch_ops,
@@ -2896,8 +2958,9 @@ static struct clk_regmap *mmcc_apq8064_clks[] = {
 	[MDP_SRC] = &mdp_src.clkr,
 	[MDP_CLK] = &mdp_clk.clkr,
 	[MDP_LUT_CLK] = &mdp_lut_clk.clkr,
-	[DSI2_PIXEL_SRC] = &dsi2_pixel_src.clkr,
+	[DSI2_PIXEL_SRC] = &dsi2_pixel_src_8064.clkr,
 	[DSI2_PIXEL_CLK] = &dsi2_pixel_clk.clkr,
+	[LVDS_CLK] = &lvds_clk.clkr,
 	[DSI2_SRC] = &dsi2_src.clkr,
 	[DSI2_CLK] = &dsi2_clk.clkr,
 	[DSI1_BYTE_SRC] = &dsi1_byte_src.clkr,
