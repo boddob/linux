@@ -76,6 +76,18 @@
 			 <&gcc GCC_MDSS_VSYNC_CLK>;
 		clock-names = "iface_clk", "bus_clk", "core_clk_src",
 			      "core_clk", "lut_clk", "vsync_clk";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				mdp_intf_dsi: endpoint {
+					remote-endpoint = <&mdss_dsi0_in>;
+				};
+			};
+		};
 	};
 
 	mdss_dsi0: qcom,mdss_dsi@1a98000 {
@@ -106,6 +118,24 @@
 			      "core_mmss_clk", "byte_clk", "pixel_clk",
 			      "core_clk", "byte_clk_src", "pixel_clk_src";
 		qcom,dsi-phy = <&mdss_dsi_phy0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				mdss_dsi0_in: endpoint {
+					remote-endpoint = <&mdp_intf_dsi>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				mdss_dsi0_out: endpoint {
+				};
+			};
+		};
 	};
 
 	mdss_dsi_phy0: qcom,mdss_dsi_phy@1a98300 {
