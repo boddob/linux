@@ -228,9 +228,13 @@ static struct device_node *mdp4_detect_lcdc_panel(struct drm_device *dev)
 	struct device_node *endpoint, *panel_node;
 	struct device_node *np = dev->dev->of_node;
 
-	endpoint = of_graph_get_next_endpoint(np, NULL);
+	/*
+	 * LCDC/LVDS is the first port described in the list of ports in the
+	 * MDP4 DT node.
+	 */
+	endpoint = of_graph_get_endpoint_by_regs(np, 0, -1);
 	if (!endpoint) {
-		DBG("no endpoint in MDP4 to fetch LVDS panel\n");
+		DBG("no LVDS panel remote endpoint\n");
 		return NULL;
 	}
 
