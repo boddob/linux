@@ -1057,20 +1057,32 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
-static int add_components(struct device *dev, struct component_match **matchptr,
-		const char *name)
+static const char * const msm_compatible_gpus[] = {
+	"qcom,adreno-3xx",
+	"qcom,kgsl-3d0",
+};
+
+/*
+ * We don't know what's the best binding to link the gpu with the drm device.
+ * Fow now, we just hunt for all the possible gpus that we support, and add them
+ * as components.
+ */
+static int add_gpu_components(struct device *dev, struct component_match **matchptr)
 {
 	struct device_node *np = dev->of_node;
 	unsigned i;
 
-	for (i = 0; ; i++) {
+	for (i = 0; i < ARRAY_SIZE(msm_compatible_gpus); i++) {
 		struct device_node *node;
 
-		node = of_parse_phandle(np, name, i);
+		node = of_find_compatible_node(NULL, NULL,
+					       msm_compatible_gpus[i]);
 		if (!node)
-			break;
+			continue;
 
 		component_match_add(dev, matchptr, compare_of, node);
+
+		of_node_put(node);
 	}
 
 	return 0;
@@ -1151,7 +1163,7 @@ static int msm_pdev_probe(struct platform_device *pdev)
 	struct component_match *match = NULL;
 
 	add_mdss_components(&pdev->dev, &match);
-	add_components(&pdev->dev, &match, "gpus");
+	add_gpu_components(&pdev->dev, &match);
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	return component_master_add_with_match(&pdev->dev, &msm_drm_ops, match);
