@@ -41,7 +41,6 @@ static int msm_iommu_attach(struct msm_mmu *mmu, const char * const *names,
 	int i, ret;
 
 	for (i = 0; i < cnt; i++) {
-		struct device *msm_iommu_get_ctx(const char *ctx_name);
 		struct device *ctx;
 
 		/* Gigantic HACK to make sure 3 different IOMMU drivers work together */
@@ -79,7 +78,6 @@ static void msm_iommu_detach(struct msm_mmu *mmu, const char * const *names,
 	int i;
 
 	for (i = 0; i < cnt; i++) {
-		struct device *msm_iommu_get_ctx(const char *ctx_name);
 		struct device *ctx;
 
 		if (iommu_capable(mmu->dev->bus, IOMMU_CAP_CACHE_COHERENCY)) {
