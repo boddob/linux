@@ -11,8 +11,7 @@ Required properties:
   be 0 or 1, since we have 2 DSI controllers at most for now.
 - interrupts: The interrupt signal from the DSI block.
 - power-domains: Should be <&mmcc MDSS_GDSC>.
-- clocks: device clocks
-  See Documentation/devicetree/bindings/clocks/clock-bindings.txt for details.
+- clocks: Phandles to device clocks as descirbed in [1]
 - clock-names: the following clocks are required:
   * "mdp_core_clk"
   * "iface_clk"
@@ -31,8 +30,7 @@ Required properties:
 
 Optional properties:
 - panel@0: Node of panel connected to this DSI controller.
-  See files in Documentation/devicetree/bindings/display/panel/ for each supported
-  panel.
+  See files in [2] for each supported panel.
 - qcom,dual-dsi-mode: Boolean value indicating if the DSI controller is
   driving a panel which needs 2 DSI links.
 - qcom,master-dsi: Boolean value indicating if the DSI controller is driving
@@ -48,7 +46,7 @@ Optional properties:
 
   DSI Endpoint properties:
   - remote-endpoint: set to phandle of the connected panel's endpoint.
-    See Documentation/devicetree/bindings/graph.txt for device graph info.
+    See [3] for device graph info.
   - qcom,data-lane-map: this describes how the logical DSI lanes are mapped
     to the physical lanes on the given platform. The value contained in
     index n describes what logical data lane is mapped to the physical data
@@ -89,8 +87,7 @@ Required properties:
 - qcom,dsi-phy-index: The ID of DSI PHY hardware instance. This should
   be 0 or 1, since we have 2 DSI PHYs at most for now.
 - power-domains: Should be <&mmcc MDSS_GDSC>.
-- clocks: device clocks
-  See Documentation/devicetree/bindings/clocks/clock-bindings.txt for details.
+- clocks: Phandles to device clocks as descirbed in [1]
 - clock-names: the following clocks are required:
   * "iface_clk"
 - vddio-supply: phandle to vdd-io regulator device node
@@ -99,8 +96,12 @@ Optional properties:
 - qcom,dsi-phy-regulator-ldo-mode: Boolean value indicating if the LDO mode PHY
   regulator is wanted.
 
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+[2] Documentation/devicetree/bindings/display/panel/
+[3] Documentation/devicetree/bindings/graph.txt
+
 Example:
-	mdss_dsi0: qcom,mdss_dsi@fd922800 {
+	dsi0: dsi@fd922800 {
 		compatible = "qcom,mdss-dsi-ctrl";
 		qcom,dsi-host-index = <0>;
 		interrupt-parent = <&mdss_mdp>;
@@ -128,7 +129,7 @@ Example:
 		vdd-supply = <&pma8084_l22>;
 		vddio-supply = <&pma8084_l12>;
 
-		qcom,dsi-phy = <&mdss_dsi_phy0>;
+		qcom,dsi-phy = <&dsi_phy0>;
 
 		qcom,dual-dsi-mode;
 		qcom,master-dsi;
@@ -156,12 +157,12 @@ Example:
 		port {
 			dsi0_out: endpoint {
 				remote-endpoint = <&panel_in>;
-				lanes = <0 1 2 3>;
+				qcom,data-lane-map = <0 1 2 3>;
 			};
 		};
 	};
 
-	mdss_dsi_phy0: qcom,mdss_dsi_phy@fd922a00 {
+	dsi_phy0: dsi_phy@fd922a00 {
 		compatible = "qcom,dsi-phy-28nm-hpm";
 		qcom,dsi-phy-index = <0>;
 		reg-names =
