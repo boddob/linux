@@ -60,7 +60,7 @@ MODULE_PARM_DESC(fbdev, "Enable fbdev compat layer");
 module_param(fbdev, bool, 0600);
 #endif
 
-static char *vram = "16m";
+static char *vram = "64m";
 MODULE_PARM_DESC(vram, "Configure VRAM size (for devices without IOMMU/GPUMMU");
 module_param(vram, charp, 0);
 

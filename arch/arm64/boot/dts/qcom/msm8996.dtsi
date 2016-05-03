@@ -19,7 +19,7 @@
 	model = "Qualcomm Technologies, Inc. MSM8996";
 
 	qcom,msm-id = <291 0x30001>,
-	              <246 0x0>;
+	              <246 0x3000>;
 	qcom,pmic-id = <0x20009 0x2000A 0x0 0x0>,
 			<0x20009 0x10013 0x0 0x0>;
 	interrupt-parent = <&intc>;
@@ -415,6 +415,7 @@
 			clocks = <&mmcc MDSS_AHB_CLK>,
 				 <&mmcc MMSS_MMAGIC_AHB_CLK>,
 				 <&gcc GCC_HDMI_CLKREF_CLK>;
+
 			clock-names = "iface_clk",
 				      "mmagic_iface_clk",
 				      "ref_clk";
