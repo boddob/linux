@@ -537,6 +537,128 @@
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "core";
 		};
+
+		mdss: mdss@1a00000 {
+			compatible = "qcom,mdss";
+
+			reg = <0x1a00000 0x100>,
+			      <0x1ac8000 0x3000>;
+			reg-names = "mdss_phys",
+				    "vbif_phys";
+
+			interrupts = <GIC_SPI 72 IRQ_TYPE_NONE>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			power-domains = <&gcc MDSS_GDSC>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			mdp: mdp@1a00000 {
+				compatible = "qcom,mdp5";
+
+				reg = <0x1a01000 0x8f000>;
+				reg-names = "mdp_phys";
+
+				interrupt-parent = <&mdss>;
+				interrupts = <0 IRQ_TYPE_NONE>;
+
+				clocks = <&gcc GCC_MDSS_AHB_CLK>,
+					 <&gcc GCC_MDSS_AXI_CLK>,
+					 <&gcc MDP_CLK_SRC>,
+					 <&gcc GCC_MDSS_MDP_CLK>,
+					 <&gcc GCC_MDSS_VSYNC_CLK>;
+				clock-names = "iface_clk",
+					      "bus_clk",
+					      "core_clk_src",
+					      "core_clk",
+					      "vsync_clk";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						mdp_intf1: endpoint {
+							remote-endpoint = <&dsi0_in>;
+						};
+					};
+				};
+			};
+
+			dsi0: dsi@1a98000 {
+				compatible = "qcom,mdss-dsi-ctrl";
+				qcom,dsi-host-index = <0>;
+
+				reg = <0x1a98000 0x25c>;
+				reg-names = "dsi_ctrl";
+
+				interrupt-parent = <&mdss>;
+				interrupts = <4 IRQ_TYPE_NONE>;
+
+				clocks = <&gcc GCC_MDSS_MDP_CLK>,
+					 <&gcc GCC_MDSS_AHB_CLK>,
+					 <&gcc GCC_MDSS_AXI_CLK>,
+					 <&gcc GCC_MDSS_BYTE0_CLK>,
+					 <&gcc GCC_MDSS_PCLK0_CLK>,
+					 <&gcc GCC_MDSS_ESC0_CLK>;
+				clock-names = "mdp_core_clk",
+					      "iface_clk",
+					      "bus_clk",
+					      "byte_clk",
+					      "pixel_clk",
+					      "core_clk";
+
+				phys = <&dsi_phy0>;
+				phy-names = "dsi_phy";
+
+				assigned-clocks = <&gcc BYTE0_CLK_SRC>,
+						  <&gcc PCLK0_CLK_SRC>;
+				assigned-clock-parents = <&dsi_phy0 0>,
+							 <&dsi_phy0 1>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						dsi0_in: endpoint {
+							remote-endpoint = <&mdp_intf1>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						dsi0_out: endpoint {
+						};
+					};
+				};
+			};
+
+			dsi_phy0: dsi_phy0@1a98300 {
+				compatible = "qcom,dsi-phy-28nm-lp";
+				qcom,dsi-phy-index = <0>;
+
+				reg = <0x1a98300 0xd4>,
+				      <0x1a98500 0x280>,
+				      <0x1a98780 0x30>;
+				reg-names = "dsi_pll",
+					    "dsi_phy",
+					    "dsi_phy_regulator";
+
+				power-domains = <&gcc MDSS_GDSC>;
+
+				clocks = <&gcc GCC_MDSS_AHB_CLK>;
+				clock-names = "iface_clk";
+
+				#clock-cells = <1>;
+			};
+		};
+
 	};
 
 	smd {
