@@ -148,6 +148,7 @@ static const struct component_ops dsi_ops = {
 
 static int dsi_dev_probe(struct platform_device *pdev)
 {
+	DBG("");
 	return component_add(&pdev->dev, &dsi_ops);
 }
 

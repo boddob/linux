@@ -32,7 +32,6 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	unsigned long flags;
 
 	pm_runtime_get_sync(dev->dev);
-	mdp5_enable(mdp5_kms);
 
 	/* Magic unknown register writes:
 	 *
@@ -64,8 +63,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 
 	mdp5_ctlm_hw_reset(mdp5_kms->ctlm);
 
-	mdp5_disable(mdp5_kms);
-	//pm_runtime_put_sync(dev->dev);
+	pm_runtime_put_sync(dev->dev);
 
 	return 0;
 }
@@ -204,7 +202,6 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 	return 0;
 }
 
-
 static int mdp5_pm_ctrl(struct msm_kms *kms, bool on)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
@@ -240,9 +237,6 @@ static const struct mdp_kms_funcs kms_funcs = {
 	},
 	.set_irqmask         = mdp5_set_irqmask,
 };
-
-	return 0;
-}
 
 static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
 		enum mdp5_intf_type intf_type, int intf_num,

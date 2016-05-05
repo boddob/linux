@@ -332,6 +332,8 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	struct drm_connector *connector;
 	int ret;
 
+	DBG("");
+
 	ddev = drm_dev_alloc(drv, dev);
 	if (!ddev) {
 		dev_err(dev, "failed to allocate drm_device\n");
@@ -419,7 +421,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	pm_runtime_get_sync(dev);
 	ret = drm_irq_install(ddev, platform_get_irq(pdev, 0));
-	//pm_runtime_put_sync(dev);
+	pm_runtime_put_sync(dev);
 	if (ret < 0) {
 		dev_err(dev, "failed to install IRQ handler\n");
 		goto fail;
@@ -1051,7 +1053,6 @@ static int msm_pm_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
 static int msm_runtime_suspend(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
@@ -1079,7 +1080,6 @@ static int msm_runtime_resume(struct device *dev)
 
 	return kms->funcs->pm_ctrl(kms, true);
 }
-#endif
 
 static const struct dev_pm_ops msm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(msm_pm_suspend, msm_pm_resume)
@@ -1114,6 +1114,8 @@ static int add_gpu_components(struct device *dev,
 {
 	unsigned i;
 
+	DBG("");
+
 	for (i = 0; i < ARRAY_SIZE(msm_compatible_gpus); i++) {
 		struct device_node *node;
 
@@ -1140,6 +1142,8 @@ static int add_mdss_components(struct device *dev,
 {
 	struct device_node *np = dev->of_node;
 	struct device_node *ep_node;
+
+	DBG("");
 
 	for_each_endpoint_of_node(np, ep_node) {
 		struct device_node *intf;
