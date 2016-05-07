@@ -26,6 +26,8 @@
 #include "mdp5_ctl.h"
 #include "mdp5_smp.h"
 
+struct msm_mdss;
+
 struct mdp5_kms {
 	struct mdp_kms base;
 
@@ -34,6 +36,8 @@ struct mdp5_kms {
 	struct mdp5_cfg_handler *cfg;
 	uint32_t caps;	/* MDP capabilities (MDP_CAP_XXX bits) */
 
+
+	struct msm_mdss *mdss;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	int id;
@@ -179,6 +183,9 @@ static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
 	default: return 0;
 	}
 }
+
+struct msm_mdss *mdss_init(struct drm_device *dev);
+void mdss_destroy(struct msm_mdss *mdss);
 
 static inline uint32_t lm2ppdone(int lm)
 {
