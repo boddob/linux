@@ -44,6 +44,7 @@
 #include <drm/drm_gem.h>
 
 struct msm_kms;
+struct msm_mdss;
 struct msm_gpu;
 struct msm_mmu;
 struct msm_rd_state;
@@ -81,6 +82,10 @@ struct msm_drm_private {
 
 	/* subordinate devices, if present: */
 	struct platform_device *gpu_pdev;
+
+	/*
+	 * top level component for SoCs containing MDP5 */
+	struct msm_mdss *mdss;
 
 	/* possibly this should be in the kms component, but it is
 	 * shared by both mdp4 and mdp5..
