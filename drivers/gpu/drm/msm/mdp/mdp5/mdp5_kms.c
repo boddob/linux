@@ -582,7 +582,7 @@ struct msm_kms *mdp5_kms_init(struct platform_device *pdev, struct drm_device *d
 	struct msm_kms *kms = NULL;
 	struct msm_mmu *mmu;
 	uint32_t major, minor;
-	int i, ret;
+	int i, irq, ret;
 
 	mdp5_kms = devm_kzalloc(&pdev->dev, sizeof(*mdp5_kms), GFP_KERNEL);
 	if (!mdp5_kms) {
@@ -606,6 +606,15 @@ struct msm_kms *mdp5_kms_init(struct platform_device *pdev, struct drm_device *d
 		ret = PTR_ERR(mdp5_kms->mmio);
 		goto fail;
 	}
+
+	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	if (irq < 0) {
+		ret = irq;
+		dev_err(&pdev->dev, "failed to get irq: %d\n", ret);
+		goto fail;
+	}
+
+	kms->irq = irq;
 
 	/* mandatory clocks: */
 	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus_clk", true);
