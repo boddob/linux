@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 
 #include "msm_drv.h"
+#include "mdp5_kms.h"
 
 struct msm_mdss {
 	struct drm_device *dev;
@@ -148,12 +149,12 @@ void mdss_destroy(struct drm_device *dev)
 		irq_domain_remove(mdss->irqcontroller.domain);
 		mdss->irqcontroller.domain = NULL;
 	}
-
 }
 
-struct msm_kms *mdss_init(struct drm_device *dev)
+int mdss_init(struct drm_device *dev)
 {
 	struct platform_device *pdev = dev->platformdev;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_mdss *mdss;
 	int ret;
 
@@ -201,12 +202,12 @@ struct msm_kms *mdss_init(struct drm_device *dev)
 	ret = mdss_irq_domain_init(mdss);
 	if (ret) {
 		dev_err(dev->dev, "failed to init sub-block irqs: %d\n", ret);
-		goto fail_irq;
+		goto fail;
 	}
 
 	return 0;
 fail:
 	mdss_destroy(dev);
 
-	return ERR_PTR(ret);
+	return ret;
 }

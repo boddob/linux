@@ -17,6 +17,8 @@
  */
 
 
+#include <linux/of_irq.h>
+
 #include "msm_drv.h"
 #include "msm_mmu.h"
 #include "mdp5_kms.h"
@@ -515,7 +517,7 @@ static u32 mdp5_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	return mdp5_encoder_get_framecount(encoder);
 }
 
-int mdp5_hw_init(struct plaform_device *pdev)
+int mdp5_hw_init(struct platform_device *pdev)
 {
 	struct mdp5_kms *mdp5_kms = platform_get_drvdata(pdev);
 	unsigned long flags;
@@ -745,6 +747,6 @@ struct msm_kms *mdp5_kms_init(struct platform_device *pdev, struct drm_device *d
 
 fail:
 	if (kms)
-		mdp5_kms_destroy(pdev);
+		mdp5_destroy(pdev);
 	return ERR_PTR(ret);
 }

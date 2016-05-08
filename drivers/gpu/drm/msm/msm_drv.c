@@ -239,6 +239,8 @@ static int msm_drm_uninit(struct device *dev)
 
 	component_unbind_all(dev, ddev);
 
+	mdss_destroy(ddev);
+
 	ddev->dev_private = NULL;
 	drm_dev_unref(ddev);
 
@@ -333,7 +335,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *ddev;
 	struct msm_drm_private *priv;
-	struct msm_kms *kms;
+	struct msm_kms *kms = NULL;
 	int ret;
 
 	ddev = drm_dev_alloc(drv, dev);
@@ -364,6 +366,15 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	drm_mode_config_init(ddev);
 
+	if (of_device_is_compatible(dev->of_node, "qcom,mdss")) {
+		ret = mdss_init(ddev);
+		if (ret) {
+			drm_dev_unref(ddev);
+			kfree(priv);
+			return ret;
+		}
+	}
+
 	/* Bind all our sub-components: */
 	ret = component_bind_all(dev, ddev);
 	if (ret) {
@@ -378,37 +389,36 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	switch (get_mdp_ver(pdev)) {
 	case 4:
-		kms = mdp4_kms_init(ddev);
-		break;
-	case 5:
-		kms = mdp5_kms_init(ddev);
-		break;
-	default:
-		kms = ERR_PTR(-ENODEV);
-		break;
-	}
-
-	if (IS_ERR(kms)) {
-		/*
-		 * NOTE: once we have GPU support, having no kms should not
-		 * be considered fatal.. ideally we would still support gpu
-		 * and (for example) use dmabuf/prime to share buffers with
-		 * imx drm driver on iMX5
-		 */
-		dev_err(dev, "failed to load kms\n");
-		ret = PTR_ERR(kms);
-		goto fail;
-	}
-
-	priv->kms = kms;
-
-	if (kms) {
-		pm_runtime_enable(dev);
-		ret = kms->funcs->hw_init(kms);
-		if (ret) {
-			dev_err(dev, "kms hw init failed: %d\n", ret);
+		priv->kms = mdp4_kms_init(ddev);
+		if (IS_ERR(priv->kms)) {
+			/*
+			 * NOTE: once we have GPU support, having no kms should not
+			 * be considered fatal.. ideally we would still support gpu
+			 * and (for example) use dmabuf/prime to share buffers with
+			 * imx drm driver on iMX5
+			 */
+			dev_err(dev, "failed to load kms\n");
+			ret = PTR_ERR(priv->kms);
 			goto fail;
 		}
+
+		kms = priv->kms;
+
+		if (kms) {
+			pm_runtime_enable(dev);
+			ret = kms->funcs->hw_init(kms);
+			if (ret) {
+				dev_err(dev, "kms hw init failed: %d\n", ret);
+				goto fail;
+			}
+		}
+		break;
+	case 5:
+		kms = priv->kms;
+		break;
+	default:
+		ret = -ENODEV;
+		goto fail;
 	}
 
 	ddev->mode_config.funcs = &mode_config_funcs;
@@ -865,9 +875,7 @@ static int msm_pdev_remove(struct platform_device *pdev)
 
 static const struct of_device_id dt_match[] = {
 	{ .compatible = "qcom,mdp4", .data = (void *) 4 },	/* mdp4 */
-	{ .compatible = "qcom,mdp5", .data = (void *) 5 },	/* mdp5 */
-	/* to support downstream DT files */
-	{ .compatible = "qcom,mdss_mdp", .data = (void *) 5 },  /* mdp5 */
+	{ .compatible = "qcom,mdss", .data = (void *) 5 },	/* mdss with mdp5 */
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);

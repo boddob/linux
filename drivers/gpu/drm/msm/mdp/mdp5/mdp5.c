@@ -24,7 +24,7 @@ static int mdp_bind(struct device *dev, struct device *master, void *data)
 	struct msm_kms *kms;
 	int ret;
 
-	kms = mdp5_kms_init(dev, ddev);
+	kms = mdp5_kms_init(pdev, ddev);
 	if (IS_ERR(kms)) {
 		dev_err(dev, "failed to init kms\n");
 		ret = PTR_ERR(kms);

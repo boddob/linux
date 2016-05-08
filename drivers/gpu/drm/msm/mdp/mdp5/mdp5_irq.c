@@ -91,8 +91,6 @@ static void mdp5_irq_mdp(struct mdp_kms *mdp_kms)
 irqreturn_t mdp5_irq(struct msm_kms *kms)
 {
 	struct mdp_kms *mdp_kms = to_mdp_kms(kms);
-	struct mdp5_kms *mdp5_kms = to_mdp5_kms(mdp_kms);
-	uint32_t intr;
 
 	mdp5_irq_mdp(mdp_kms);
 

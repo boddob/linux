@@ -21,7 +21,6 @@ msm-y := \
 	edp/edp_connector.o \
 	edp/edp_ctrl.o \
 	edp/edp_phy.o \
-	mdp/mdp5.o \
 	mdp/mdp_format.o \
 	mdp/mdp_kms.o \
 	mdp/mdp4/mdp4_crtc.o \
@@ -39,6 +38,8 @@ msm-y := \
 	mdp/mdp5/mdp5_kms.o \
 	mdp/mdp5/mdp5_plane.o \
 	mdp/mdp5/mdp5_smp.o \
+	mdp/mdp5/mdp5.o \
+	mdp/mdp5/mdss.o \
 	msm_atomic.o \
 	msm_debugfs.o \
 	msm_drv.o \

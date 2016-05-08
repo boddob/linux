@@ -72,6 +72,8 @@ static inline void msm_kms_init(struct msm_kms *kms,
 }
 
 struct msm_kms *mdp4_kms_init(struct drm_device *dev);
-struct msm_kms *mdp5_kms_init(struct drm_device *dev);
+
+int mdss_init(struct drm_device *dev);
+void mdss_destroy(struct drm_device *dev);
 
 #endif /* __MSM_KMS_H__ */

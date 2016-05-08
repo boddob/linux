@@ -190,6 +190,8 @@ static inline uint32_t lm2ppdone(int lm)
 
 int mdp5_disable(struct mdp5_kms *mdp5_kms);
 int mdp5_enable(struct mdp5_kms *mdp5_kms);
+struct msm_kms *mdp5_kms_init(struct platform_device *pdev,
+			     struct drm_device *ddev);
 int mdp5_hw_init(struct platform_device *pdev);
 void mdp5_destroy(struct platform_device *pdev);
 
