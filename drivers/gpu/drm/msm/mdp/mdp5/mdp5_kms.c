@@ -29,10 +29,10 @@ static const char *iommu_ports[] = {
 static int mdp5_hw_init(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct drm_device *dev = mdp5_kms->dev;
+	struct platform_device *pdev = mdp5_kms->pdev;
 	unsigned long flags;
 
-	pm_runtime_get_sync(dev->dev);
+	pm_runtime_get_sync(&pdev->dev);
 	mdp5_enable(mdp5_kms);
 
 	/* Magic unknown register writes:
@@ -66,7 +66,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	mdp5_ctlm_hw_reset(mdp5_kms->ctlm);
 
 	mdp5_disable(mdp5_kms);
-	//pm_runtime_put_sync(dev->dev);
+	pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 }
@@ -125,8 +125,6 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct msm_mmu *mmu = mdp5_kms->mmu;
 
-	mdp5_irq_domain_fini(mdp5_kms);
-
 	if (mmu) {
 		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
 		mmu->funcs->destroy(mmu);
@@ -168,7 +166,7 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,
-		.destroy         = mdp5_kms_destroy,
+		.destroy         = mdp5_kms_destroy2,
 	},
 	.set_irqmask         = mdp5_set_irqmask,
 };
@@ -391,13 +389,6 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	int i, ret;
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
-
-	/* register our interrupt-controller for hdmi/eDP/dsi/etc
-	 * to use for irqs routed through mdp:
-	 */
-	ret = mdp5_irq_domain_init(mdp5_kms);
-	if (ret)
-		goto fail;
 
 	/* construct CRTCs and their private planes: */
 	for (i = 0; i < hw_cfg->pipe_rgb.count; i++) {
