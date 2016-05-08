@@ -379,9 +379,10 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	switch (get_mdp_ver(pdev)) {
 	case 4:
 		kms = mdp4_kms_init(ddev);
+		priv->kms = kms;
 		break;
 	case 5:
-		kms = mdp5_kms_init(ddev);
+		kms = mdp5_kms_init2(ddev);
 		break;
 	default:
 		kms = ERR_PTR(-ENODEV);
@@ -399,8 +400,6 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		ret = PTR_ERR(kms);
 		goto fail;
 	}
-
-	priv->kms = kms;
 
 	if (kms) {
 		pm_runtime_enable(dev);
