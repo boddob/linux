@@ -371,9 +371,10 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	switch (get_mdp_ver(pdev)) {
 	case 4:
 		kms = mdp4_kms_init(dev);
+		priv->kms = kms;
 		break;
 	case 5:
-		kms = mdp5_kms_init(dev);
+		kms = mdp5_kms_init2(dev);
 		break;
 	default:
 		kms = ERR_PTR(-ENODEV);
@@ -391,8 +392,6 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		ret = PTR_ERR(kms);
 		goto fail;
 	}
-
-	priv->kms = kms;
 
 	if (kms) {
 		pm_runtime_enable(dev->dev);
