@@ -1099,6 +1099,52 @@ static int add_components(struct device *dev, struct component_match **matchptr,
 	return 0;
 }
 
+static int mdss_add_child(struct device *dev, void *data)
+{
+	struct component_match **matchptr = data;
+	struct device_node *node = dev->of_node;
+
+	/*
+	 * We don't need to add phy blocks as components, they are managed by
+	 * the interface driver itself. We need to make sure that the mdp
+	 * component is bound the last, so that it has all the interfaces
+	 * ready.
+	 */
+	if (strstr(dev_name(dev), "phy") || strstr(dev_name(dev), "mdp"))
+		return 0;
+
+	component_match_add(dev->parent, matchptr, compare_of, node);
+
+	return 0;
+}
+
+int compare_name(struct device *dev, void *data)
+{
+	return (strstr(dev_name(dev), "mdp") != NULL);
+}
+
+static int mdss_add_components(struct device *dev, struct component_match **matchptr)
+{
+	struct device *mdp_dev;
+	int ret;
+
+	ret = device_for_each_child(dev, matchptr, mdss_add_child);
+	if (ret) {
+		dev_err(dev, "failed to add mdss interfaces\n");
+		return ret;
+	}
+
+	mdp_dev = device_find_child(dev, NULL, compare_name);
+	if (!mdp_dev) {
+		dev_err(dev, "failed to add mdss mdp component\n");
+		return -ENODEV;
+	}
+
+	component_match_add(dev, matchptr, compare_of, mdp_dev->of_node);
+
+	return 0;
+}
+
 static int msm_drm_bind(struct device *dev)
 {
 	return msm_drm_init(dev, &msm_driver);
@@ -1121,9 +1167,24 @@ static const struct component_master_ops msm_drm_ops = {
 static int msm_pdev_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
+	struct device *dev = &pdev->dev;
+	int ret;
 
-	add_components(&pdev->dev, &match, "connectors");
-	add_components(&pdev->dev, &match, "gpus");
+	DBG("");
+
+	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	if (ret) {
+		dev_err(dev, "failed to populate children devices\n");
+		return ret;
+	}
+
+	ret = mdss_add_components(dev, &match);
+	if (ret) {
+		of_platform_depopulate(dev);
+		return ret;
+	}
+
+	add_components(dev, &match, "gpus");
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	return component_master_add_with_match(&pdev->dev, &msm_drm_ops, match);
@@ -1132,6 +1193,7 @@ static int msm_pdev_probe(struct platform_device *pdev)
 static int msm_pdev_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &msm_drm_ops);
+	of_platform_depopulate(&pdev->dev);
 
 	return 0;
 }
