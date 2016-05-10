@@ -1380,11 +1380,13 @@ static inline uint32_t REG_MDP5_PP_FBC_LOSSY_MODE(uint32_t i0) { return 0x000000
 static inline uint32_t __offset_WB(uint32_t idx)
 {
 	switch (idx) {
+#if 0  /* TEMPORARY until patch that adds wb.base[] is merged */
 		case 0: return (mdp5_cfg->wb.base[0]);
 		case 1: return (mdp5_cfg->wb.base[1]);
 		case 2: return (mdp5_cfg->wb.base[2]);
 		case 3: return (mdp5_cfg->wb.base[3]);
 		case 4: return (mdp5_cfg->wb.base[4]);
+#endif
 		default: return INVALID_IDX(idx);
 	}
 }
