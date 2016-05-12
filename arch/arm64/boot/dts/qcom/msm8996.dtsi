@@ -13,10 +13,12 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8996.h>
 #include <dt-bindings/clock/qcom,mmcc-msm8996.h>
+#include <dt-bindings/clock/qcom,rpmcc.h>
 
 / {
 	model = "Qualcomm Technologies, Inc. MSM8996";
 
+	qcom,msm-id = <291 0x30001>;
 	interrupt-parent = <&intc>;
 
 	#address-cells = <2>;
@@ -39,6 +41,8 @@
 			compatible = "qcom,kryo";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
+			clocks = <&kryocc 0>;
+			cpu-supply = <&pm8994_s11>;
 			next-level-cache = <&L2_0>;
 			L2_0: l2-cache {
 			      compatible = "cache";
@@ -51,6 +55,8 @@
 			compatible = "qcom,kryo";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
+			clocks = <&kryocc 0>;
+			cpu-supply = <&pm8994_s11>;
 			next-level-cache = <&L2_0>;
 		};
 
@@ -59,6 +65,8 @@
 			compatible = "qcom,kryo";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
+			clocks = <&kryocc 1>;
+			cpu-supply = <&pm8994_s11>;
 			next-level-cache = <&L2_1>;
 			L2_1: l2-cache {
 			      compatible = "cache";
@@ -71,6 +79,8 @@
 			compatible = "qcom,kryo";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
+			clocks = <&kryocc 1>;
+			cpu-supply = <&pm8994_s11>;
 			next-level-cache = <&L2_1>;
 		};
 
@@ -92,6 +102,92 @@
 
 				core1 {
 					cpu = <&CPU3>;
+				};
+			};
+		};
+	};
+
+	thermal-zones {
+		cpu-thermal0 {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens0 3>;
+
+			trips {
+				cpu_alert0: trip@0 {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit0: trip@1 {
+					temperature = <125000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		cpu-thermal1 {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens0 5>;
+
+			trips {
+				cpu_alert1: trip@0 {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit1: trip@1 {
+					temperature = <125000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		cpu-thermal2 {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens0 8>;
+
+			trips {
+				cpu_alert2: trip@0 {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit2: trip@1 {
+					temperature = <125000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		cpu-thermal3 {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens0 10>;
+
+			trips {
+				cpu_alert3: trip@0 {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit3: trip@1 {
+					temperature = <125000>;
+					hysteresis = <2000>;
+					type = "critical";
 				};
 			};
 		};
@@ -119,6 +215,7 @@
 			clock-frequency = <32764>;
 			clock-output-names = "sleep_clk";
 		};
+
 	};
 
 	psci {
@@ -149,6 +246,24 @@
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
 			reg = <0x300000 0x90000>;
+		};
+
+		cbfcc: syscon@9a20000 {
+			compatible = "syscon";
+			reg = <0x9a20000 0x10000>;
+		};
+
+		kryocc: clock-controller@6400000 {
+			compatible = "qcom,cpu-clk-msm8996";
+			reg = <0x6400000 0x90000>;
+			#clock-cells = <1>;
+			qcom,cbf = <&cbfcc>;
+		};
+
+		tsens0: thermal-sensor@4a8000 {
+			compatible = "qcom,msm8996-tsens";
+			reg = <0x4a8000 0x2000>;
+			#thermal-sensor-cells = <1>;
 		};
 
 		blsp2_uart1: serial@75b0000 {
@@ -440,6 +555,163 @@
 			clock-names = "iface_clk",
 				      "mmagic_iface_clk",
 				      "ref_clk";
+		};
+
+		ufsphy1: ufsphy@627000 {
+			compatible = "qcom,ufs-phy-qmp-14nm";
+			reg = <0x627000 0xda8>;
+			reg-names = "phy_mem";
+			#phy-cells = <0>;
+
+			vdda-phy-supply = <&pm8994_l28>;
+			vdda-pll-supply = <&pm8994_l12>;
+
+			vdda-phy-max-microamp = <18380>;
+			vdda-pll-max-microamp = <9440>;
+
+			vddp-ref-clk-supply = <&pm8994_l25>;
+			vddp-ref-clk-max-microamp = <100>;
+			vddp-ref-clk-always-on;
+			clock-names = "ref_clk_src", "ref_clk";
+			clocks = <&rpmcc RPM_LN_BB_CLK>,
+				 <&gcc GCC_UFS_CLKREF_CLK>;
+			power-domains = <&gcc UFS_GDSC>;
+			status = "disabled";
+		};
+
+		ufs1: ufshc@624000 {
+			compatible = "qcom,ufshc";
+			reg = <0x624000 0x2500>;
+			interrupts = <0 265 0>;
+			phys = <&ufsphy1>;
+			phy-names = "ufsphy";
+
+			vcc-supply = <&pm8994_l20>;
+			vccq-supply = <&pm8994_l25>;
+			vccq2-supply = <&pm8994_s4>;
+
+			vcc-max-microamp = <600000>;
+			vccq-max-microamp = <450000>;
+			vccq2-max-microamp = <450000>;
+
+			clock-names =
+				"core_clk_src",
+				"core_clk",
+				"bus_clk",
+				"bus_aggr_clk",
+				"iface_clk",
+				"core_clk_unipro_src",
+				"core_clk_unipro",
+				"core_clk_ice",
+				"ref_clk",
+				"tx_lane0_sync_clk",
+				"rx_lane0_sync_clk";
+			clocks =
+				<&gcc UFS_AXI_CLK_SRC>,
+				<&gcc GCC_UFS_AXI_CLK>,
+				<&gcc GCC_SYS_NOC_UFS_AXI_CLK>,
+				<&gcc GCC_AGGRE2_UFS_AXI_CLK>,
+				<&gcc GCC_UFS_AHB_CLK>,
+				<&gcc UFS_ICE_CORE_CLK_SRC>,
+				<&gcc GCC_UFS_UNIPRO_CORE_CLK>,
+				<&gcc GCC_UFS_ICE_CORE_CLK>,
+				<&rpmcc RPM_LN_BB_CLK>,
+				<&gcc GCC_UFS_TX_SYMBOL_0_CLK>,
+				<&gcc GCC_UFS_RX_SYMBOL_0_CLK>;
+			freq-table-hz =
+				<100000000 200000000>,
+				<0 0>,
+				<0 0>,
+				<0 0>,
+				<0 0>,
+				<150000000 300000000>,
+				<0 0>,
+				<0 0>,
+				<0 0>,
+				<0 0>,
+				<0 0>;
+
+			lanes-per-direction = <1>;
+			status = "disabled";
+
+			ufs_variant {
+				compatible = "qcom,ufs_variant";
+			};
+		};
+	};
+
+	glink {
+		compatible = "qcom,glink";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0 0xffffffff>;
+
+		rpm {
+			qcom,glink-edge = "rpm";
+			interrupts = <0 168 1>;
+			qcom,irq-mask = <0x1>;
+			reg = <0x00068000 0x6000>,
+			      <0x09820010 0x4>;
+			reg-names = "msgram", "irq-reg-base";
+
+			rpm-requests {
+				compatible = "qcom,rpm-msm8996";
+				qcom,glink-channels = "rpm_requests";
+
+				rpmcc: qcom,rpmcc {
+					compatible = "qcom,rpmcc-msm8996", "qcom,rpmcc";
+					#clock-cells = <1>;
+				};
+
+				pm8994-regulators {
+					compatible = "qcom,rpm-pm8994-regulators";
+
+					pm8994_s1: s1 {};
+					pm8994_s2: s2 {};
+					pm8994_s3: s3 {};
+					pm8994_s4: s4 {};
+					pm8994_s5: s5 {};
+					pm8994_s6: s6 {};
+					pm8994_s7: s7 {};
+					pm8994_s8: s8 {};
+					pm8994_s9: s9 {};
+					pm8994_s10: s10 {};
+					pm8994_s12: s12 {};
+
+					pm8994_l1: l1 {};
+					pm8994_l2: l2 {};
+					pm8994_l3: l3 {};
+					pm8994_l4: l4 {};
+					pm8994_l5: l5 {};
+					pm8994_l6: l6 {};
+					pm8994_l7: l7 {};
+					pm8994_l8: l8 {};
+					pm8994_l9: l9 {};
+					pm8994_l10: l10 {};
+					pm8994_l11: l11 {};
+					pm8994_l12: l12 {};
+					pm8994_l13: l13 {};
+					pm8994_l14: l14 {};
+					pm8994_l15: l15 {};
+					pm8994_l16: l16 {};
+					pm8994_l17: l17 {};
+					pm8994_l18: l18 {};
+					pm8994_l19: l19 {};
+					pm8994_l20: l20 {};
+					pm8994_l21: l21 {};
+					pm8994_l22: l22 {};
+					pm8994_l23: l23 {};
+					pm8994_l24: l24 {};
+					pm8994_l25: l25 {};
+					pm8994_l26: l26 {};
+					pm8994_l27: l27 {};
+					pm8994_l28: l28 {};
+					pm8994_l29: l29 {};
+					pm8994_l30: l30 {};
+					pm8994_l31: l31 {};
+					pm8994_l32: l32 {};
+				};
+			};
 		};
 	};
 };
