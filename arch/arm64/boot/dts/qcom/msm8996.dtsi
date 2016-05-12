@@ -488,7 +488,7 @@
 				 <&mmcc MMAGIC_MDSS_AXI_CLK>,
 				 <&rpmcc RPM_MMAXI_CLK>;
 			clock-names = "iface_clk",
-				      "mmagic_iface_clk"
+				      "mmagic_iface_clk",
 				      "bus_clk",
 				      "core_clk_src",
 				      "core_clk",

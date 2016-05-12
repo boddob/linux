@@ -1094,6 +1094,7 @@ static void arm_smmu_domain_remove_master(struct arm_smmu_master_cfg *cfg)
 	int i;
 	void __iomem *gr0_base = ARM_SMMU_GR0(cfg->smmu);
 
+	printk(KERN_ALERT"\n arm_smmu_domain_remove_master");
 	/*
 	 * We *must* clear the S2CR first, because freeing the SMR means
 	 * that it can be re-allocated immediately.
@@ -1145,6 +1146,8 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	ret = arm_smmu_domain_add_master(smmu_domain, cfg);
 	if (!ret)
 		cfg->smmu_domain = smmu_domain;
+
+	dump_stack();
 	return ret;
 }
 
@@ -1159,6 +1162,7 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 	if (!ops)
 		return -ENODEV;
 
+	printk(KERN_ALERT"\n arm_smmu_map");
 	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);
 	ret = ops->map(ops, iova, paddr, size, prot);
 	spin_unlock_irqrestore(&smmu_domain->pgtbl_lock, flags);

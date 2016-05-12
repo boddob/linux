@@ -391,6 +391,8 @@ static void set_scanout_locked(struct drm_plane *plane,
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	enum mdp5_pipe pipe = mdp5_plane->pipe;
 
+	printk(KERN_ERR "addr %x\n", msm_framebuffer_iova(fb, mdp5_kms->id, 0));
+
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_STRIDE_A(pipe),
 			MDP5_PIPE_SRC_STRIDE_A_P0(fb->pitches[0]) |
 			MDP5_PIPE_SRC_STRIDE_A_P1(fb->pitches[1]));
