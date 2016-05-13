@@ -335,6 +335,8 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	struct msm_kms *kms = NULL;
 	int ret;
 
+	DBG("");
+
 	ddev = drm_dev_alloc(drv, dev);
 	if (!ddev) {
 		dev_err(dev, "failed to allocate drm_device\n");
@@ -367,22 +369,32 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	ret = mdss_init(ddev);
 	if (ret) {
-		drm_dev_unref(ddev);
-		kfree(priv);
-		return ret;
-	}
-
-	/* Bind all our sub-components: */
-	ret = component_bind_all(dev, ddev);
-	if (ret) {
 		kfree(priv);
 		drm_dev_unref(ddev);
 		return ret;
 	}
 
 	ret = msm_init_vram(ddev);
-	if (ret)
+	if (ret) {
+		kfree(priv);
+		drm_dev_unref(ddev);
 		goto fail;
+	}
+
+	/* Bind all our sub-components: */
+	ret = component_bind_all(dev, ddev);
+	if (ret) {
+		if (priv->vram.paddr) {
+			DEFINE_DMA_ATTRS(attrs);
+			dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
+			drm_mm_takedown(&priv->vram.mm);
+			dma_free_attrs(dev, priv->vram.size, NULL,
+				       priv->vram.paddr, &attrs);
+		}
+		kfree(priv);
+		drm_dev_unref(ddev);
+		return ret;
+	}
 
 	switch (get_mdp_ver(pdev)) {
 	case 4:
