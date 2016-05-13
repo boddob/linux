@@ -93,6 +93,8 @@ void msm_hdmi_phy_resource_disable(struct hdmi_phy *phy)
 	struct device *dev = &phy->pdev->dev;
 	int i;
 
+	return;
+
 	for (i = cfg->num_clks - 1; i >= 0; i--)
 		clk_disable_unprepare(phy->clks[i]);
 
@@ -148,6 +150,8 @@ static int msm_hdmi_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct hdmi_phy *phy;
 	int ret;
+
+	DBG("");
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)

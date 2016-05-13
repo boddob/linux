@@ -330,7 +330,6 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *ddev;
 	struct msm_drm_private *priv;
-	struct msm_kms *kms;
 	struct drm_connector *connector;
 	struct msm_kms *kms = NULL;
 	int ret;
@@ -442,7 +441,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	if (kms) {
 		pm_runtime_get_sync(dev);
 		ret = drm_irq_install(ddev, kms->irq);
-		pm_runtime_put_sync(dev);
+		//pm_runtime_put_sync(dev);
 		if (ret < 0) {
 			dev_err(dev, "failed to install IRQ handler\n");
 			goto fail;
@@ -1116,6 +1115,7 @@ static int mdss_add_child(struct device *dev, void *data)
 	struct component_match **matchptr = data;
 	struct device_node *node = dev->of_node;
 
+	printk(KERN_ERR "adding dev %s\n", dev_name(dev));
 	/*
 	 * We don't need to add phy blocks as components, they are managed by
 	 * the interface driver itself. We need to make sure that the mdp
@@ -1159,6 +1159,8 @@ static int mdss_add_components(struct device *dev, struct component_match **matc
 
 static int msm_drm_bind(struct device *dev)
 {
+	DBG("");
+
 	return msm_drm_init(dev, &msm_driver);
 }
 
@@ -1181,6 +1183,8 @@ static int msm_pdev_probe(struct platform_device *pdev)
 	struct component_match *match = NULL;
 	struct device *dev = &pdev->dev;
 	int ret;
+
+	printk(KERN_ERR "%s\n", __func__);
 
 	DBG("");
 

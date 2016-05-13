@@ -27,6 +27,7 @@ static int mdp_bind(struct device *dev, struct device *master, void *data)
 	DBG("");
 
 	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
 
 	kms = mdp5_init(pdev, ddev);
 	if (IS_ERR(kms)) {

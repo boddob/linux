@@ -446,6 +446,8 @@ static int msm_hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct device_node *of_node = dev->of_node;
 	int i;
 
+	DBG("");
+
 	hdmi_cfg = (struct hdmi_platform_config *)
 			of_device_get_match_data(dev);
 	if (!hdmi_cfg) {
@@ -613,12 +615,17 @@ static void msm_hdmi_register_audio_driver(struct hdmi *hdmi, struct device *dev
 
 static int msm_hdmi_dev_probe(struct platform_device *pdev)
 {
+	DBG("");
+
 	return component_add(&pdev->dev, &msm_hdmi_ops);
 }
 
 static int msm_hdmi_dev_remove(struct platform_device *pdev)
 {
+	DBG("");
+
 	component_del(&pdev->dev, &msm_hdmi_ops);
+
 	return 0;
 }
 
