@@ -370,8 +370,8 @@
 				 <&mmcc MDSS_MDP_CLK>,
 				 <&mmcc SMMU_MDP_AXI_CLK>,
 				 <&mmcc MDSS_VSYNC_CLK>,
-				 <&mmcc MMAGIC_MDSS_AXI_CLK>,
-				 <&rpmcc RPM_MMAXI_CLK>;
+				 <&mmcc MMAGIC_MDSS_AXI_CLK>;
+				// <&rpmcc RPM_MMAXI_CLK>;
 			clock-names = "iface_clk",
 				      "mmagic_iface_clk",
 				      "bus_clk",
@@ -379,8 +379,8 @@
 				      "core_clk",
 				      "iommu_clk",
 				      "vsync_clk",
-				      "mmagic_mdss_bus_clk",
-				      "rpm_mmaxi_clk";
+				      "mmagic_mdss_bus_clk";
+				  //    "rpm_mmaxi_clk";
 			iommus = <&mdp_smmu 0>;
 		};
 
