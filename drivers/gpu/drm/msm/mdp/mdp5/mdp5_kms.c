@@ -614,12 +614,6 @@ void mdp5_destroy(struct platform_device *pdev)
 		mdp5_cfg_destroy(mdp5_kms->cfg);
 }
 
-/* temporary func */
-struct msm_kms *mdp5_kms_init(struct drm_device *dev)
-{
-	return NULL;
-}
-
 struct msm_kms *mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 {
 	struct mdp5_cfg *config;
