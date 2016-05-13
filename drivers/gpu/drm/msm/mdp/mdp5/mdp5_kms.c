@@ -25,46 +25,8 @@ static const char *iommu_ports[] = {
 		"mdp_0",
 };
 
-static int mdp5_hw_init(struct msm_kms *kms)
+static int mdp5_kms_hw_init(struct msm_kms *kms)
 {
-	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct drm_device *dev = mdp5_kms->dev;
-	unsigned long flags;
-
-	pm_runtime_get_sync(dev->dev);
-
-	/* Magic unknown register writes:
-	 *
-	 *    W VBIF:0x004 00000001      (mdss_mdp.c:839)
-	 *    W MDP5:0x2e0 0xe9          (mdss_mdp.c:839)
-	 *    W MDP5:0x2e4 0x55          (mdss_mdp.c:839)
-	 *    W MDP5:0x3ac 0xc0000ccc    (mdss_mdp.c:839)
-	 *    W MDP5:0x3b4 0xc0000ccc    (mdss_mdp.c:839)
-	 *    W MDP5:0x3bc 0xcccccc      (mdss_mdp.c:839)
-	 *    W MDP5:0x4a8 0xcccc0c0     (mdss_mdp.c:839)
-	 *    W MDP5:0x4b0 0xccccc0c0    (mdss_mdp.c:839)
-	 *    W MDP5:0x4b8 0xccccc000    (mdss_mdp.c:839)
-	 *
-	 * Downstream fbdev driver gets these register offsets/values
-	 * from DT.. not really sure what these registers are or if
-	 * different values for different boards/SoC's, etc.  I guess
-	 * they are the golden registers.
-	 *
-	 * Not setting these does not seem to cause any problem.  But
-	 * we may be getting lucky with the bootloader initializing
-	 * them for us.  OTOH, if we can always count on the bootloader
-	 * setting the golden registers, then perhaps we don't need to
-	 * care.
-	 */
-
-	spin_lock_irqsave(&mdp5_kms->resource_lock, flags);
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_DISP_INTF_SEL(0), 0);
-	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
-
-	mdp5_ctlm_hw_reset(mdp5_kms->ctlm);
-
-	pm_runtime_put_sync(dev->dev);
-
 	return 0;
 }
 
@@ -127,31 +89,13 @@ static void mdp5_preclose(struct msm_kms *kms, struct drm_file *file)
 		mdp5_crtc_cancel_pending_flip(priv->crtcs[i], file);
 }
 
-static void mdp5_destroy(struct msm_kms *kms)
+static void mdp5_kms_destroy(struct msm_kms *kms)
 {
-	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct msm_mmu *mmu = mdp5_kms->mmu;
-
-	mdp5_irq_domain_fini(mdp5_kms);
-
-	if (mmu) {
-		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
-		mmu->funcs->destroy(mmu);
-	}
-
-	if (mdp5_kms->ctlm)
-		mdp5_ctlm_destroy(mdp5_kms->ctlm);
-	if (mdp5_kms->smp)
-		mdp5_smp_destroy(mdp5_kms->smp);
-	if (mdp5_kms->cfg)
-		mdp5_cfg_destroy(mdp5_kms->cfg);
-
-	kfree(mdp5_kms);
 }
 
 static const struct mdp_kms_funcs kms_funcs = {
 	.base = {
-		.hw_init         = mdp5_hw_init,
+		.hw_init         = mdp5_kms_hw_init,
 		.irq_preinstall  = mdp5_irq_preinstall,
 		.irq_postinstall = mdp5_irq_postinstall,
 		.irq_uninstall   = mdp5_irq_uninstall,
@@ -165,7 +109,7 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,
 		.preclose        = mdp5_preclose,
-		.destroy         = mdp5_destroy,
+		.destroy         = mdp5_kms_destroy,
 	},
 	.set_irqmask         = mdp5_set_irqmask,
 };
@@ -469,11 +413,11 @@ static void read_hw_revision(struct mdp5_kms *mdp5_kms,
 	uint32_t version;
 
 	mdp5_enable(mdp5_kms);
-	version = mdp5_read(mdp5_kms, REG_MDSS_HW_VERSION);
+	version = mdp5_read(mdp5_kms, REG_MDP5_MDP_HW_VERSION(0));
 	mdp5_disable(mdp5_kms);
 
-	*major = FIELD(version, MDSS_HW_VERSION_MAJOR);
-	*minor = FIELD(version, MDSS_HW_VERSION_MINOR);
+	*major = FIELD(version, MDP5_MDP_HW_VERSION_MAJOR);
+	*minor = FIELD(version, MDP5_MDP_HW_VERSION_MINOR);
 
 	DBG("MDP5 version v%d.%d", *major, *minor);
 }
@@ -616,9 +560,76 @@ static u32 mdp5_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	return mdp5_encoder_get_framecount(encoder);
 }
 
+int mdp5_hw_init(struct platform_device *pdev)
+{
+	struct mdp5_kms *mdp5_kms = platform_get_drvdata(pdev);
+	unsigned long flags;
+
+	pm_runtime_get_sync(&pdev->dev);
+
+	/* Magic unknown register writes:
+	 *
+	 *    W VBIF:0x004 00000001      (mdss_mdp.c:839)
+	 *    W MDP5:0x2e0 0xe9          (mdss_mdp.c:839)
+	 *    W MDP5:0x2e4 0x55          (mdss_mdp.c:839)
+	 *    W MDP5:0x3ac 0xc0000ccc    (mdss_mdp.c:839)
+	 *    W MDP5:0x3b4 0xc0000ccc    (mdss_mdp.c:839)
+	 *    W MDP5:0x3bc 0xcccccc      (mdss_mdp.c:839)
+	 *    W MDP5:0x4a8 0xcccc0c0     (mdss_mdp.c:839)
+	 *    W MDP5:0x4b0 0xccccc0c0    (mdss_mdp.c:839)
+	 *    W MDP5:0x4b8 0xccccc000    (mdss_mdp.c:839)
+	 *
+	 * Downstream fbdev driver gets these register offsets/values
+	 * from DT.. not really sure what these registers are or if
+	 * different values for different boards/SoC's, etc.  I guess
+	 * they are the golden registers.
+	 *
+	 * Not setting these does not seem to cause any problem.  But
+	 * we may be getting lucky with the bootloader initializing
+	 * them for us.  OTOH, if we can always count on the bootloader
+	 * setting the golden registers, then perhaps we don't need to
+	 * care.
+	 */
+
+	spin_lock_irqsave(&mdp5_kms->resource_lock, flags);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_DISP_INTF_SEL(0), 0);
+	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
+
+	mdp5_ctlm_hw_reset(mdp5_kms->ctlm);
+
+	pm_runtime_put_sync(&pdev->dev);
+
+	return 0;
+}
+
+void mdp5_destroy(struct platform_device *pdev)
+{
+	struct mdp5_kms *mdp5_kms = platform_get_drvdata(pdev);
+	struct msm_mmu *mmu = mdp5_kms->mmu;
+
+	mdp5_irq_domain_fini(mdp5_kms);
+
+	if (mmu) {
+		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
+		mmu->funcs->destroy(mmu);
+	}
+
+	if (mdp5_kms->ctlm)
+		mdp5_ctlm_destroy(mdp5_kms->ctlm);
+	if (mdp5_kms->smp)
+		mdp5_smp_destroy(mdp5_kms->smp);
+	if (mdp5_kms->cfg)
+		mdp5_cfg_destroy(mdp5_kms->cfg);
+}
+
+/* temporary func */
 struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 {
-	struct platform_device *pdev = dev->platformdev;
+	return NULL;
+}
+
+struct msm_kms *mdp5_init(struct platform_device *pdev, struct drm_device *dev)
+{
 	struct mdp5_cfg *config;
 	struct mdp5_kms *mdp5_kms;
 	struct msm_kms *kms = NULL;
@@ -626,12 +637,14 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	uint32_t major, minor;
 	int i, ret;
 
-	mdp5_kms = kzalloc(sizeof(*mdp5_kms), GFP_KERNEL);
+	mdp5_kms = devm_kzalloc(&pdev->dev, sizeof(*mdp5_kms), GFP_KERNEL);
 	if (!mdp5_kms) {
-		dev_err(dev->dev, "failed to allocate kms\n");
+		dev_err(&pdev->dev, "failed to allocate kms\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
+
+	platform_set_drvdata(pdev, mdp5_kms);
 
 	spin_lock_init(&mdp5_kms->resource_lock);
 
@@ -641,28 +654,9 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 	mdp5_kms->dev = dev;
 
-	/* mdp5_kms->mmio actually represents the MDSS base address */
 	mdp5_kms->mmio = msm_ioremap(pdev, "mdp_phys", "MDP5");
 	if (IS_ERR(mdp5_kms->mmio)) {
 		ret = PTR_ERR(mdp5_kms->mmio);
-		goto fail;
-	}
-
-	mdp5_kms->vbif = msm_ioremap(pdev, "vbif_phys", "VBIF");
-	if (IS_ERR(mdp5_kms->vbif)) {
-		ret = PTR_ERR(mdp5_kms->vbif);
-		goto fail;
-	}
-
-	mdp5_kms->vdd = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR(mdp5_kms->vdd)) {
-		ret = PTR_ERR(mdp5_kms->vdd);
-		goto fail;
-	}
-
-	ret = regulator_enable(mdp5_kms->vdd);
-	if (ret) {
-		dev_err(dev->dev, "failed to enable regulator vdd: %d\n", ret);
 		goto fail;
 	}
 
@@ -761,7 +755,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		mmu = msm_iommu_new(&pdev->dev, config->platform.iommu);
 		if (IS_ERR(mmu)) {
 			ret = PTR_ERR(mmu);
-			dev_err(dev->dev, "failed to init iommu: %d\n", ret);
+			dev_err(&pdev->dev, "failed to init iommu: %d\n", ret);
 			iommu_domain_free(config->platform.iommu);
 			goto fail;
 		}
@@ -769,12 +763,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		ret = mmu->funcs->attach(mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
 		if (ret) {
-			dev_err(dev->dev, "failed to attach iommu: %d\n", ret);
+			dev_err(&pdev->dev, "failed to attach iommu: %d\n", ret);
 			mmu->funcs->destroy(mmu);
 			goto fail;
 		}
 	} else {
-		dev_info(dev->dev, "no iommu, fallback to phys "
+		dev_info(&pdev->dev, "no iommu, fallback to phys "
 				"contig buffers for scanout\n");
 		mmu = NULL;
 	}
@@ -783,13 +777,13 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	mdp5_kms->id = msm_register_mmu(dev, mmu);
 	if (mdp5_kms->id < 0) {
 		ret = mdp5_kms->id;
-		dev_err(dev->dev, "failed to register mdp5 iommu: %d\n", ret);
+		dev_err(&pdev->dev, "failed to register mdp5 iommu: %d\n", ret);
 		goto fail;
 	}
 
 	ret = modeset_init(mdp5_kms);
 	if (ret) {
-		dev_err(dev->dev, "modeset_init failed: %d\n", ret);
+		dev_err(&pdev->dev, "modeset_init failed: %d\n", ret);
 		goto fail;
 	}
 
@@ -808,6 +802,6 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 fail:
 	if (kms)
-		mdp5_destroy(kms);
+		mdp5_destroy(pdev);
 	return ERR_PTR(ret);
 }

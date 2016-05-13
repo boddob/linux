@@ -39,6 +39,7 @@ msm-y := \
 	mdp/mdp5/mdp5_kms.o \
 	mdp/mdp5/mdp5_plane.o \
 	mdp/mdp5/mdp5_smp.o \
+	mdp/mdp5/mdp5.o \
 	msm_atomic.o \
 	msm_drv.o \
 	msm_fb.o \

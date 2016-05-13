@@ -29,7 +29,10 @@
 struct mdp5_kms {
 	struct mdp_kms base;
 
+	/* parent mdss drm device */
 	struct drm_device *dev;
+	/* mdp5 platform device */
+	struct platform_device *pdev;
 
 	struct mdp5_cfg_handler *cfg;
 	uint32_t caps;	/* MDP capabilities (MDP_CAP_XXX bits) */
@@ -43,7 +46,7 @@ struct mdp5_kms {
 	struct mdp5_ctl_manager *ctlm;
 
 	/* io/register spaces: */
-	void __iomem *mmio, *vbif;
+	void __iomem *mmio;
 
 	struct regulator *vdd;
 
@@ -193,6 +196,9 @@ static inline uint32_t lm2ppdone(int lm)
 
 int mdp5_disable(struct mdp5_kms *mdp5_kms);
 int mdp5_enable(struct mdp5_kms *mdp5_kms);
+int mdp5_hw_init(struct platform_device *pdev);
+struct msm_kms *mdp5_init(struct platform_device *pdev, struct drm_device *dev);
+void mdp5_destroy(struct platform_device *pdev);
 
 void mdp5_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask,
 		uint32_t old_irqmask);
