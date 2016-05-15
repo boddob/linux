@@ -357,6 +357,7 @@
 
 		mdss: mdss@900000 {
 			compatible = "qcom,mdss";
+
 			reg = <0x900000 0x1000>,
 				<0x009b0000 0x1040>,
 				<0x009b8000 0x1040>;
@@ -364,7 +365,6 @@
 					"vbif_phys",
 					"vbif_nrt_phys";
 
-			interrupt-parent = <&intc>;
 			interrupts = <0 83 0>;
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -404,8 +404,6 @@
 				interrupts = <0 0>;
 
 				iommus = <&mdp_smmu 0>;
-
-				status = "okay";
 			};
 
 			hdmi_phy: hdmi-phy@9a0600 {
@@ -464,7 +462,6 @@
 
 				phys = <&hdmi_phy>;
 				phy-names = "hdmi_phy";
-				status = "ok";
 			};
 		};
 
