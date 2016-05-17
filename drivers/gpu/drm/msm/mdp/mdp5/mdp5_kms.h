@@ -33,6 +33,8 @@ struct mdp5_kms {
 
 	struct drm_device *dev;
 
+	struct platform_device *pdev;
+
 	struct mdp5_cfg_handler *cfg;
 	uint32_t caps;	/* MDP capabilities (MDP_CAP_XXX bits) */
 
@@ -186,6 +188,9 @@ static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
 
 struct msm_mdss *mdss_init(struct drm_device *dev);
 void mdss_destroy(struct msm_mdss *mdss);
+
+int mdp5_init(struct platform_device *pdev, struct drm_device *dev);
+void mdp5_destroy(struct platform_device *pdev);
 
 static inline uint32_t lm2ppdone(int lm)
 {
