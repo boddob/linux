@@ -877,6 +877,55 @@ static int add_components_mdp4(struct device *dev,
 	return 0;
 }
 
+/*
+ * MDP5 based devices don't have a flat hierarchy. There is a top level
+ * parent: MDSS, and childrenL MDP5, DSI, HDMI, eDP etc. Populate the
+ * children devices first and then add them to our components list.
+ */
+static int mdss_add_child(struct device *dev, void *data)
+{
+	struct component_match **matchptr = data;
+	struct device_node *node = dev->of_node;
+
+	/*
+	 * We don't need to add phy blocks as components, they are managed by
+	 * the interface driver itself
+	 */
+	if (strstr(dev_name(dev), "phy"))
+		return 0;
+
+	component_match_add(dev->parent, matchptr, compare_of, node);
+
+	return 0;
+}
+
+static int add_components_mdp5(struct device *dev,
+			       struct component_match **matchptr)
+{
+	int ret;
+
+	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	if (ret) {
+		dev_err(dev, "failed to populate children devices\n");
+		return ret;
+	}
+
+	ret = device_for_each_child(dev, matchptr, mdss_add_child);
+	if (ret) {
+		dev_err(dev, "failed to add MDP5 MDSS children\n");
+		of_platform_depopulate(dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void remove_display_children(struct device *dev)
+{
+	if (of_device_is_compatible(dev->of_node, "qcom,mdss"))
+		of_platform_depopulate(dev);
+}
+
 static int add_display_components(struct device *dev,
 				  struct component_match **matchptr)
 {
@@ -885,7 +934,7 @@ static int add_display_components(struct device *dev,
 	if (of_device_is_compatible(dev->of_node, "qcom,mdp4"))
 		ret = add_components_mdp4(dev, matchptr);
 	else
-		ret = add_components(dev, matchptr, "connectors");
+		ret = add_components_mdp5(dev, matchptr);
 
 	return ret;
 }
@@ -935,6 +984,7 @@ static int msm_pdev_probe(struct platform_device *pdev)
 static int msm_pdev_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &msm_drm_ops);
+	remove_display_children(&pdev->dev);
 
 	return 0;
 }
