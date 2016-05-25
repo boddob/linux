@@ -16,6 +16,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/of_irq.h>
 
 #include "msm_drv.h"
 #include "msm_mmu.h"
@@ -28,11 +29,10 @@ static const char *iommu_ports[] = {
 static int mdp5_hw_init(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct drm_device *dev = mdp5_kms->dev;
+	struct platform_device *pdev = mdp5_kms->pdev;
 	unsigned long flags;
 
-	pm_runtime_get_sync(dev->dev);
-	mdp5_enable(mdp5_kms);
+	pm_runtime_get_sync(&pdev->dev);
 
 	/* Magic unknown register writes:
 	 *
@@ -59,13 +59,12 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	 */
 
 	spin_lock_irqsave(&mdp5_kms->resource_lock, flags);
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_DISP_INTF_SEL(0), 0);
+	mdp5_write(mdp5_kms, REG_MDP5_DISP_INTF_SEL, 0);
 	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
 
 	mdp5_ctlm_hw_reset(mdp5_kms->ctlm);
 
-	mdp5_disable(mdp5_kms);
-	//pm_runtime_put_sync(dev->dev);
+	pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 }
@@ -119,26 +118,17 @@ static int mdp5_set_split_display(struct msm_kms *kms,
 		return mdp5_encoder_set_split_display(encoder, slave_encoder);
 }
 
-static void mdp5_destroy(struct msm_kms *kms)
+static void mdp5_kms_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct msm_mmu *mmu = mdp5_kms->mmu;
-
-	mdp5_irq_domain_fini(mdp5_kms);
 
 	if (mmu) {
 		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
 		mmu->funcs->destroy(mmu);
 	}
 
-	if (mdp5_kms->ctlm)
-		mdp5_ctlm_destroy(mdp5_kms->ctlm);
-	if (mdp5_kms->smp)
-		mdp5_smp_destroy(mdp5_kms->smp);
-	if (mdp5_kms->cfg)
-		mdp5_cfg_destroy(mdp5_kms->cfg);
-
-	kfree(mdp5_kms);
+	mdss_destroy(mdp5_kms->mdss);
 }
 
 static const struct mdp_kms_funcs kms_funcs = {
@@ -156,7 +146,7 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,
-		.destroy         = mdp5_destroy,
+		.destroy         = mdp5_kms_destroy,
 	},
 	.set_irqmask         = mdp5_set_irqmask,
 };
@@ -380,13 +370,6 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
-	/* register our interrupt-controller for hdmi/eDP/dsi/etc
-	 * to use for irqs routed through mdp:
-	 */
-	ret = mdp5_irq_domain_init(mdp5_kms);
-	if (ret)
-		goto fail;
-
 	/* construct CRTCs and their private planes: */
 	for (i = 0; i < hw_cfg->pipe_rgb.count; i++) {
 		struct drm_plane *plane;
@@ -454,17 +437,17 @@ fail:
 	return ret;
 }
 
-static void read_hw_revision(struct mdp5_kms *mdp5_kms,
+static void read_mdp_hw_revision(struct mdp5_kms *mdp5_kms,
 		uint32_t *major, uint32_t *minor)
 {
 	uint32_t version;
 
 	mdp5_enable(mdp5_kms);
-	version = mdp5_read(mdp5_kms, REG_MDSS_HW_VERSION);
+	version = mdp5_read(mdp5_kms, REG_MDP5_HW_VERSION);
 	//mdp5_disable(mdp5_kms);
 
-	*major = FIELD(version, MDSS_HW_VERSION_MAJOR);
-	*minor = FIELD(version, MDSS_HW_VERSION_MINOR);
+	*major = FIELD(version, MDP5_HW_VERSION_MAJOR);
+	*minor = FIELD(version, MDP5_HW_VERSION_MINOR);
 
 	DBG("MDP5 version v%d.%d", *major, *minor);
 }
@@ -607,53 +590,43 @@ static u32 mdp5_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	return mdp5_encoder_get_framecount(encoder);
 }
 
-struct msm_kms *mdp5_kms_init(struct drm_device *dev)
+void mdp5_destroy(struct platform_device *pdev)
 {
-	struct platform_device *pdev = dev->platformdev;
-	struct mdp5_cfg *config;
-	struct mdp5_kms *mdp5_kms;
-	struct msm_kms *kms = NULL;
-	struct msm_mmu *mmu;
-	uint32_t major, minor;
-	int i, ret;
+	struct mdp5_kms *mdp5_kms = platform_get_drvdata(pdev);
 
-	mdp5_kms = kzalloc(sizeof(*mdp5_kms), GFP_KERNEL);
+	if (mdp5_kms->ctlm)
+		mdp5_ctlm_destroy(mdp5_kms->ctlm);
+	if (mdp5_kms->smp)
+		mdp5_smp_destroy(mdp5_kms->smp);
+	if (mdp5_kms->cfg)
+		mdp5_cfg_destroy(mdp5_kms->cfg);
+}
+
+int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct mdp5_kms *mdp5_kms;
+	struct mdp5_cfg *config;
+	uint32_t major, minor;
+	int ret;
+
+	mdp5_kms = devm_kzalloc(&pdev->dev, sizeof(*mdp5_kms), GFP_KERNEL);
 	if (!mdp5_kms) {
-		dev_err(dev->dev, "failed to allocate kms\n");
+		dev_err(&pdev->dev, "failed to allocate kms\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
 
+	platform_set_drvdata(pdev, mdp5_kms);
+
 	spin_lock_init(&mdp5_kms->resource_lock);
 
-	mdp_kms_init(&mdp5_kms->base, &kms_funcs);
-
-	kms = &mdp5_kms->base.base;
-
 	mdp5_kms->dev = dev;
+	mdp5_kms->pdev = pdev;
 
-	/* mdp5_kms->mmio actually represents the MDSS base address */
 	mdp5_kms->mmio = msm_ioremap(pdev, "mdp_phys", "MDP5");
 	if (IS_ERR(mdp5_kms->mmio)) {
 		ret = PTR_ERR(mdp5_kms->mmio);
-		goto fail;
-	}
-
-	mdp5_kms->vbif = msm_ioremap(pdev, "vbif_phys", "VBIF");
-	if (IS_ERR(mdp5_kms->vbif)) {
-		ret = PTR_ERR(mdp5_kms->vbif);
-		goto fail;
-	}
-
-	mdp5_kms->vdd = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR(mdp5_kms->vdd)) {
-		ret = PTR_ERR(mdp5_kms->vdd);
-		goto fail;
-	}
-
-	ret = regulator_enable(mdp5_kms->vdd);
-	if (ret) {
-		dev_err(dev->dev, "failed to enable regulator vdd: %d\n", ret);
 		goto fail;
 	}
 
@@ -691,7 +664,9 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	 */
 	clk_set_rate(mdp5_kms->src_clk, 200000000);
 
-	read_hw_revision(mdp5_kms, &major, &minor);
+	pm_runtime_enable(&pdev->dev);
+
+	read_mdp_hw_revision(mdp5_kms, &major, &minor);
 
 	mdp5_kms->cfg = mdp5_cfg_init(mdp5_kms, major, minor);
 	if (IS_ERR(mdp5_kms->cfg)) {
@@ -731,6 +706,55 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
+	/* set uninit-ed kms */
+	priv->kms = &mdp5_kms->base.base;
+
+	return 0;
+fail:
+	mdp5_destroy(pdev);
+	return ret;
+}
+
+struct msm_kms *mdp5_kms_init(struct drm_device *dev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct platform_device *pdev;
+	struct mdp5_kms *mdp5_kms;
+	struct mdp5_cfg *config;
+	struct msm_kms *kms;
+	struct msm_mmu *mmu;
+	struct msm_mdss *mdss;
+	int irq, i, ret;
+
+	/* priv->kms would have been populated by the MDP5 driver */
+	kms = priv->kms;
+	if (!kms)
+		return NULL;
+
+	mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+
+	mdss = mdss_init(dev);
+	if (IS_ERR(mdss)) {
+		ret = PTR_ERR(mdss);
+		goto fail;
+	}
+	mdp5_kms->mdss = mdss;
+
+	mdp_kms_init(&mdp5_kms->base, &kms_funcs);
+
+	pdev = mdp5_kms->pdev;
+
+	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	if (irq < 0) {
+		ret = irq;
+		dev_err(&pdev->dev, "failed to get irq: %d\n", ret);
+		goto fail;
+	}
+
+	kms->irq = irq;
+
+	config = mdp5_cfg_get_config(mdp5_kms->cfg);
+
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if
 	 * we don't disable):
@@ -752,7 +776,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		mmu = msm_iommu_new(&pdev->dev, config->platform.iommu);
 		if (IS_ERR(mmu)) {
 			ret = PTR_ERR(mmu);
-			dev_err(dev->dev, "failed to init iommu: %d\n", ret);
+			dev_err(&pdev->dev, "failed to init iommu: %d\n", ret);
 			iommu_domain_free(config->platform.iommu);
 			goto fail;
 		}
@@ -760,12 +784,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		ret = mmu->funcs->attach(mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
 		if (ret) {
-			dev_err(dev->dev, "failed to attach iommu: %d\n", ret);
+			dev_err(&pdev->dev, "failed to attach iommu: %d\n", ret);
 			mmu->funcs->destroy(mmu);
 			goto fail;
 		}
 	} else {
-		dev_info(dev->dev, "no iommu, fallback to phys "
+		dev_info(&pdev->dev, "no iommu, fallback to phys "
 				"contig buffers for scanout\n");
 		mmu = NULL;
 	}
@@ -774,13 +798,13 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	mdp5_kms->id = msm_register_mmu(dev, mmu);
 	if (mdp5_kms->id < 0) {
 		ret = mdp5_kms->id;
-		dev_err(dev->dev, "failed to register mdp5 iommu: %d\n", ret);
+		dev_err(&pdev->dev, "failed to register mdp5 iommu: %d\n", ret);
 		goto fail;
 	}
 
 	ret = modeset_init(mdp5_kms);
 	if (ret) {
-		dev_err(dev->dev, "modeset_init failed: %d\n", ret);
+		dev_err(&pdev->dev, "modeset_init failed: %d\n", ret);
 		goto fail;
 	}
 
@@ -796,9 +820,6 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	dev->vblank_disable_immediate = true;
 
 	return kms;
-
 fail:
-	if (kms)
-		mdp5_destroy(kms);
 	return ERR_PTR(ret);
 }

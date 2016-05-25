@@ -16,6 +16,8 @@
  */
 
 #include "msm_drv.h"
+#include "msm_debugfs.h"
+#include "msm_fence.h"
 #include "msm_gpu.h"
 #include "msm_kms.h"
 
@@ -195,7 +197,7 @@ static int msm_drm_uninit(struct device *dev)
 
 	drm_kms_helper_poll_fini(ddev);
 
-	drm_connector_unplug_all(ddev);
+	drm_connector_unregister_all(ddev);
 
 	drm_dev_unregister(ddev);
 
@@ -211,6 +213,9 @@ static int msm_drm_uninit(struct device *dev)
 
 	flush_workqueue(priv->wq);
 	destroy_workqueue(priv->wq);
+
+	flush_workqueue(priv->atomic_wq);
+	destroy_workqueue(priv->atomic_wq);
 
 	if (kms) {
 		pm_runtime_disable(dev);
@@ -350,11 +355,10 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	ddev->dev_private = priv;
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
-	init_waitqueue_head(&priv->fence_event);
+	priv->atomic_wq = alloc_ordered_workqueue("msm:atomic", 0);
 	init_waitqueue_head(&priv->pending_crtcs_event);
 
 	INIT_LIST_HEAD(&priv->inactive_list);
-	INIT_LIST_HEAD(&priv->fence_cbs);
 	INIT_LIST_HEAD(&priv->vblank_ctrl.event_list);
 	INIT_WORK(&priv->vblank_ctrl.work, vblank_ctrl_worker);
 	spin_lock_init(&priv->vblank_ctrl.lock);
@@ -376,6 +380,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	switch (get_mdp_ver(pdev)) {
 	case 4:
 		kms = mdp4_kms_init(ddev);
+		priv->kms = kms;
 		break;
 	case 5:
 		kms = mdp5_kms_init(ddev);
@@ -397,8 +402,6 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		goto fail;
 	}
 
-	priv->kms = kms;
-
 	if (kms) {
 		pm_runtime_enable(dev);
 		ret = kms->funcs->hw_init(kms);
@@ -416,30 +419,25 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		goto fail;
 	}
 
-	pm_runtime_get_sync(dev);
-	ret = drm_irq_install(ddev, platform_get_irq(pdev, 0));
-	//pm_runtime_put_sync(dev);
-	if (ret < 0) {
-		dev_err(dev, "failed to install IRQ handler\n");
-		goto fail;
+	if (kms) {
+		pm_runtime_get_sync(dev);
+		ret = drm_irq_install(ddev, kms->irq);
+		pm_runtime_put_sync(dev);
+		if (ret < 0) {
+			dev_err(dev, "failed to install IRQ handler\n");
+			goto fail;
+		}
 	}
 
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
 		goto fail;
 
-	mutex_lock(&ddev->mode_config.mutex);
-
-	drm_for_each_connector(connector, ddev) {
-		ret = drm_connector_register(connector);
-		if (ret) {
-			dev_err(dev, "failed to register connectors\n");
-			mutex_unlock(&ddev->mode_config.mutex);
-			goto fail;
-		}
+	ret = drm_connector_register_all(ddev);
+	if (ret) {
+		dev_err(dev, "failed to register connectors\n");
+		goto fail;
 	}
-
-	mutex_unlock(&ddev->mode_config.mutex);
 
 	drm_mode_config_reset(ddev);
 
@@ -570,265 +568,6 @@ static void msm_disable_vblank(struct drm_device *dev, unsigned int pipe)
 }
 
 /*
- * DRM debugfs:
- */
-
-#ifdef CONFIG_DEBUG_FS
-static int msm_gpu_show(struct drm_device *dev, struct seq_file *m)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_gpu *gpu = priv->gpu;
-
-	if (gpu) {
-		seq_printf(m, "%s Status:\n", gpu->name);
-		gpu->funcs->show(gpu, m);
-	}
-
-	return 0;
-}
-
-static int msm_gem_show(struct drm_device *dev, struct seq_file *m)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_gpu *gpu = priv->gpu;
-
-	if (gpu) {
-		seq_printf(m, "Active Objects (%s):\n", gpu->name);
-		msm_gem_describe_objects(&gpu->active_list, m);
-	}
-
-	seq_printf(m, "Inactive Objects:\n");
-	msm_gem_describe_objects(&priv->inactive_list, m);
-
-	return 0;
-}
-
-static int msm_mm_show(struct drm_device *dev, struct seq_file *m)
-{
-	return drm_mm_dump_table(m, &dev->vma_offset_manager->vm_addr_space_mm);
-}
-
-static int msm_fb_show(struct drm_device *dev, struct seq_file *m)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	struct drm_framebuffer *fb, *fbdev_fb = NULL;
-
-	if (priv->fbdev) {
-		seq_printf(m, "fbcon ");
-		fbdev_fb = priv->fbdev->fb;
-		msm_framebuffer_describe(fbdev_fb, m);
-	}
-
-	mutex_lock(&dev->mode_config.fb_lock);
-	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
-		if (fb == fbdev_fb)
-			continue;
-
-		seq_printf(m, "user ");
-		msm_framebuffer_describe(fb, m);
-	}
-	mutex_unlock(&dev->mode_config.fb_lock);
-
-	return 0;
-}
-
-static int show_locked(struct seq_file *m, void *arg)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	int (*show)(struct drm_device *dev, struct seq_file *m) =
-			node->info_ent->data;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	ret = show(dev, m);
-
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
-}
-
-static struct drm_info_list msm_debugfs_list[] = {
-		{"gpu", show_locked, 0, msm_gpu_show},
-		{"gem", show_locked, 0, msm_gem_show},
-		{ "mm", show_locked, 0, msm_mm_show },
-		{ "fb", show_locked, 0, msm_fb_show },
-};
-
-static int late_init_minor(struct drm_minor *minor)
-{
-	int ret;
-
-	if (!minor)
-		return 0;
-
-	ret = msm_rd_debugfs_init(minor);
-	if (ret) {
-		dev_err(minor->dev->dev, "could not install rd debugfs\n");
-		return ret;
-	}
-
-	ret = msm_perf_debugfs_init(minor);
-	if (ret) {
-		dev_err(minor->dev->dev, "could not install perf debugfs\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-int msm_debugfs_late_init(struct drm_device *dev)
-{
-	int ret;
-	ret = late_init_minor(dev->primary);
-	if (ret)
-		return ret;
-	ret = late_init_minor(dev->render);
-	if (ret)
-		return ret;
-	ret = late_init_minor(dev->control);
-	return ret;
-}
-
-static int msm_debugfs_init(struct drm_minor *minor)
-{
-	struct drm_device *dev = minor->dev;
-	int ret;
-
-	ret = drm_debugfs_create_files(msm_debugfs_list,
-			ARRAY_SIZE(msm_debugfs_list),
-			minor->debugfs_root, minor);
-
-	if (ret) {
-		dev_err(dev->dev, "could not install msm_debugfs_list\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static void msm_debugfs_cleanup(struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(msm_debugfs_list,
-			ARRAY_SIZE(msm_debugfs_list), minor);
-	if (!minor->dev->dev_private)
-		return;
-	msm_rd_debugfs_cleanup(minor);
-	msm_perf_debugfs_cleanup(minor);
-}
-#endif
-
-/*
- * Fences:
- */
-
-int msm_wait_fence(struct drm_device *dev, uint32_t fence,
-		ktime_t *timeout , bool interruptible)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	int ret;
-
-	if (!priv->gpu)
-		return 0;
-
-	if (fence > priv->gpu->submitted_fence) {
-		DRM_ERROR("waiting on invalid fence: %u (of %u)\n",
-				fence, priv->gpu->submitted_fence);
-		return -EINVAL;
-	}
-
-	if (!timeout) {
-		/* no-wait: */
-		ret = fence_completed(dev, fence) ? 0 : -EBUSY;
-	} else {
-		ktime_t now = ktime_get();
-		unsigned long remaining_jiffies;
-
-		if (ktime_compare(*timeout, now) < 0) {
-			remaining_jiffies = 0;
-		} else {
-			ktime_t rem = ktime_sub(*timeout, now);
-			struct timespec ts = ktime_to_timespec(rem);
-			remaining_jiffies = timespec_to_jiffies(&ts);
-		}
-
-		if (interruptible)
-			ret = wait_event_interruptible_timeout(priv->fence_event,
-				fence_completed(dev, fence),
-				remaining_jiffies);
-		else
-			ret = wait_event_timeout(priv->fence_event,
-				fence_completed(dev, fence),
-				remaining_jiffies);
-
-		if (ret == 0) {
-			DBG("timeout waiting for fence: %u (completed: %u)",
-					fence, priv->completed_fence);
-			ret = -ETIMEDOUT;
-		} else if (ret != -ERESTARTSYS) {
-			ret = 0;
-		}
-	}
-
-	return ret;
-}
-
-int msm_queue_fence_cb(struct drm_device *dev,
-		struct msm_fence_cb *cb, uint32_t fence)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	int ret = 0;
-
-	mutex_lock(&dev->struct_mutex);
-	if (!list_empty(&cb->work.entry)) {
-		ret = -EINVAL;
-	} else if (fence > priv->completed_fence) {
-		cb->fence = fence;
-		list_add_tail(&cb->work.entry, &priv->fence_cbs);
-	} else {
-		queue_work(priv->wq, &cb->work);
-	}
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
-}
-
-/* called from workqueue */
-void msm_update_fence(struct drm_device *dev, uint32_t fence)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-
-	mutex_lock(&dev->struct_mutex);
-	priv->completed_fence = max(fence, priv->completed_fence);
-
-	while (!list_empty(&priv->fence_cbs)) {
-		struct msm_fence_cb *cb;
-
-		cb = list_first_entry(&priv->fence_cbs,
-				struct msm_fence_cb, work.entry);
-
-		if (cb->fence > priv->completed_fence)
-			break;
-
-		list_del_init(&cb->work.entry);
-		queue_work(priv->wq, &cb->work);
-	}
-
-	mutex_unlock(&dev->struct_mutex);
-
-	wake_up_all(&priv->fence_event);
-}
-
-void __msm_fence_worker(struct work_struct *work)
-{
-	struct msm_fence_cb *cb = container_of(work, struct msm_fence_cb, work);
-	cb->func(cb);
-}
-
-/*
  * DRM ioctls:
  */
 
@@ -938,6 +677,7 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
+	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_msm_wait_fence *args = data;
 	ktime_t timeout = to_ktime(args->timeout);
 
@@ -946,7 +686,10 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	return msm_wait_fence(dev, args->fence, &timeout, true);
+	if (!priv->gpu)
+		return 0;
+
+	return msm_wait_fence(priv->gpu->fctx, args->fence, &timeout, true);
 }
 
 static const struct drm_ioctl_desc msm_ioctls[] = {
@@ -1064,21 +807,143 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
-static int add_components(struct device *dev, struct component_match **matchptr,
-		const char *name)
+/*
+ * Identify what components need to be added by parsing what the endpoints in
+ * our output ports are we. In the case of LVDS, there is no external component
+ * that we need to add since it's a part of MDP itself.
+ */
+static int add_components_mdp4(struct device *dev,
+			       struct component_match **matchptr)
 {
 	struct device_node *np = dev->of_node;
-	unsigned i;
+	struct device_node *ep_node;
 
-	for (i = 0; ; i++) {
-		struct device_node *node;
+	for_each_endpoint_of_node(np, ep_node) {
+		struct device_node *intf;
+		struct of_endpoint ep;
+		int ret;
 
-		node = of_parse_phandle(np, name, i);
-		if (!node)
-			break;
+		ret = of_graph_parse_endpoint(ep_node, &ep);
+		if (ret) {
+			dev_err(dev, "unable to parse port endpoint\n");
+			of_node_put(ep_node);
+			return ret;
+		}
 
-		component_match_add(dev, matchptr, compare_of, node);
+		/*
+		 * The LCDC/LVDS port on MDP4 is a speacial case where the
+		 * remote-endpoint isn't a component that we need to add
+		 */
+		if (ep.port == 0) {
+			of_node_put(ep_node);
+			continue;
+		}
+
+		/*
+		 * It's okay if some of the ports don't have a remote endpoint
+		 * specified. It just means that the port isn't connected to
+		 * any external interface.
+		 */
+		intf = of_graph_get_remote_port_parent(ep_node);
+		if (!intf) {
+			of_node_put(ep_node);
+			continue;
+		}
+
+		component_match_add(dev, matchptr, compare_of, intf);
+
+		of_node_put(intf);
+		of_node_put(ep_node);
 	}
+
+	return 0;
+}
+
+/*
+ * MDP5 based devices don't have a flat hierarchy. There is a top level
+ * parent: MDSS, and childrenL MDP5, DSI, HDMI, eDP etc. Populate the
+ * children devices first and then add them to our components list.
+ */
+static int mdss_add_child(struct device *dev, void *data)
+{
+	struct component_match **matchptr = data;
+	struct device_node *node = dev->of_node;
+
+	/*
+	 * We don't need to add phy blocks as components, they are managed by
+	 * the interface driver itself
+	 */
+	if (strstr(dev_name(dev), "phy"))
+		return 0;
+
+	component_match_add(dev->parent, matchptr, compare_of, node);
+
+	return 0;
+}
+
+static int add_components_mdp5(struct device *dev,
+			       struct component_match **matchptr)
+{
+	int ret;
+
+	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	if (ret) {
+		dev_err(dev, "failed to populate children devices\n");
+		return ret;
+	}
+
+	ret = device_for_each_child(dev, matchptr, mdss_add_child);
+	if (ret) {
+		dev_err(dev, "failed to add MDP5 MDSS children\n");
+		of_platform_depopulate(dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void remove_display_children(struct device *dev)
+{
+	if (of_device_is_compatible(dev->of_node, "qcom,mdss"))
+		of_platform_depopulate(dev);
+}
+
+static int add_display_components(struct device *dev,
+				  struct component_match **matchptr)
+{
+	int ret;
+
+	if (of_device_is_compatible(dev->of_node, "qcom,mdp4"))
+		ret = add_components_mdp4(dev, matchptr);
+	else
+		ret = add_components_mdp5(dev, matchptr);
+
+	return ret;
+}
+
+/*
+ * We don't know what's the best binding to link the gpu with the drm device.
+ * Fow now, we just hunt for all the possible gpus that we support, and add them
+ * as components.
+ */
+static const struct of_device_id msm_gpu_match[] = {
+	{ .compatible = "qcom,adreno-3xx" },
+	{ .compatible = "qcom,kgsl-3d0" },
+	{ },
+};
+
+static int add_gpu_components(struct device *dev,
+			      struct component_match **matchptr)
+{
+	struct device_node *np;
+
+	np = of_find_matching_node(NULL, msm_gpu_match);
+	if (!np)
+		return 0;
+
+	of_node_put(np);
+
+	component_match_add(dev, matchptr, compare_of, np);
 
 	return 0;
 }
@@ -1105,9 +970,15 @@ static const struct component_master_ops msm_drm_ops = {
 static int msm_pdev_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
+	int ret;
 
-	add_components(&pdev->dev, &match, "connectors");
-	add_components(&pdev->dev, &match, "gpus");
+	ret = add_display_components(&pdev->dev, &match);
+	if (ret)
+		return ret;
+
+	ret = add_gpu_components(&pdev->dev, &match);
+	if (ret)
+		return ret;
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	return component_master_add_with_match(&pdev->dev, &msm_drm_ops, match);
@@ -1116,14 +987,10 @@ static int msm_pdev_probe(struct platform_device *pdev)
 static int msm_pdev_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &msm_drm_ops);
+	remove_display_children(&pdev->dev);
 
 	return 0;
 }
-
-static const struct platform_device_id msm_id[] = {
-	{ "mdp", 0 },
-	{ }
-};
 
 static const struct of_device_id dt_match[] = {
 	{ .compatible = "qcom,mdp4", .data = (void *) 4 },	/* mdp4 */
@@ -1142,12 +1009,12 @@ static struct platform_driver msm_platform_driver = {
 		.of_match_table = dt_match,
 		.pm     = &msm_pm_ops,
 	},
-	.id_table   = msm_id,
 };
 
 static int __init msm_drm_register(void)
 {
 	DBG("init");
+	msm_mdp_register();
 	msm_dsi_register();
 	msm_edp_register();
 	msm_hdmi_register();
@@ -1163,6 +1030,7 @@ static void __exit msm_drm_unregister(void)
 	adreno_unregister();
 	msm_edp_unregister();
 	msm_dsi_unregister();
+	msm_mdp_unregister();
 }
 
 module_init(msm_drm_register);
