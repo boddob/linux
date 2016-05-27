@@ -401,6 +401,7 @@ void *msm_gem_get_vaddr_locked(struct drm_gem_object *obj)
 		if (msm_obj->vaddr == NULL)
 			return ERR_PTR(-ENOMEM);
 	}
+	msm_obj->vmap_count++;
 	return msm_obj->vaddr;
 }
 
@@ -415,13 +416,17 @@ void *msm_gem_get_vaddr(struct drm_gem_object *obj)
 
 void msm_gem_put_vaddr_locked(struct drm_gem_object *obj)
 {
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
-	/* no-op for now */
+	WARN_ON(msm_obj->vmap_count < 1);
+	msm_obj->vmap_count--;
 }
 
 void msm_gem_put_vaddr(struct drm_gem_object *obj)
 {
-	/* no-op for now */
+	mutex_lock(&obj->dev->struct_mutex);
+	msm_gem_put_vaddr_locked(obj);
+	mutex_unlock(&obj->dev->struct_mutex);
 }
 
 /* Update madvise status, returns true if not purged, else
@@ -451,8 +456,7 @@ void msm_gem_purge(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
 	WARN_ON(!is_purgeable(msm_obj));
 
-	vunmap(msm_obj->vaddr);
-	msm_obj->vaddr = NULL;
+	msm_gem_vunmap(obj);
 
 	put_pages(obj);
 
@@ -460,6 +464,19 @@ void msm_gem_purge(struct drm_gem_object *obj)
 
 	/* kill the mmap offset and backing shmem file: */
 	drm_gem_object_release(obj);
+}
+
+void msm_gem_vunmap(struct drm_gem_object *obj)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	WARN_ON(!is_vunmapable(msm_obj));
+
+	if (!msm_obj->vaddr)
+		return;
+
+	vunmap(msm_obj->vaddr);
+	msm_obj->vaddr = NULL;
 }
 
 /* must be called before _move_to_active().. */
@@ -673,7 +690,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 
 		drm_prime_gem_destroy(obj, msm_obj->sgt);
 	} else {
-		vunmap(msm_obj->vaddr);
+		msm_gem_vunmap(obj);
 		put_pages(obj);
 	}
 
