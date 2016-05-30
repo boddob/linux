@@ -374,7 +374,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		priv->kms = kms;
 		break;
 	case 5:
-		kms = mdp5_kms_init2(dev);
+		kms = mdp5_kms_init(dev);
 		break;
 	default:
 		kms = ERR_PTR(-ENODEV);
