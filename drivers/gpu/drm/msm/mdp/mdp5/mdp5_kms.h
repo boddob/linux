@@ -50,7 +50,7 @@ struct mdp5_kms {
 	struct mdp5_ctl_manager *ctlm;
 
 	/* io/register spaces: */
-	void __iomem *mmio, *vbif;
+	void __iomem *mmio;
 
 	struct regulator *vdd;
 
@@ -68,11 +68,6 @@ struct mdp5_kms {
 	spinlock_t resource_lock;
 
 	struct mdp_irq error_handler;
-
-	struct {
-		volatile unsigned long enabled_mask;
-		struct irq_domain *domain;
-	} irqcontroller;
 };
 #define to_mdp5_kms(x) container_of(x, struct mdp5_kms, base)
 
