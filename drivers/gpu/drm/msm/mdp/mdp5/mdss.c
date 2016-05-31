@@ -206,8 +206,6 @@ struct msm_mdss *mdss_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	pm_runtime_enable(dev->dev);
-
 	return mdss;
 fail:
 	mdss_destroy(mdss);

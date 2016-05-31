@@ -137,6 +137,55 @@ err:
 	return ret;
 }
 
+static void print_gdscs(void)
+{
+	void __iomem *base = ioremap(0x8c0000, SZ_64K);
+	u32 val;
+
+	/* 1. MMAGIC BIMC GDSCR */
+	val = ioread32(base + 0x529c);
+	printk(KERN_ERR "gdsc mmagic bimc %x, hw %x\n", val, ioread32(base + 0x529c));
+
+
+	/* 2. MMAGIC MDSS GDSCR */
+	val = ioread32(base + 0x247c);
+	printk(KERN_ERR "gdsc mmagic mdss %x, hw %x\n", val, ioread32(base + 0x2480));
+
+	/* 3. MDSS GDSCR */
+	val = ioread32(base + 0x2304);
+	printk(KERN_ERR "gdsc mdss %x\n", val);
+
+	iounmap(base);
+}
+
+static void enable_hpd_clocks(struct hdmi *hdmi, bool enable)
+{
+	const struct hdmi_platform_config *config = hdmi->config;
+	struct device *dev = &hdmi->pdev->dev;
+	int i, ret;
+
+	if (enable) {
+		for (i = 0; i < config->hpd_clk_cnt; i++) {
+			if (config->hpd_freq && config->hpd_freq[i]) {
+				ret = clk_set_rate(hdmi->hpd_clks[i],
+						config->hpd_freq[i]);
+				if (ret)
+					dev_warn(dev, "failed to set clk %s (%d)\n",
+							config->hpd_clk_names[i], ret);
+			}
+
+			ret = clk_prepare_enable(hdmi->hpd_clks[i]);
+			if (ret) {
+				dev_err(dev, "failed to enable hpd clk: %s (%d)\n",
+						config->hpd_clk_names[i], ret);
+			}
+		}
+	} else {
+		for (i = config->hpd_clk_cnt - 1; i >= 0; i--)
+			clk_disable_unprepare(hdmi->hpd_clks[i]);
+	}
+}
+
 static int hpd_enable(struct hdmi_connector *hdmi_connector)
 {
 	struct hdmi *hdmi = hdmi_connector->hdmi;
@@ -145,6 +194,8 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 	uint32_t hpd_ctrl;
 	int i, ret;
 	unsigned long flags;
+
+	pm_runtime_get_sync(dev);
 
 	for (i = 0; i < config->hpd_reg_cnt; i++) {
 		ret = regulator_enable(hdmi->hpd_regs[i]);
@@ -167,22 +218,7 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 		goto fail;
 	}
 
-	for (i = 0; i < config->hpd_clk_cnt; i++) {
-		if (config->hpd_freq && config->hpd_freq[i]) {
-			ret = clk_set_rate(hdmi->hpd_clks[i],
-					config->hpd_freq[i]);
-			if (ret)
-				dev_warn(dev, "failed to set clk %s (%d)\n",
-						config->hpd_clk_names[i], ret);
-		}
-
-		ret = clk_prepare_enable(hdmi->hpd_clks[i]);
-		if (ret) {
-			dev_err(dev, "failed to enable hpd clk: %s (%d)\n",
-					config->hpd_clk_names[i], ret);
-			goto fail;
-		}
-	}
+	enable_hpd_clocks(hdmi, true);
 
 	msm_hdmi_set_mode(hdmi, false);
 	msm_hdmi_phy_reset(hdmi);
@@ -210,6 +246,7 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 	return 0;
 
 fail:
+	pm_runtime_put_sync(dev);
 	return ret;
 }
 
@@ -242,6 +279,9 @@ static void hdp_disable(struct hdmi_connector *hdmi_connector)
 			dev_warn(dev, "failed to disable hpd regulator: %s (%d)\n",
 					config->hpd_reg_names[i], ret);
 	}
+
+	enable_hpd_clocks(hdmi, false);
+	pm_runtime_put_sync(dev);
 }
 
 static void
@@ -315,12 +355,20 @@ static enum drm_connector_status hdmi_connector_detect(
 	enum drm_connector_status stat_gpio, stat_reg;
 	int retry = 20;
 
+	pm_runtime_get_sync(&hdmi->pdev->dev);
+	enable_hpd_clocks(hdmi, true);
+
 	/*
 	 * some platforms may not have hpd gpio. Rely only on the status
 	 * provided by REG_HDMI_HPD_INT_STATUS in this case.
 	 */
-	if (hpd_gpio.num == -1)
-		return detect_reg(hdmi);
+	if (hpd_gpio.num == -1) {
+		stat_reg = detect_reg(hdmi);
+		enable_hpd_clocks(hdmi, false);
+		pm_runtime_put_sync(&hdmi->pdev->dev);
+
+		return stat_reg;
+	}
 
 	do {
 		stat_gpio = detect_gpio(hdmi);

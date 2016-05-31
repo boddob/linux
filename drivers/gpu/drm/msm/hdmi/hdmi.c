@@ -240,6 +240,8 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 		hdmi->pwr_clks[i] = clk;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+
 	hdmi->workq = alloc_ordered_workqueue("msm_hdmi", 0);
 
 	hdmi->i2c = msm_hdmi_i2c_init(hdmi);
@@ -370,8 +372,8 @@ static struct hdmi_platform_config hdmi_tx_8960_config = {
 static const char *pwr_reg_names_8x74[] = {"core-vdda", "core-vcc"};
 static const char *hpd_reg_names_8x74[] = {"hpd-gdsc", "hpd-5v"};
 static const char *pwr_clk_names_8x74[] = {"extp_clk", "alt_iface_clk"};
-static const char *hpd_clk_names_8x74[] = {"iface_clk", "core_clk", "mdp_core_clk"};
-static unsigned long hpd_clk_freq_8x74[] = {0, 19200000, 0};
+static const char *hpd_clk_names_8x74[] = {"mmagic_iface_clk", "iface_clk", "core_clk", "mdp_core_clk"};
+static unsigned long hpd_clk_freq_8x74[] = {0, 0, 19200000, 0};
 
 static struct hdmi_platform_config hdmi_tx_8974_config = {
 		HDMI_CFG(pwr_reg, 8x74),
@@ -470,7 +472,7 @@ static int msm_hdmi_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(hdmi))
 		return PTR_ERR(hdmi);
 	priv->hdmi = hdmi;
-	msm_hdmi_register_audio_driver(hdmi, dev);
+	//msm_hdmi_register_audio_driver(hdmi, dev);
 
 	return 0;
 }

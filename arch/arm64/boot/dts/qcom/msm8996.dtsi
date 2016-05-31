@@ -430,7 +430,7 @@
 					      "vsync_clk",
 					      "mmagic_mdss_bus_clk",
 					      "rpm_mmaxi_clk";
-				iommus = <&mdp_smmu 0>;
+				//iommus = <&mdp_smmu 0>;
 			};
 
 			hdmi: hdmi-tx@9a0000 {
@@ -445,14 +445,15 @@
 				interrupt-parent = <&mdss>;
 				interrupts = <8 0>;
 
-				power-domains = <&mmcc MDSS_GDSC>;
 				clocks = <&mmcc MDSS_MDP_CLK>,
+					 <&mmcc MMSS_MMAGIC_AHB_CLK>,
 					 <&mmcc MDSS_AHB_CLK>,
 					 <&mmcc MDSS_HDMI_CLK>,
 					 <&mmcc MDSS_HDMI_AHB_CLK>,
 					 <&mmcc MDSS_EXTPCLK_CLK>;
 				clock-names =
 					"mdp_core_clk",
+					"mmagic_iface_clk",
 					"iface_clk",
 					"core_clk",
 					"alt_iface_clk",
