@@ -268,24 +268,32 @@
 			status = "okay";
 		};
 
-		dsi@1a98000 {
+		mdss@1a00000 {
 			status = "okay";
 
-			vdda-supply = <&pm8916_l2>;
-			vddio-supply = <&pm8916_l6>;
+			mdp@1a01000 {
+				status = "okay";
+			};
 
-			port {
-				dsi_out: endpoint {
-					remote-endpoint = <&adv_in>;
-					qcom,data-lane-map = <0 1 2 3>;
+			dsi@1a98000 {
+				status = "okay";
+
+				vdda-supply = <&pm8916_l2>;
+				vddio-supply = <&pm8916_l6>;
+
+				port {
+					dsi_out: endpoint {
+						remote-endpoint = <&adv_in>;
+						qcom,data-lane-map = <0 1 2 3>;
+					};
 				};
 			};
-		};
 
-		dsi-phy@1a98300 {
-			status = "okay";
+			dsi-phy@1a98300 {
+				status = "okay";
 
-			vddio-supply = <&pm8916_l6>;
+				vddio-supply = <&pm8916_l6>;
+			};
 		};
 	};
 
