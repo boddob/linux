@@ -42,6 +42,7 @@ static void bs_init(struct mdp5_cmd_encoder *mdp5_cmd_enc)
 	struct msm_bus_scale_pdata *bus_scale_table;
 
 	bus_scale_table = msm_bus_cl_get_pdata(pdev);
+	bus_scale_table = NULL;
 	if (!bus_scale_table) {
 		DBG("bus scaling is disabled\n");
 	} else {
