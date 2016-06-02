@@ -365,11 +365,14 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	drm_mode_config_init(ddev);
 
+	pm_runtime_enable(dev);
+
 	/* Bind all our sub-components: */
 	ret = component_bind_all(dev, ddev);
 	if (ret) {
 		kfree(priv);
 		drm_dev_unref(ddev);
+		pm_runtime_disable(dev);
 		return ret;
 	}
 
@@ -403,7 +406,6 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	}
 
 	if (kms) {
-		pm_runtime_enable(dev);
 		ret = kms->funcs->hw_init(kms);
 		if (ret) {
 			dev_err(dev, "kms hw init failed: %d\n", ret);

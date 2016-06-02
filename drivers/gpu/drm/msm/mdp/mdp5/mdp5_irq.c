@@ -49,6 +49,7 @@ int mdp5_irq_postinstall(struct msm_kms *kms)
 	struct mdp_kms *mdp_kms = to_mdp_kms(kms);
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(mdp_kms);
 	struct mdp_irq *error_handler = &mdp5_kms->error_handler;
+	struct device *dev = &mdp5_kms->pdev->dev;
 
 	error_handler->irq = mdp5_irq_error_handler;
 	error_handler->irqmask = MDP5_IRQ_INTF0_UNDER_RUN |
@@ -56,7 +57,9 @@ int mdp5_irq_postinstall(struct msm_kms *kms)
 			MDP5_IRQ_INTF2_UNDER_RUN |
 			MDP5_IRQ_INTF3_UNDER_RUN;
 
+	pm_runtime_get_sync(dev);
 	mdp_irq_register(mdp_kms, error_handler);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 }

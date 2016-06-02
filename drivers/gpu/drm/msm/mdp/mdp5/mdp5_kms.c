@@ -600,6 +600,8 @@ void mdp5_destroy(struct platform_device *pdev)
 		mdp5_smp_destroy(mdp5_kms->smp);
 	if (mdp5_kms->cfg)
 		mdp5_cfg_destroy(mdp5_kms->cfg);
+
+	pm_runtime_disable(&pdev->dev);
 }
 
 int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
