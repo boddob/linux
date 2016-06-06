@@ -89,6 +89,7 @@ static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
 	int ncrtcs = old_state->dev->mode_config.num_crtc;
 	int i;
 
+	DBG("");
 	for (i = 0; i < ncrtcs; i++) {
 		crtc = old_state->crtcs[i];
 
@@ -116,6 +117,8 @@ static void complete_commit(struct msm_commit *c, bool async)
 	struct drm_device *dev = state->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
+
+	DBG("");
 
 	drm_atomic_helper_wait_for_fences(dev, state);
 

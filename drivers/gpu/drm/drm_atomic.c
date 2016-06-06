@@ -1220,6 +1220,8 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 	struct drm_connector_state *conn_state;
 	int ret;
 
+	DRM_DEBUG_ATOMIC("\n");
+
 	ret = drm_modeset_lock(&config->connection_mutex, state->acquire_ctx);
 	if (ret)
 		return ret;
@@ -1271,6 +1273,8 @@ drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 	struct drm_plane *plane;
 
 	WARN_ON(!drm_atomic_get_existing_crtc_state(state, crtc));
+
+	DRM_DEBUG_ATOMIC("\n");
 
 	drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
 		struct drm_plane_state *plane_state =

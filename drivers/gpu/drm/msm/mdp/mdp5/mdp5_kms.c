@@ -72,6 +72,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+	DBG("");
 	pm_runtime_get_sync(&mdp5_kms->pdev->dev);
 }
 
@@ -81,6 +82,7 @@ static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	int nplanes = mdp5_kms->dev->mode_config.num_total_plane;
 
+	DBG("");
 	for (i = 0; i < nplanes; i++) {
 		struct drm_plane *plane = state->planes[i];
 		struct drm_plane_state *plane_state = state->plane_states[i];
@@ -97,6 +99,7 @@ static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 static void mdp5_wait_for_crtc_commit_done(struct msm_kms *kms,
 						struct drm_crtc *crtc)
 {
+	DBG("");
 	mdp5_crtc_wait_for_commit_done(crtc);
 }
 

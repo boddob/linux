@@ -473,6 +473,8 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 	struct drm_connector_state *connector_state;
 	int i, ret;
 
+	printk(KERN_ERR "%s\n", __func__);
+
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (!drm_mode_equal(&crtc->state->mode, &crtc_state->mode)) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] mode changed\n",
@@ -587,6 +589,8 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 	struct drm_plane_state *plane_state;
 	int i, ret = 0;
 
+	DRM_DEBUG_ATOMIC("planes\n");
+
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
 
@@ -604,6 +608,8 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 			return ret;
 		}
 	}
+
+	DRM_DEBUG_ATOMIC("crtcs\n");
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
@@ -835,8 +841,10 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
 
-		if (!crtc->state->mode_changed)
+		if (!crtc->state->mode_changed) {
+			printk(KERN_ERR "mode didn't change!\n");
 			continue;
+		}
 
 		funcs = crtc->helper_private;
 
@@ -897,6 +905,8 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 void drm_atomic_helper_commit_modeset_disables(struct drm_device *dev,
 					       struct drm_atomic_state *old_state)
 {
+	DRM_DEBUG_ATOMIC("%s\n", __func__);
+
 	disable_outputs(dev, old_state);
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, old_state);
@@ -928,6 +938,7 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 	struct drm_connector_state *old_conn_state;
 	int i;
 
+	DRM_DEBUG_ATOMIC("%s\n", __func__);
 	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
 
@@ -1522,6 +1533,7 @@ void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 	struct drm_plane_state *plane_state;
 	int i;
 
+	DRM_DEBUG_ATOMIC("%s\n", __func__);
 	for_each_plane_in_state(old_state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
 
@@ -2423,6 +2435,8 @@ int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
 	int ret;
 	bool active = false;
 	int old_mode = connector->dpms;
+
+	DRM_DEBUG_ATOMIC("\n");
 
 	if (mode != DRM_MODE_DPMS_ON)
 		mode = DRM_MODE_DPMS_OFF;

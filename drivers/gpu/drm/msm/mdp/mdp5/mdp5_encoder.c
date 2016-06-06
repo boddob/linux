@@ -115,6 +115,8 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 
 	mode = adjusted_mode;
 
+	printk(KERN_ERR "%s", __func__);
+
 	DBG("set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
 			mode->base.id, mode->name,
 			mode->vrefresh, mode->clock,
