@@ -92,22 +92,27 @@
 		interrupt-names = "vbus_det_irq";
 		vin-supply = <&vph_pwr_vreg>;
 	};
-};
 
-&mdss_mdp {
-	qcom,mdss-pref-prim-intf = "hdmi";
-};
+	mdss@fd900000 {
+		status = "ok";
 
-&mdss_hdmi_tx {
-	qcom,primary_panel = <1>;
-	qcom,mdss-fb-map = <&mdss_fb0>;
-	hpd-5v-en-supply = <&vph_pwr_vreg>;
-	qcom,supply-names = "hpd-gdsc", "hpd-5v", "core-vdda", "core-vcc";
-	qcom,min-voltage-level = <0 0 1800000 1800000>;
-	qcom,max-voltage-level = <0 0 1800000 1800000>;
-	qcom,enable-load = <0 0 300000 0>;
-	qcom,disable-load = <0 0 0 0>;
-	status = "ok";
+		qcom,mdss_mdp@fd900100 {
+			qcom,mdss-pref-prim-intf = "hdmi";
+			status = "ok";
+		};
+
+		qcom,hdmi_tx@fd922100 {
+			qcom,primary_panel = <1>;
+			qcom,mdss-fb-map = <&mdss_fb0>;
+			hpd-5v-en-supply = <&vph_pwr_vreg>;
+			qcom,supply-names = "hpd-gdsc", "hpd-5v", "core-vdda", "core-vcc";
+			qcom,min-voltage-level = <0 0 1800000 1800000>;
+			qcom,max-voltage-level = <0 0 1800000 1800000>;
+			qcom,enable-load = <0 0 300000 0>;
+			qcom,disable-load = <0 0 0 0>;
+			status = "ok";
+		};
+	};
 };
 
 &uart6 {

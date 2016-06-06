@@ -11,16 +11,29 @@
  */
 
 &soc {
-	mdss_mdp: qcom,mdss_mdp@fd900000 {
-		compatible = "qcom,mdss_mdp";
-		reg = <0xfd900000 0x22100>,
+	mdss: mdss@fd900000 {
+		compatible = "qcom,mdss";
+		reg = <0xfd900000 0x100>,
 		      <0xfd924000 0x1000>;
-		reg-names = "mdp_phys", "vbif_phys";
+		reg-names = "mdss_phys", "vbif_phys";
+
 		interrupts = <0 72 0>;
-		vdd-supply = <&gdsc_mdss>;
 
 		interrupt-controller;
 		#interrupt-cells = <1>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+	mdss_mdp: qcom,mdss_mdp@fd900100 {
+		compatible = "qcom,mdss_mdp";
+		reg = <0xfd900100 0x22100>;
+		reg-names = "mdp_phys";
+		vdd-supply = <&gdsc_mdss>;
+
+		interrupt-parent = <&mdss>;
+		interrupts = <0 0>;
 
 		/* Bus Scale Settings */
 		qcom,msm-bus,name = "mdss_mdp";
@@ -132,9 +145,6 @@
 		qcom,mdss-prefill-post-scaler-buffer-pixels = <2048>;
 		qcom,mdss-prefill-pingpong-buffer-pixels = <5120>;
 		qcom,mdss-prefill-fbc-lines = <2>;
-
-		connectors = <&mdss_hdmi_tx>;
-		gpus = <&msm_gpu>;
 
 		mdss_fb0: qcom,mdss_fb_primary {
 			cell-index = <0>;
@@ -332,7 +342,7 @@
 	mdss_hdmi_tx: qcom,hdmi_tx@fd922100 {
 		cell-index = <0>;
 		compatible = "qcom,hdmi-tx";
-		interrupt-parent = <&mdss_mdp>;
+		interrupt-parent = <&mdss>;
 		interrupts = <8 0>;   /* MDP5_HW_INTR_STATUS.INTR_HDMI */
 		reg =	<0xfd922100 0x380>,
 			<0xfd922500 0x7C>,
@@ -379,5 +389,6 @@
 		gpio-panel-hpd = <&msmgpio 103 0>;
 		qcom,panel-lpg-channel = <2>; /* pma8084 gpio #7, LPG Channel 3 */
 		qcom,panel-pwm-period = <53>;
+	};
 	};
 };
