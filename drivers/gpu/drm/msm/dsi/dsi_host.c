@@ -1661,6 +1661,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 
 	msm_host->device_node = device_node;
 
+#if 0
 	if (of_property_read_bool(np, "syscon-sfpb")) {
 		msm_host->sfpb = syscon_regmap_lookup_by_phandle(np,
 					"syscon-sfpb");
@@ -1670,7 +1671,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 			ret = PTR_ERR(msm_host->sfpb);
 		}
 	}
-
+#endif
 	of_node_put(device_node);
 
 err:
