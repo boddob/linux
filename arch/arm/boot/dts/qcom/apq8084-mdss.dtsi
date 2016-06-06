@@ -161,6 +161,39 @@
 			cell-index = <2>;
 			compatible = "qcom,mdss-fb";
 		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				mdp5_intf0_out: endpoint {
+					//remote-endpoint = <&edp_in>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				mdp5_intf1_out: endpoint {
+					//remote-endpoint = <&dsi0_in>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+				mdp5_intf2_out: endpoint {
+					//remote-endpoint = <&dsi1_in>;
+				};
+			};
+
+			port@3 {
+				reg = <3>;
+				mdp5_intf3_out: endpoint {
+					remote-endpoint = <&hdmi_in>;
+				};
+			};
+		};
 	};
 
 	mdss_dsi0: qcom,mdss_dsi@fd922800 {
@@ -367,6 +400,18 @@
 		qcom,mdss-fb-map = <&mdss_fb1>;
 		qcom,msm-hdmi-audio-rx {
 			compatible = "qcom,msm-hdmi-audio-codec-rx";
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				hdmi_in: endpoint {
+					remote-endpoint = <&mdp5_intf3_out>;
+				};
+			};
 		};
 	};
 
