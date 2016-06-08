@@ -26,14 +26,21 @@
 #include "mdp5_ctl.h"
 #include "mdp5_smp.h"
 
+struct mdp5_mdss;
+
 struct mdp5_kms {
 	struct mdp_kms base;
 
 	struct drm_device *dev;
 
+	struct platform_device *pdev;
+
 	struct mdp5_cfg_handler *cfg;
 	uint32_t caps;	/* MDP capabilities (MDP_CAP_XXX bits) */
 
+
+	/* top level MDSS struct */
+	struct mdp5_mdss *mdss;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	int id;
@@ -43,7 +50,7 @@ struct mdp5_kms {
 	struct mdp5_ctl_manager *ctlm;
 
 	/* io/register spaces: */
-	void __iomem *mmio, *vbif;
+	void __iomem *mmio;
 
 	struct regulator *vdd;
 
@@ -62,16 +69,11 @@ struct mdp5_kms {
 
 	/*
 	 * lock to protect access to global resources: ie., following register:
-	 *	- REG_MDP5_MDP_DISP_INTF_SEL
+	 *	- REG_MDP5_DISP_INTF_SEL
 	 */
 	spinlock_t resource_lock;
 
 	struct mdp_irq error_handler;
-
-	struct {
-		volatile unsigned long enabled_mask;
-		struct irq_domain *domain;
-	} irqcontroller;
 };
 #define to_mdp5_kms(x) container_of(x, struct mdp5_kms, base)
 
@@ -185,6 +187,9 @@ static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
 	default: return 0;
 	}
 }
+
+struct mdp5_mdss *mdp5_mdss_init(struct drm_device *dev);
+void mdp5_mdss_destroy(struct mdp5_mdss *mdss);
 
 static inline uint32_t lm2ppdone(int lm)
 {

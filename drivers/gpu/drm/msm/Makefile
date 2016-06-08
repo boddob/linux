@@ -35,12 +35,15 @@ msm-y := \
 	mdp/mdp5/mdp5_crtc.o \
 	mdp/mdp5/mdp5_encoder.o \
 	mdp/mdp5/mdp5_irq.o \
+	mdp/mdp5/mdp5_mdss.o \
 	mdp/mdp5/mdp5_kms.o \
 	mdp/mdp5/mdp5_plane.o \
 	mdp/mdp5/mdp5_smp.o \
 	msm_atomic.o \
+	msm_debugfs.o \
 	msm_drv.o \
 	msm_fb.o \
+	msm_fence.o \
 	msm_gem.o \
 	msm_gem_prime.o \
 	msm_gem_submit.o \

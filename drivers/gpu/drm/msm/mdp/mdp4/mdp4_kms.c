@@ -50,30 +50,6 @@ static int mdp4_hw_init(struct msm_kms *kms)
 
 	mdp4_kms->rev = minor;
 
-	if (mdp4_kms->dsi_pll_vdda) {
-		if ((mdp4_kms->rev == 2) || (mdp4_kms->rev == 4)) {
-			ret = regulator_set_voltage(mdp4_kms->dsi_pll_vdda,
-					1200000, 1200000);
-			if (ret) {
-				dev_err(dev->dev,
-					"failed to set dsi_pll_vdda voltage: %d\n", ret);
-				goto out;
-			}
-		}
-	}
-
-	if (mdp4_kms->dsi_pll_vddio) {
-		if (mdp4_kms->rev == 2) {
-			ret = regulator_set_voltage(mdp4_kms->dsi_pll_vddio,
-					1800000, 1800000);
-			if (ret) {
-				dev_err(dev->dev,
-					"failed to set dsi_pll_vddio voltage: %d\n", ret);
-				goto out;
-			}
-		}
-	}
-
 	if (mdp4_kms->rev > 1) {
 		mdp4_write(mdp4_kms, REG_MDP4_CS_CONTROLLER0, 0x0707ffff);
 		mdp4_write(mdp4_kms, REG_MDP4_CS_CONTROLLER1, 0x03073f3f);
@@ -252,9 +228,13 @@ static struct device_node *mdp4_detect_lcdc_panel(struct drm_device *dev)
 	struct device_node *endpoint, *panel_node;
 	struct device_node *np = dev->dev->of_node;
 
-	endpoint = of_graph_get_next_endpoint(np, NULL);
+	/*
+	 * LCDC/LVDS is the first port described in the list of ports in the
+	 * MDP4 DT node.
+	 */
+	endpoint = of_graph_get_endpoint_by_regs(np, 0, -1);
 	if (!endpoint) {
-		DBG("no endpoint in MDP4 to fetch LVDS panel\n");
+		DBG("no LVDS panel remote endpoint\n");
 		return NULL;
 	}
 
@@ -464,7 +444,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	struct mdp4_kms *mdp4_kms;
 	struct msm_kms *kms = NULL;
 	struct msm_mmu *mmu;
-	int ret;
+	int irq, ret;
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms) {
@@ -485,15 +465,14 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_kms->dsi_pll_vdda =
-			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vdda");
-	if (IS_ERR(mdp4_kms->dsi_pll_vdda))
-		mdp4_kms->dsi_pll_vdda = NULL;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		dev_err(dev->dev, "failed to get irq: %d\n", ret);
+		goto fail;
+	}
 
-	mdp4_kms->dsi_pll_vddio =
-			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vddio");
-	if (IS_ERR(mdp4_kms->dsi_pll_vddio))
-		mdp4_kms->dsi_pll_vddio = NULL;
+	kms->irq = irq;
 
 	/* NOTE: driver for this regulator still missing upstream.. use
 	 * _get_exclusive() and ignore the error if it does not exist
