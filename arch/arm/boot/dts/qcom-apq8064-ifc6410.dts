@@ -198,9 +198,11 @@
 			lvds-pll-vdda-supply = <&pm8921_l2>;
 			lvds-vdda-supply = <&pm8921_lvs7>;
 
-        		port {
-				lvds_out: endpoint {
-					remote-endpoint = <&auo_in>;
+			ports {
+				port@0 {
+					endpoint {
+						remote-endpoint = <&auo_in>;
+					};
 				};
 			};
 		};
@@ -234,9 +236,10 @@
 			ddc-i2c-bus = <&gsbi3_i2c>;
 			backlight = <&backlight>;
 			power-supply = <&panel_3p3v>;
+
 			port {
-                		auo_in: endpoint {
-                    			remote-endpoint = <&lvds_out>;
+				auo_in: endpoint {
+					remote-endpoint = <&mdp_lvds_out>;
                 		};
             		};
 		};
