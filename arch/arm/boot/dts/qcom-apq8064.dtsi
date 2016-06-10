@@ -1761,6 +1761,24 @@
 
 			phys = <&hdmi_phy>;
 			phy-names = "hdmi_phy";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					hdmi_in: endpoint {
+						remote-endpoint = <&mdp_dtv_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					hdmi_out: endpoint {
+					};
+				};
+			};
 		};
 
 		gpu: qcom,adreno-3xx@4300000 {
@@ -1861,21 +1879,17 @@
 			compatible = "qcom,mdp4";
 			reg = <0x05100000 0xf0000>;
 			interrupts = <GIC_SPI 75 0>;
-			connectors = <&hdmi>;
-			gpus = <&gpu>;
 			clock-names =
 			    "core_clk",
 			    "iface_clk",
 			    "lut_clk",
-			    "src_clk",
-			    "hdmi_clk",
-			    "mdp_clk",
-			    "mdp_axi_clk";
+			    "hdmi_clk"
+			    "tv_clk",
+			    "bus_clk";
 			clocks =
 			    <&mmcc MDP_CLK>,
 			    <&mmcc MDP_AHB_CLK>,
 			    <&mmcc MDP_LUT_CLK>,
-			    <&mmcc TV_SRC>,
 			    <&mmcc HDMI_TV_CLK>,
 			    <&mmcc MDP_TV_CLK>,
 			    <&mmcc MDP_AXI_CLK>;
@@ -1884,6 +1898,36 @@
 				  &mdp_port0 2
 				  &mdp_port1 0
 				  &mdp_port1 2>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					mdp_lvds_out: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					mdp_dsi1_out: endpoint {
+					};
+				};
+
+				port@2 {
+					reg = <2>;
+					mdp_dsi2_out: endpoint {
+					};
+				};
+
+				port@3 {
+					reg = <3>;
+					mdp_dtv_out: endpoint {
+						remote-endpoint = <&hdmi_in>;
+					};
+				};
+			};
 		};
 
 		mdp_port0: qcom,iommu@7500000 {
