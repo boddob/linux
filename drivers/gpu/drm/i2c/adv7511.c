@@ -1040,22 +1040,6 @@ static int adv7533_init_regulators(struct adv7511 *adv)
 		return ret;
 	}
 
-	if (regulator_can_change_voltage(adv->avdd)) {
-		ret = regulator_set_voltage(adv->avdd, 1800000, 1800000);
-		if (ret) {
-			dev_err(dev, "failed to set avdd voltage %d\n", ret);
-			return ret;
-		}
-	}
-
-	if (regulator_can_change_voltage(adv->v3p3)) {
-		ret = regulator_set_voltage(adv->v3p3, 3300000, 3300000);
-		if (ret) {
-			dev_err(dev, "failed to set v3p3 voltage %d\n", ret);
-			return ret;
-		}
-	}
-
 	/* keep the regulators always on */
 	ret = regulator_enable(adv->avdd);
 	if (ret) {
