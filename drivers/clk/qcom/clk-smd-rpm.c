@@ -282,7 +282,7 @@ struct rpm_smd_clk_desc {
 DEFINE_CLK_SMD_RPM(msm8916, pcnoc_clk, pcnoc_a_clk, QCOM_SMD_RPM_BUS_CLK, 0);
 DEFINE_CLK_SMD_RPM(msm8916, snoc_clk, snoc_a_clk, QCOM_SMD_RPM_BUS_CLK, 1);
 DEFINE_CLK_SMD_RPM(msm8916, bimc_clk, bimc_a_clk, QCOM_SMD_RPM_MEM_CLK, 0);
-DEFINE_CLK_SMD_RPM_BRANCH(msm8916, xo, xo_a, QCOM_SMD_RPM_MISC_CLK, 0, 19200000);
+DEFINE_CLK_SMD_RPM_BRANCH(msm8916, cxo, cxo_a, QCOM_SMD_RPM_MISC_CLK, 0, 19200000);
 DEFINE_CLK_SMD_RPM_QDSS(msm8916, qdss_clk, qdss_a_clk, QCOM_SMD_RPM_MISC_CLK, 1);
 DEFINE_CLK_SMD_RPM_XO_BUFFER(msm8916, bb_clk1, bb_clk1_a, 1);
 DEFINE_CLK_SMD_RPM_XO_BUFFER(msm8916, bb_clk2, bb_clk2_a, 2);
@@ -294,8 +294,8 @@ DEFINE_CLK_SMD_RPM_XO_BUFFER_PINCTRL(msm8916, rf_clk1_pin, rf_clk1_a_pin, 4);
 DEFINE_CLK_SMD_RPM_XO_BUFFER_PINCTRL(msm8916, rf_clk2_pin, rf_clk2_a_pin, 5);
 
 static struct clk_smd_rpm *msm8916_clks[] = {
-	[RPM_XO_CLK_SRC]	= &msm8916_xo,
-	[RPM_XO_A_CLK_SRC]	= &msm8916_xo_a,
+	[RPM_XO_CLK_SRC]	= &msm8916_cxo,
+	[RPM_XO_A_CLK_SRC]	= &msm8916_cxo_a,
 	[RPM_PCNOC_CLK]		= &msm8916_pcnoc_clk,
 	[RPM_PCNOC_A_CLK]	= &msm8916_pcnoc_a_clk,
 	[RPM_SNOC_CLK]		= &msm8916_snoc_clk,
