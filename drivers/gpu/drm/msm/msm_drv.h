@@ -46,6 +46,7 @@
 struct msm_kms;
 struct msm_gpu;
 struct msm_mmu;
+struct msm_mdss;
 struct msm_rd_state;
 struct msm_perf_state;
 struct msm_gem_submit;
@@ -81,6 +82,9 @@ struct msm_drm_private {
 
 	/* subordinate devices, if present: */
 	struct platform_device *gpu_pdev;
+
+	/* top level MDSS wrapper device (for MDP5 only) */
+	struct msm_mdss *mdss;
 
 	/* possibly this should be in the kms component, but it is
 	 * shared by both mdp4 and mdp5..
@@ -256,6 +260,9 @@ static inline int msm_dsi_modeset_init(struct msm_dsi *msm_dsi,
 	return -EINVAL;
 }
 #endif
+
+void __init msm_mdp_register(void);
+void __exit msm_mdp_unregister(void);
 
 #ifdef CONFIG_DEBUG_FS
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);

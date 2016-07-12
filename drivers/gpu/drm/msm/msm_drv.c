@@ -217,10 +217,8 @@ static int msm_drm_uninit(struct device *dev)
 	flush_workqueue(priv->atomic_wq);
 	destroy_workqueue(priv->atomic_wq);
 
-	if (kms) {
-		pm_runtime_disable(dev);
+	if (kms)
 		kms->funcs->destroy(kms);
-	}
 
 	if (gpu) {
 		mutex_lock(&ddev->struct_mutex);
@@ -238,6 +236,8 @@ static int msm_drm_uninit(struct device *dev)
 	}
 
 	component_unbind_all(dev, ddev);
+
+	msm_mdss_destroy(ddev);
 
 	ddev->dev_private = NULL;
 	drm_dev_unref(ddev);
@@ -353,6 +353,13 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	ddev->dev_private = priv;
 
+	ret = msm_mdss_init(ddev);
+	if (ret) {
+		kfree(priv);
+		drm_dev_unref(ddev);
+		return ret;
+	}
+
 	priv->wq = alloc_ordered_workqueue("msm", 0);
 	priv->atomic_wq = alloc_ordered_workqueue("msm:atomic", 0);
 	init_waitqueue_head(&priv->pending_crtcs_event);
@@ -367,6 +374,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	/* Bind all our sub-components: */
 	ret = component_bind_all(dev, ddev);
 	if (ret) {
+		msm_mdss_destroy(ddev);
 		kfree(priv);
 		drm_dev_unref(ddev);
 		return ret;
@@ -379,6 +387,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	switch (get_mdp_ver(pdev)) {
 	case 4:
 		kms = mdp4_kms_init(ddev);
+		priv->kms = kms;
 		break;
 	case 5:
 		kms = mdp5_kms_init(ddev);
@@ -400,10 +409,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		goto fail;
 	}
 
-	priv->kms = kms;
-
 	if (kms) {
-		pm_runtime_enable(dev);
 		ret = kms->funcs->hw_init(kms);
 		if (ret) {
 			dev_err(dev, "kms hw init failed: %d\n", ret);
@@ -419,12 +425,14 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		goto fail;
 	}
 
-	pm_runtime_get_sync(dev);
-	ret = drm_irq_install(ddev, platform_get_irq(pdev, 0));
-	pm_runtime_put_sync(dev);
-	if (ret < 0) {
-		dev_err(dev, "failed to install IRQ handler\n");
-		goto fail;
+	if (kms) {
+		pm_runtime_get_sync(dev);
+		ret = drm_irq_install(ddev, kms->irq);
+		pm_runtime_put_sync(dev);
+		if (ret < 0) {
+			dev_err(dev, "failed to install IRQ handler\n");
+			goto fail;
+		}
 	}
 
 	ret = drm_dev_register(ddev, 0);
@@ -805,21 +813,145 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
-static int add_components(struct device *dev, struct component_match **matchptr,
-		const char *name)
+/*
+ * Identify what components need to be added by parsing what remote-endpoints
+ * our MDP output ports are connected to. In the case of LVDS on MDP4, there
+ * is no external component that we need to add since LVDS is within MDP4
+ * itself.
+ */
+static int add_components_mdp(struct device *mdp_dev,
+			      struct component_match **matchptr)
 {
-	struct device_node *np = dev->of_node;
-	unsigned i;
+	struct device_node *np = mdp_dev->of_node;
+	struct device_node *ep_node;
+	struct device *master_dev;
 
-	for (i = 0; ; i++) {
-		struct device_node *node;
+	/*
+	 * on MDP4 based platforms, the MDP platform device is the component
+	 * master that adds other display interface components to itself.
+	 *
+	 * on MDP5 based platforms, the MDSS platform device is the component
+	 * master that adds MDP5 and other display interface components to
+	 * itself.
+	 */
+	if (of_device_is_compatible(np, "qcom,mdp4"))
+		master_dev = mdp_dev;
+	else
+		master_dev = mdp_dev->parent;
 
-		node = of_parse_phandle(np, name, i);
-		if (!node)
-			break;
+	for_each_endpoint_of_node(np, ep_node) {
+		struct device_node *intf;
+		struct of_endpoint ep;
+		int ret;
 
-		component_match_add(dev, matchptr, compare_of, node);
+		ret = of_graph_parse_endpoint(ep_node, &ep);
+		if (ret) {
+			dev_err(mdp_dev, "unable to parse port endpoint\n");
+			of_node_put(ep_node);
+			return ret;
+		}
+
+		/*
+		 * The LCDC/LVDS port on MDP4 is a speacial case where the
+		 * remote-endpoint isn't a component that we need to add
+		 */
+		if (of_device_is_compatible(np, "qcom,mdp4") &&
+		    ep.port == 0) {
+			of_node_put(ep_node);
+			continue;
+		}
+
+		/*
+		 * It's okay if some of the ports don't have a remote endpoint
+		 * specified. It just means that the port isn't connected to
+		 * any external interface.
+		 */
+		intf = of_graph_get_remote_port_parent(ep_node);
+		if (!intf) {
+			of_node_put(ep_node);
+			continue;
+		}
+
+		component_match_add(master_dev, matchptr, compare_of, intf);
+
+		of_node_put(intf);
+		of_node_put(ep_node);
 	}
+
+	return 0;
+}
+
+static int compare_name_mdp(struct device *dev, void *data)
+{
+	return (strstr(dev_name(dev), "mdp") != NULL);
+}
+
+static int add_display_components(struct device *dev,
+				  struct component_match **matchptr)
+{
+	struct device *mdp_dev;
+	int ret;
+
+	/*
+	 * MDP5 based devices don't have a flat hierarchy. There is a top level
+	 * parent: MDSS, and children: MDP5, DSI, HDMI, eDP etc. Populate the
+	 * children devices, find the MDP5 node, and then add the interfaces
+	 * to our components list.
+	 */
+	if (of_device_is_compatible(dev->of_node, "qcom,mdss")) {
+		ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+		if (ret) {
+			dev_err(dev, "failed to populate children devices\n");
+			return ret;
+		}
+
+		mdp_dev = device_find_child(dev, NULL, compare_name_mdp);
+		if (!mdp_dev) {
+			dev_err(dev, "failed to find MDSS MDP node\n");
+			of_platform_depopulate(dev);
+			return -ENODEV;
+		}
+
+		put_device(mdp_dev);
+
+		/* add the MDP component itself */
+		component_match_add(dev, matchptr, compare_of,
+				    mdp_dev->of_node);
+	} else {
+		/* MDP4 */
+		mdp_dev = dev;
+	}
+
+	ret = add_components_mdp(mdp_dev, matchptr);
+	if (ret)
+		of_platform_depopulate(dev);
+
+	return ret;
+}
+
+/*
+ * We don't know what's the best binding to link the gpu with the drm device.
+ * Fow now, we just hunt for all the possible gpus that we support, and add them
+ * as components.
+ */
+static const struct of_device_id msm_gpu_match[] = {
+	{ .compatible = "qcom,adreno-3xx" },
+	{ .compatible = "qcom,kgsl-3d0" },
+	{ },
+};
+
+static int add_gpu_components(struct device *dev,
+			      struct component_match **matchptr)
+{
+	struct device_node *np;
+
+	np = of_find_matching_node(NULL, msm_gpu_match);
+	if (!np)
+		return 0;
+
+	of_node_put(np);
+
+	component_match_add(dev, matchptr, compare_of, np);
 
 	return 0;
 }
@@ -846,9 +978,15 @@ static const struct component_master_ops msm_drm_ops = {
 static int msm_pdev_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
+	int ret;
 
-	add_components(&pdev->dev, &match, "connectors");
-	add_components(&pdev->dev, &match, "gpus");
+	ret = add_display_components(&pdev->dev, &match);
+	if (ret)
+		return ret;
+
+	ret = add_gpu_components(&pdev->dev, &match);
+	if (ret)
+		return ret;
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	return component_master_add_with_match(&pdev->dev, &msm_drm_ops, match);
@@ -857,20 +995,14 @@ static int msm_pdev_probe(struct platform_device *pdev)
 static int msm_pdev_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &msm_drm_ops);
+	of_platform_depopulate(&pdev->dev);
 
 	return 0;
 }
 
-static const struct platform_device_id msm_id[] = {
-	{ "mdp", 0 },
-	{ }
-};
-
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,mdp4", .data = (void *) 4 },	/* mdp4 */
-	{ .compatible = "qcom,mdp5", .data = (void *) 5 },	/* mdp5 */
-	/* to support downstream DT files */
-	{ .compatible = "qcom,mdss_mdp", .data = (void *) 5 },  /* mdp5 */
+	{ .compatible = "qcom,mdp4", .data = (void *)4 },	/* MDP4 */
+	{ .compatible = "qcom,mdss", .data = (void *)5 },	/* MDP5 MDSS */
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
@@ -883,12 +1015,12 @@ static struct platform_driver msm_platform_driver = {
 		.of_match_table = dt_match,
 		.pm     = &msm_pm_ops,
 	},
-	.id_table   = msm_id,
 };
 
 static int __init msm_drm_register(void)
 {
 	DBG("init");
+	msm_mdp_register();
 	msm_dsi_register();
 	msm_edp_register();
 	msm_hdmi_register();
@@ -904,6 +1036,7 @@ static void __exit msm_drm_unregister(void)
 	adreno_unregister();
 	msm_edp_unregister();
 	msm_dsi_unregister();
+	msm_mdp_unregister();
 }
 
 module_init(msm_drm_register);
