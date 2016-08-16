@@ -363,6 +363,9 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	static const enum mdp5_pipe dma_planes[] = {
 			SSPP_DMA0, SSPP_DMA1,
 	};
+	static const enum mdp5_pipe cursor_planes[] = {
+			SSPP_CURSOR0, SSPP_CURSOR1,
+	};
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	const struct mdp5_cfg_hw *hw_cfg;
@@ -374,8 +377,9 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	for (i = 0; i < hw_cfg->pipe_rgb.count; i++) {
 		struct drm_plane *plane;
 		struct drm_crtc *crtc;
+		struct drm_plane *cursor = NULL;
 
-		plane = mdp5_plane_init(dev, crtcs[i], true,
+		plane = mdp5_plane_init(dev, crtcs[i], DRM_PLANE_TYPE_PRIMARY,
 			hw_cfg->pipe_rgb.base[i], hw_cfg->pipe_rgb.caps);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
@@ -384,7 +388,19 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 			goto fail;
 		}
 
-		crtc  = mdp5_crtc_init(dev, plane, i);
+		if (i < hw_cfg->pipe_cursor.count) {
+			cursor = mdp5_plane_init(dev, cursor_planes[i], DRM_PLANE_TYPE_CURSOR,
+						 hw_cfg->pipe_cursor.base[i],
+						 hw_cfg->pipe_cursor.caps);
+			if (IS_ERR(plane)) {
+				ret = PTR_ERR(plane);
+				dev_err(dev->dev, "failed to construct plane for %s (%d)\n",
+						pipe2name(crtcs[i]), ret);
+				goto fail;
+			}
+		}
+
+		crtc  = mdp5_crtc_init(dev, plane, cursor, i);
 		if (IS_ERR(crtc)) {
 			ret = PTR_ERR(crtc);
 			dev_err(dev->dev, "failed to construct crtc for %s (%d)\n",
@@ -398,7 +414,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	for (i = 0; i < hw_cfg->pipe_vig.count; i++) {
 		struct drm_plane *plane;
 
-		plane = mdp5_plane_init(dev, vig_planes[i], false,
+		plane = mdp5_plane_init(dev, vig_planes[i], DRM_PLANE_TYPE_OVERLAY,
 			hw_cfg->pipe_vig.base[i], hw_cfg->pipe_vig.caps);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
@@ -412,7 +428,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	for (i = 0; i < hw_cfg->pipe_dma.count; i++) {
 		struct drm_plane *plane;
 
-		plane = mdp5_plane_init(dev, dma_planes[i], false,
+		plane = mdp5_plane_init(dev, dma_planes[i], DRM_PLANE_TYPE_OVERLAY,
 				hw_cfg->pipe_dma.base[i], hw_cfg->pipe_dma.caps);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);

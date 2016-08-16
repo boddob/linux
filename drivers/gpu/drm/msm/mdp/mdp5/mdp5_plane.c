@@ -873,13 +873,12 @@ void mdp5_plane_complete_commit(struct drm_plane *plane,
 
 /* initialize plane */
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
-		enum mdp5_pipe pipe, bool private_plane, uint32_t reg_offset,
+		enum mdp5_pipe pipe, enum drm_plane_type type, uint32_t reg_offset,
 		uint32_t caps)
 {
 	struct drm_plane *plane = NULL;
 	struct mdp5_plane *mdp5_plane;
 	int ret;
-	enum drm_plane_type type;
 
 	mdp5_plane = kzalloc(sizeof(*mdp5_plane), GFP_KERNEL);
 	if (!mdp5_plane) {
@@ -901,7 +900,6 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 	mdp5_plane->reg_offset = reg_offset;
 	spin_lock_init(&mdp5_plane->pipe_lock);
 
-	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,
 				 mdp5_plane->formats, mdp5_plane->nformats,
 				 type, NULL);

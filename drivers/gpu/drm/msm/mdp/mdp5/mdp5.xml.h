@@ -67,6 +67,8 @@ enum mdp5_pipe {
 	SSPP_DMA1 = 7,
 	SSPP_VIG3 = 8,
 	SSPP_RGB3 = 9,
+	SSPP_CURSOR0 = 10,
+	SSPP_CURSOR1 = 11,
 };
 
 enum mdp5_ctl_mode {
@@ -534,6 +536,8 @@ static inline uint32_t __offset_PIPE(enum mdp5_pipe idx)
 		case SSPP_DMA1: return (mdp5_cfg->pipe_dma.base[1]);
 		case SSPP_VIG3: return (mdp5_cfg->pipe_vig.base[3]);
 		case SSPP_RGB3: return (mdp5_cfg->pipe_rgb.base[3]);
+		case SSPP_CURSOR0: return (mdp5_cfg->pipe_cursor.base[0]);
+		case SSPP_CURSOR1: return (mdp5_cfg->pipe_cursor.base[1]);
 		default: return INVALID_IDX(idx);
 	}
 }
@@ -1065,6 +1069,9 @@ static inline uint32_t REG_MDP5_LM_BLEND_COLOR_OUT(uint32_t i0) { return 0x00000
 #define MDP5_LM_BLEND_COLOR_OUT_STAGE1_FG_ALPHA			0x00000004
 #define MDP5_LM_BLEND_COLOR_OUT_STAGE2_FG_ALPHA			0x00000008
 #define MDP5_LM_BLEND_COLOR_OUT_STAGE3_FG_ALPHA			0x00000010
+#define MDP5_LM_BLEND_COLOR_OUT_STAGE4_FG_ALPHA			0x00000020
+#define MDP5_LM_BLEND_COLOR_OUT_STAGE5_FG_ALPHA			0x00000040
+#define MDP5_LM_BLEND_COLOR_OUT_STAGE6_FG_ALPHA			0x00000080
 
 static inline uint32_t REG_MDP5_LM_OUT_SIZE(uint32_t i0) { return 0x00000004 + __offset_LM(i0); }
 #define MDP5_LM_OUT_SIZE_HEIGHT__MASK				0xffff0000

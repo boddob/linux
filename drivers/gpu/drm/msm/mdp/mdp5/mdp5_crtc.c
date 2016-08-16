@@ -241,6 +241,7 @@ static void blend_setup(struct drm_crtc *crtc)
 		format = to_mdp_format(
 			msm_framebuffer_format(pstates[i]->base.fb));
 		plane = pstates[i]->base.plane;
+
 		blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_CONST) |
 			MDP5_LM_BLEND_OP_MODE_BG_ALPHA(BG_CONST);
 		fg_alpha = pstates[i]->alpha;
@@ -280,6 +281,9 @@ static void blend_setup(struct drm_crtc *crtc)
 		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_BG_ALPHA(lm,
 				blender(i)), bg_alpha);
 	}
+
+	if (plane_cnt > 1)
+		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(lm), MDP5_LM_BLEND_COLOR_OUT_STAGE6_FG_ALPHA);
 
 	mdp5_ctl_blend(mdp5_crtc->ctl, stage, plane_cnt, ctl_blend_flags);
 
@@ -406,7 +410,11 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	sort(pstates, cnt, sizeof(pstates[0]), pstate_cmp, NULL);
 
 	for (i = 0; i < cnt; i++) {
-		pstates[i].state->stage = STAGE_BASE + i;
+		if (pstates[i].plane->type == DRM_PLANE_TYPE_CURSOR)
+			pstates[i].state->stage = STAGE6;
+		else
+			pstates[i].state->stage = STAGE_BASE + i;
+
 		DBG("%s: assign pipe %s on stage=%d", mdp5_crtc->name,
 				pipe2name(mdp5_plane_pipe(pstates[i].plane)),
 				pstates[i].state->stage);
@@ -617,6 +625,16 @@ static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.cursor_move = mdp5_crtc_cursor_move,
 };
 
+static const struct drm_crtc_funcs mdp5_crtc_funcs_no_cursor = {
+	.set_config = drm_atomic_helper_set_config,
+	.destroy = mdp5_crtc_destroy,
+	.page_flip = drm_atomic_helper_page_flip,
+	.set_property = drm_atomic_helper_crtc_set_property,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+};
+
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
 	.mode_set_nofb = mdp5_crtc_mode_set_nofb,
 	.disable = mdp5_crtc_disable,
@@ -750,7 +768,7 @@ void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc)
 
 /* initialize crtc */
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
-		struct drm_plane *plane, int id)
+		struct drm_plane *plane, struct drm_plane *cursor, int id)
 {
 	struct drm_crtc *crtc = NULL;
 	struct mdp5_crtc *mdp5_crtc;
@@ -774,8 +792,12 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 	snprintf(mdp5_crtc->name, sizeof(mdp5_crtc->name), "%s:%d",
 			pipe2name(mdp5_plane_pipe(plane)), id);
 
-	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp5_crtc_funcs,
-				  NULL);
+	if (cursor)
+		drm_crtc_init_with_planes(dev, crtc, plane, cursor,
+					  &mdp5_crtc_funcs_no_cursor, NULL);
+	else
+		drm_crtc_init_with_planes(dev, crtc, plane, cursor,
+					  &mdp5_crtc_funcs, NULL);
 
 	drm_flip_work_init(&mdp5_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);

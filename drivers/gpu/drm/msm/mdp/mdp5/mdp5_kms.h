@@ -128,6 +128,7 @@ static inline const char *pipe2name(enum mdp5_pipe pipe)
 		NAME(RGB0), NAME(RGB1), NAME(RGB2),
 		NAME(DMA0), NAME(DMA1),
 		NAME(VIG3), NAME(RGB3),
+		NAME(CURSOR0), NAME(CURSOR1),
 #undef NAME
 	};
 	return names[pipe];
@@ -207,7 +208,7 @@ void mdp5_plane_complete_commit(struct drm_plane *plane,
 	struct drm_plane_state *state);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
-		enum mdp5_pipe pipe, bool private_plane,
+		enum mdp5_pipe pipe, enum drm_plane_type type,
 		uint32_t reg_offset, uint32_t caps);
 
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
@@ -217,7 +218,7 @@ void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
 		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
 void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc);
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
-		struct drm_plane *plane, int id);
+		struct drm_plane *plane, struct drm_plane *cursor, int id);
 
 struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
