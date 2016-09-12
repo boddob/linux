@@ -38,6 +38,7 @@ struct hikey_panel {
 	bool prepared;
 	bool enabled;
 
+	struct gpio_desc *mipisw;
 	struct gpio_desc *gpio_pwr_en;
 	struct gpio_desc *gpio_bl_en;
 	struct gpio_desc *gpio_pwm;
@@ -319,7 +320,7 @@ static int hikey_panel_enable(struct drm_panel *p)
 
 	msleep(200);
 	gpiod_set_value(panel->gpio_bl_en, 1);
-	gpiod_set_value(panel->gpio_pwm, 0);
+	gpiod_set_value(panel->gpio_pwm, 1);
 
 	panel->enabled = true;
 
@@ -410,6 +411,11 @@ static int hikey_panel_parse_dt(struct hikey_panel *panel)
 {
 	struct device *dev = &panel->dsi->dev;
 
+	panel->mipisw =
+		devm_gpiod_get_optional(dev, "mipisw", GPIOD_OUT_HIGH);
+	if (IS_ERR(panel->mipisw))
+		return PTR_ERR(panel->mipisw);
+
 	panel->gpio_pwr_en =
 		devm_gpiod_get_optional(dev, "pwr-en", GPIOD_OUT_HIGH);
 	if (IS_ERR(panel->gpio_pwr_en))
@@ -425,6 +431,11 @@ static int hikey_panel_parse_dt(struct hikey_panel *panel)
 	if (IS_ERR(panel->gpio_pwm))
 		return PTR_ERR(panel->gpio_pwm);
 
+	if (panel->mipisw) {
+		mdelay(5);
+		gpiod_set_value_cansleep(panel->mipisw, 1);
+	}
+
 	return 0;
 }
 
@@ -436,8 +447,8 @@ static int hikey_panel_attach_dsi(struct mipi_dsi_device *dsi)
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-			  MIPI_DSI_MODE_VIDEO_BURST | MIPI_DSI_MODE_VIDEO_HSE |
-			  MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM;
+			  MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_CLOCK_NON_CONTINUOUS |
+			  MIPI_DSI_MODE_LPM;
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret) {
