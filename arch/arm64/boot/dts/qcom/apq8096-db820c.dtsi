@@ -179,6 +179,56 @@
 				status = "okay";
 			};
 
+			dsi@994000 {
+				vddio-supply = <&pm8994_l14>;
+				vdda-supply = <&pm8994_l2>;
+				vcca-supply = <&pm8994_l28>;
+				status = "okay";
+
+				panel@0 {
+					//LeMaker panel
+					//compatible = "innolux,n070icn-pb1";
+					//reg = <0>;
+					//power-on-delay= <50>;
+					//reset-delay = <100>;
+					//init-delay = <100>;
+					//panel-width-mm = <58>;
+					//panel-height-mm = <103>;
+
+					//pwr-en-gpio = <&msmgpio 29 0>;
+					//bl-en-gpio = <&msmgpio 24 0>;
+					//pwm-gpio = <&pm8994_mpps 4 0>;
+
+					//dummy panel
+					compatible = "lg,ld070wx3-sl01";
+					reg = <0>;
+					//power-supply = <&pm8994_l14>;
+
+					port {
+						panel_in: endpoint {
+							remote-endpoint = <&dsi0_out>;
+						};
+					};
+				};
+
+				ports {
+					port@1 {
+						endpoint {
+							remote-endpoint = <&panel_in>;
+							data-lanes = <0 1 2 3>;
+						};
+					};
+				};
+			};
+
+			dsi-phy@994400 {
+				status = "okay";
+
+				vddio-supply = <&pm8994_l14>;
+				vdda-supply = <&pm8994_l2>;
+				vcca-supply = <&pm8994_l28>;
+			};
+
 			hdmi-phy@9a0600 {
 				status = "okay";
 
