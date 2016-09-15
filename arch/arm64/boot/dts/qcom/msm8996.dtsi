@@ -19,6 +19,9 @@
 / {
 	model = "Qualcomm Technologies, Inc. MSM8996";
 
+	qcom,pmic-id = <0x20009 0x10113 0x0 0x0>;
+	qcom,msm-id = <305 0x10000>;
+
 	interrupt-parent = <&intc>;
 
 	#address-cells = <2>;
