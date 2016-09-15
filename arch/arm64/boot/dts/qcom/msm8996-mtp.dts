@@ -18,4 +18,5 @@
 / {
 	model = "Qualcomm Technologies, Inc. MSM 8996 MTP";
 	compatible = "qcom,msm8996-mtp";
+	qcom,board-id = <8 0>;
 };
