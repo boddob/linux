@@ -26,5 +26,93 @@
 		serial@75b0000 {
 			status = "okay";
 		};
+
+		mdss@900000 {
+			status = "okay";
+
+			mdp@901000 {
+				status = "okay";
+			};
+
+			dsi@994000 {
+				status = "okay";
+
+				qcom,dual-dsi-mode;
+				qcom,master-dsi;
+				qcom,sync-dual-dsi;
+
+				panel@0 {
+					compatible = "sharp,dual_wqxga";
+					reg = <0>;
+					link2 = <&link2>;
+
+					reset-gpios = <&msmgpio 8 0>;
+
+					display-timings {
+						timing0: timing-0 {
+						clock-frequency = <285405120>;
+						hactive = <1600>;
+						vactive = <2560>;
+						hfront-porch = <152>;
+						hback-porch = <64>;
+						hsync-len = <32>;
+						vfront-porch = <11>;
+						vback-porch = <2>;
+						vsync-len = <1>;
+						};
+					};
+
+					port {
+						panel0_in: endpoint {
+							remote-endpoint = <&dsi0_out>;
+						};
+					};
+				};
+
+				ports {
+					port@1 {
+						endpoint {
+							remote-endpoint = <&panel0_in>;
+							data-lanes = <0 1 2 3>;
+						};
+					};
+				};
+			};
+
+			dsi-phy@994400 {
+				status = "okay";
+			};
+
+			dsi@996000 {
+				status = "okay";
+
+				qcom,dual-dsi-mode;
+				qcom,sync-dual-dsi;
+
+				link2: panel@0 {
+					compatible = "sharp,dual_wqxga";
+					reg = <0>;
+
+					port {
+						panel1_in: endpoint {
+							remote-endpoint = <&dsi1_out>;
+						};
+					};
+				};
+
+				ports {
+					port@1 {
+						endpoint {
+							remote-endpoint = <&panel1_in>;
+							data-lanes = <0 1 2 3>;
+						};
+					};
+				};
+			};
+
+			dsi-phy@996400 {
+				status = "okay";
+			};
+		};
 	};
 };
