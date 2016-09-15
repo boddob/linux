@@ -714,7 +714,7 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	struct mdp5_kms *mdp5_kms;
 	struct mdp5_cfg *config;
 	u32 major, minor;
-	int ret;
+	int i, ret;
 
 	mdp5_kms = devm_kzalloc(&pdev->dev, sizeof(*mdp5_kms), GFP_KERNEL);
 	if (!mdp5_kms) {
@@ -780,6 +780,21 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 
 	config = mdp5_cfg_get_config(mdp5_kms->cfg);
 	mdp5_kms->caps = config->hw->mdp.caps;
+
+#if 0
+	/* test start */
+	mdp5_enable(mdp5_kms);
+	for (i = 0; i < MDP5_INTF_NUM_MAX; i++) {
+		if (mdp5_cfg_intf_is_virtual(config->hw->intf.connect[i]) ||
+		    !config->hw->intf.base[i])
+			continue;
+		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(i), 0);
+
+		mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(i), 0x3);
+	}
+	mdp5_disable(mdp5_kms);
+	/* test stop */
+#endif
 
 	/* TODO: compute core clock rate at runtime */
 	clk_set_rate(mdp5_kms->core_clk, config->hw->max_clk);

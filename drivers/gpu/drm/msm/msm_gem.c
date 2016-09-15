@@ -327,6 +327,7 @@ int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 			ret = mmu->funcs->map(mmu, offset, msm_obj->sgt,
 					obj->size, IOMMU_READ | IOMMU_WRITE);
 			msm_obj->domain[id].iova = offset;
+			printk(KERN_ERR "got IOVA %x\n", offset);
 		} else {
 			msm_obj->domain[id].iova = physaddr(obj);
 		}

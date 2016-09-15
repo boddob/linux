@@ -408,6 +408,8 @@ static void set_scanout_locked(struct drm_plane *plane,
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC3_ADDR(pipe),
 			msm_framebuffer_iova(fb, mdp5_kms->id, 3));
 
+	printk(KERN_ERR "SRCADDR for plane %d => %x, pitch %d\n", pipe, mdp5_read(mdp5_kms, REG_MDP5_PIPE_SRC0_ADDR(pipe)), fb->pitches[0]);
+
 	plane->fb = fb;
 }
 
