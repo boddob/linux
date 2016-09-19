@@ -3348,15 +3348,19 @@ static int mmcc_msm8996_probe(struct platform_device *pdev)
        printk(KERN_ERR "%s CMD %x\n", __func__, val);
 
 	/* byte0/1, pck0/1 */
+       //regmap_update_bits(regmap, 0x233c, BIT(0), 0);
        regmap_update_bits(regmap, 0x2124, BIT(8), 0);
        regmap_update_bits(regmap, 0x2120, BIT(0), 1);
 
+       //regmap_update_bits(regmap, 0x2340, BIT(0), 0);
        regmap_update_bits(regmap, 0x2144, BIT(8), 0);
        regmap_update_bits(regmap, 0x2140, BIT(0), 1);
 
+       //regmap_update_bits(regmap, 0x2314, BIT(0), 0);
        regmap_update_bits(regmap, 0x2004, BIT(8), 0);
        regmap_update_bits(regmap, 0x2000, BIT(0), 1);
 
+       //regmap_update_bits(regmap, 0x2318, BIT(0), 0);
        regmap_update_bits(regmap, 0x2024, BIT(8), 0);
        regmap_update_bits(regmap, 0x2020, BIT(0), 1);
 #endif

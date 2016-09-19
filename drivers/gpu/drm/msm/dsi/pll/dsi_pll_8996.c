@@ -429,6 +429,8 @@ static void pll_db_commit_8996(struct dsi_pll_8996 *pll,
 	void __iomem *cmn_base = pll->phy_cmn_mmio;
 	u8 data;
 
+	DBG("PLL%d", pll->id);
+
 	data = pout->cmn_ldo_cntrl;
 	pll_write(cmn_base + DSIPHY_CMN_LDO_CNTRL, data);
 
@@ -510,7 +512,7 @@ static int dsi_pll_8996_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct dsi_pll_input *pin = &pll_8996->in;
 	struct dsi_pll_output *pout = &pll_8996->out;
 
-	DBG("rate=%lu, parent's=%lu", rate, parent_rate);
+	DBG("DSI PLL%d rate=%lu, parent's=%lu", pll_8996->id, rate, parent_rate);
 	/* Write to DSIPHY_PLL_PLL_LPF2_POSTDIV and DSIPHY_CMN_CLK_CFG1 at some point here */
 
 	pll_8996->vco_current_rate = rate;
@@ -533,7 +535,7 @@ static int dsi_pll_8996_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	pll_8996_calc_vco_count(pll_8996, rate, VCO_REF_CLK_RATE);
 
-	if (pll_8996->uc == MSM_DSI_PHY_MASTER) {
+	if (1/*pll_8996->uc == MSM_DSI_PHY_MASTER*/) {
 		struct dsi_pll_8996 *pll_8996_slave = pll_list[1];
 
 		/* HACK */
@@ -656,7 +658,7 @@ static int dsi_pll_8996_restore_state(struct msm_dsi_pll *pll)
 
 	data = cached_state->n1postdiv | ( cached_state->n2postdiv << 4);
 	DBG("restore state %x %x", cached_state->n1postdiv, cached_state->n2postdiv);
-	pll_write(cmn_base + DSIPHY_CMN_CLK_CFG0, data);
+	pll_write(cmn_base + DSIPHY_CMN_CLK_CFG0, 0x32 /*data */);
 
 	return 0;
 }
@@ -800,6 +802,8 @@ struct msm_dsi_pll *msm_dsi_pll_8996_init(struct platform_device *pdev, int id)
 	if (!pll_8996)
 		return ERR_PTR(-ENOMEM);
 
+	DBG("PLL%d", id);
+
 	pll_8996->pdev = pdev;
 	pll_8996->id = id;
 	pll_list[id] = pll_8996;
@@ -827,7 +831,7 @@ struct msm_dsi_pll *msm_dsi_pll_8996_init(struct platform_device *pdev, int id)
 	pll->set_usecase = dsi_pll_8996_set_usecase;
 
 	pll_8996->vco_delay = 1;
-	pll_8996->ssc_en = true;
+	pll_8996->ssc_en = false;
 
 	pll->en_seq_cnt = 1;
 	pll->enable_seqs[0] = dsi_pll_8996_enable_seq;

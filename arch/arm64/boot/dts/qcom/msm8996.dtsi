@@ -928,7 +928,6 @@
 				reg-names = "dsi_phy",
 					    "dsi_pll";
 
-				power-domains = <&mmcc MDSS_GDSC>;
 				#clock-cells = <1>;
 
 				clocks = <&mmcc MMSS_MMAGIC_AHB_CLK>,
@@ -1000,7 +999,6 @@
 				reg-names = "dsi_phy",
 					    "dsi_pll";
 
-				power-domains = <&mmcc MDSS_GDSC>;
 				#clock-cells = <1>;
 
 				clocks = <&mmcc MMSS_MMAGIC_AHB_CLK>,

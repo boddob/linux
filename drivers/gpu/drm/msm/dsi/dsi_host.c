@@ -719,7 +719,7 @@ static void dsi_intr_ctrl(struct msm_dsi_host *msm_host, u32 mask, int enable)
 	else
 		intr &= ~mask;
 
-	DBG("intr=%x enable=%d", intr, enable);
+	//DBG("intr=%x enable=%d", intr, enable);
 
 	dsi_write(msm_host, REG_DSI_INTR_CTRL, intr);
 	spin_unlock_irqrestore(&msm_host->intr_lock, flags);
@@ -1181,7 +1181,7 @@ static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
 	if (triggered) {
 		ret = wait_for_completion_timeout(&msm_host->dma_comp,
 					msecs_to_jiffies(200));
-		DBG("ret=%d", ret);
+		DBG("DSI%d ret=%d", msm_host->id, ret);
 		if (ret == 0)
 			ret = -ETIMEDOUT;
 		else
@@ -1313,7 +1313,7 @@ static void dsi_err_worker(struct work_struct *work)
 		container_of(work, struct msm_dsi_host, err_work);
 	u32 status = msm_host->err_work_state;
 
-	pr_err_ratelimited("%s: status=%x\n", __func__, status);
+	pr_err_ratelimited("%s: DSI%d status=%x\n", __func__, msm_host->id, status);
 	if (status & DSI_ERR_STATE_MDP_FIFO_UNDERFLOW)
 		dsi_sw_reset_restore(msm_host);
 
@@ -1330,6 +1330,8 @@ static void dsi_ack_err_status(struct msm_dsi_host *msm_host)
 
 	status = dsi_read(msm_host, REG_DSI_ACK_ERR_STATUS);
 
+	//DBG("DSI%d %x", msm_host->id, status);
+
 	if (status) {
 		dsi_write(msm_host, REG_DSI_ACK_ERR_STATUS, status);
 		/* Writing of an extra 0 needed to clear error bits */
@@ -1344,6 +1346,7 @@ static void dsi_timeout_status(struct msm_dsi_host *msm_host)
 
 	status = dsi_read(msm_host, REG_DSI_TIMEOUT_STATUS);
 
+	//DBG("DSI%d %x", msm_host->id, status);
 	if (status) {
 		dsi_write(msm_host, REG_DSI_TIMEOUT_STATUS, status);
 		msm_host->err_work_state |= DSI_ERR_STATE_TIMEOUT;
@@ -1356,6 +1359,7 @@ static void dsi_dln0_phy_err(struct msm_dsi_host *msm_host)
 
 	status = dsi_read(msm_host, REG_DSI_DLN0_PHY_ERR);
 
+	//DBG("DSI%d %x", msm_host->id, status);
 	if (status & (DSI_DLN0_PHY_ERR_DLN0_ERR_ESC |
 			DSI_DLN0_PHY_ERR_DLN0_ERR_SYNC_ESC |
 			DSI_DLN0_PHY_ERR_DLN0_ERR_CONTROL |
@@ -1372,6 +1376,7 @@ static void dsi_fifo_status(struct msm_dsi_host *msm_host)
 
 	status = dsi_read(msm_host, REG_DSI_FIFO_STATUS);
 
+	//DBG("DSI%d %x", msm_host->id, status);
 	/* fifo underflow, overflow */
 	if (status) {
 		dsi_write(msm_host, REG_DSI_FIFO_STATUS, status);
@@ -1388,6 +1393,7 @@ static void dsi_status(struct msm_dsi_host *msm_host)
 
 	status = dsi_read(msm_host, REG_DSI_STATUS0);
 
+	//DBG("DSI%d %x", msm_host->id, status);
 	if (status & DSI_STATUS0_INTERLEAVE_OP_CONTENTION) {
 		dsi_write(msm_host, REG_DSI_STATUS0, status);
 		msm_host->err_work_state |=
@@ -1401,6 +1407,7 @@ static void dsi_clk_status(struct msm_dsi_host *msm_host)
 
 	status = dsi_read(msm_host, REG_DSI_CLK_STATUS);
 
+	//DBG("DSI%d %x", msm_host->id, status);
 	if (status & DSI_CLK_STATUS_PLL_UNLOCKED) {
 		dsi_write(msm_host, REG_DSI_CLK_STATUS, status);
 		msm_host->err_work_state |= DSI_ERR_STATE_PLL_UNLOCKED;
@@ -1436,7 +1443,7 @@ static irqreturn_t dsi_host_irq(int irq, void *ptr)
 	dsi_write(msm_host, REG_DSI_INTR_CTRL, isr);
 	spin_unlock_irqrestore(&msm_host->intr_lock, flags);
 
-	DBG("isr=0x%x, id=%d", isr, msm_host->id);
+	//DBG("isr=0x%x, id=%d", isr, msm_host->id);
 
 	if (isr & DSI_IRQ_ERROR)
 		dsi_error(msm_host);
@@ -2196,6 +2203,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	int ret = 0;
 
+	DBG("DSI%d", msm_host->id);
 	mutex_lock(&msm_host->dev_mutex);
 	if (msm_host->power_on) {
 		DBG("dsi host already on");

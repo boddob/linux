@@ -130,7 +130,6 @@ static int enable_phy(struct msm_dsi *msm_dsi, int src_pll_id,
 	struct msm_dsi_phy_clk_request clk_req;
 	int ret;
 
-	msm_dsi_host_reset_phy(msm_dsi->host);
 	msm_dsi_host_get_phy_clk_req(msm_dsi->host, &clk_req);
 
 	ret = msm_dsi_phy_enable(msm_dsi->phy, src_pll_id, &clk_req);
@@ -155,6 +154,9 @@ static int dsi_mgr_phy_enable(int id,
 	 */
 	if (IS_DUAL_DSI() && mdsi && sdsi) {
 		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
+			msm_dsi_host_reset_phy(mdsi->host);
+			msm_dsi_host_reset_phy(sdsi->host);
+
 			ret = enable_phy(mdsi, src_pll_id,
 					&shared_timings[DSI_CLOCK_MASTER]);
 			if (ret)

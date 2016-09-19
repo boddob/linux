@@ -42,8 +42,25 @@
 				qcom,sync-dual-dsi;
 
 				panel@0 {
-					compatible = "lg,ld070wx3-sl01";
+					compatible = "sharp,dual_wqxga";
 					reg = <0>;
+					link2 = <&link2>;
+
+					reset-gpios = <&msmgpio 8 0>;
+
+					display-timings {
+						timing0: timing-0 {
+						clock-frequency = <285405120>;
+						hactive = <1600>;
+						vactive = <2560>;
+						hfront-porch = <152>;
+						hback-porch = <64>;
+						hsync-len = <32>;
+						vfront-porch = <11>;
+						vback-porch = <2>;
+						vsync-len = <1>;
+						};
+					};
 
 					port {
 						panel0_in: endpoint {
@@ -69,8 +86,11 @@
 			dsi@996000 {
 				status = "okay";
 
-				panel@0 {
-					compatible = "lg,ld070wx3-sl01";
+				qcom,dual-dsi-mode;
+				qcom,sync-dual-dsi;
+
+				link2: panel@0 {
+					compatible = "sharp,dual_wqxga";
 					reg = <0>;
 
 					port {
