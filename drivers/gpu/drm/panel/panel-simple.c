@@ -1617,15 +1617,15 @@ static const struct panel_desc_dsi boe_tv080wum_nl0 = {
 };
 
 static const struct drm_display_mode lg_ld070wx3_sl01_mode = {
-	.clock = 71000,
-	.hdisplay = 800,
-	.hsync_start = 800 + 32,
-	.hsync_end = 800 + 32 + 1,
-	.htotal = 800 + 32 + 1 + 57,
-	.vdisplay = 1280,
-	.vsync_start = 1280 + 28,
-	.vsync_end = 1280 + 28 + 1,
-	.vtotal = 1280 + 28 + 1 + 14,
+	.clock = 266255,
+	.hdisplay = 1600,
+	.hsync_start = 1600 + 76,
+	.hsync_end = 1600 + 76 + 16,
+	.htotal = 1600 + 76 + 16 + 32,
+	.vdisplay = 2560,
+	.vsync_start = 2560 + 11,
+	.vsync_end = 2560 + 11 + 1,
+	.vtotal = 2560 + 11 + 1 + 2,
 	.vrefresh = 60,
 };
 

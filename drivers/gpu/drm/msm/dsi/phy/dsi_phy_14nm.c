@@ -67,13 +67,6 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 		return -EINVAL;
 	}
 
-	ret = msm_dsi_pll_set_usecase(phy->pll, phy->usecase);
-	if (ret) {
-		dev_err(&phy->pdev->dev, "%s: set pll usecase failed, %d\n",
-			__func__, ret);
-		return ret;
-	}
-
 	data = 0x1c;
 	if (phy->usecase != MSM_DSI_PHY_STANDALONE)
 		data |= DSI_14nm_PHY_LDO_CNTRL_DUMMY_LOAD_EN;
@@ -113,6 +106,13 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	msm_dsi_phy_set_src_pll(phy, src_pll_id,
 				REG_DSI_14nm_PHY_GLBL_TEST_CTRL,
 				DSI_14nm_PHY_GLBL_TEST_CTRL_BITCLK_HS_SEL);
+
+	ret = msm_dsi_pll_set_usecase(phy->pll, phy->usecase);
+	if (ret) {
+		dev_err(&phy->pdev->dev, "%s: set pll usecase failed, %d\n",
+			__func__, ret);
+		return ret;
+	}
 
 	/* Remove power down from PLL and all lanes */
 	dsi_phy_write(base + REG_DSI_14nm_PHY_CTRL_0, 0xff);

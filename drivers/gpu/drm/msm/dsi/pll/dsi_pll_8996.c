@@ -88,7 +88,11 @@ struct dsi_pll_8996 {
 	struct clk_onecell_data clk_data;
 
 	struct pll_8996_cached_state cached_state;
+
+	enum msm_dsi_phy_usecase uc;
 };
+
+struct dsi_pll_8996 *pll_list[2];
 
 #define to_pll_8996(x)	container_of(x, struct dsi_pll_8996, base)
 
@@ -333,11 +337,11 @@ static void pll_db_commit_ssc(struct dsi_pll_8996 *pll)
 	wmb();	/* make sure register committed */
 }
 
-static void pll_db_commit_common(struct dsi_pll_8996 *pll)
+static void pll_db_commit_common(struct dsi_pll_8996 *pll,
+				 struct dsi_pll_input *pin,
+				 struct dsi_pll_output *pout)
 {
 	void __iomem *base = pll->mmio;
-	struct dsi_pll_input *pin = &pll->in;
-	struct dsi_pll_output *pout = &pll->out;
 	u8 data;
 
 	/* confgiure the non frequency dependent pll registers */
@@ -417,18 +421,18 @@ static void pll_8996_software_reset(struct dsi_pll_8996 *pll_8996)
 	wmb();	/* make sure register committed */
 }
 
-static void pll_db_commit_8996(struct dsi_pll_8996 *pll)
+static void pll_db_commit_8996(struct dsi_pll_8996 *pll,
+			       struct dsi_pll_input *pin,
+			       struct dsi_pll_output *pout)
 {
 	void __iomem *base = pll->mmio;
 	void __iomem *cmn_base = pll->phy_cmn_mmio;
-	struct dsi_pll_input *pin = &pll->in;
-	struct dsi_pll_output *pout = &pll->out;
 	u8 data;
 
 	data = pout->cmn_ldo_cntrl;
 	pll_write(cmn_base + DSIPHY_CMN_LDO_CNTRL, data);
 
-	pll_db_commit_common(pll);
+	pll_db_commit_common(pll, pin, pout);
 
 	pll_8996_software_reset(pll);
 
@@ -503,6 +507,8 @@ static int dsi_pll_8996_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct msm_dsi_pll *pll = hw_clk_to_pll(hw);
 	struct dsi_pll_8996 *pll_8996 = to_pll_8996(pll);
+	struct dsi_pll_input *pin = &pll_8996->in;
+	struct dsi_pll_output *pout = &pll_8996->out;
 
 	DBG("rate=%lu, parent's=%lu", rate, parent_rate);
 	/* Write to DSIPHY_PLL_PLL_LPF2_POSTDIV and DSIPHY_CMN_CLK_CFG1 at some point here */
@@ -527,7 +533,15 @@ static int dsi_pll_8996_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	pll_8996_calc_vco_count(pll_8996, rate, VCO_REF_CLK_RATE);
 
-	pll_db_commit_8996(pll_8996);
+	if (pll_8996->uc == MSM_DSI_PHY_MASTER) {
+		struct dsi_pll_8996 *pll_8996_slave = pll_list[1];
+
+		/* HACK */
+		pll_write(pll_8996_slave->phy_cmn_mmio + DSIPHY_CMN_CLK_CFG0, 0x32);
+		pll_db_commit_8996(pll_8996_slave, pin, pout);
+	}
+
+	pll_db_commit_8996(pll_8996, pin, pout);
 
 	return 0;
 }
@@ -647,6 +661,37 @@ static int dsi_pll_8996_restore_state(struct msm_dsi_pll *pll)
 	return 0;
 }
 
+static int dsi_pll_8996_set_usecase(struct msm_dsi_pll *pll,
+				    enum msm_dsi_phy_usecase uc)
+{
+	struct dsi_pll_8996 *pll_8996 = to_pll_8996(pll);
+	void __iomem *base = pll_8996->mmio;
+	u32 clkbuflr_en, bandgap = 0;
+
+	switch (uc) {
+	case MSM_DSI_PHY_STANDALONE:
+		clkbuflr_en = 0x1;
+		break;
+	case MSM_DSI_PHY_MASTER:
+		clkbuflr_en = 0x3;
+		break;
+	case MSM_DSI_PHY_SLAVE:
+		clkbuflr_en = 0x0;
+		bandgap = 0x3;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	pll_write(base + DSIPHY_PLL_CLKBUFLR_EN, clkbuflr_en);
+	if (bandgap)
+		pll_write(base + DSIPHY_PLL_PLL_BANDGAP, bandgap);
+
+	pll_8996->uc = uc;
+
+	return 0;
+}
+
 static int dsi_pll_8996_get_provider(struct msm_dsi_pll *pll,
 				struct clk **byte_clk_provider,
 				struct clk **pixel_clk_provider)
@@ -757,6 +802,7 @@ struct msm_dsi_pll *msm_dsi_pll_8996_init(struct platform_device *pdev, int id)
 
 	pll_8996->pdev = pdev;
 	pll_8996->id = id;
+	pll_list[id] = pll_8996;
 
 	pll_8996->phy_cmn_mmio = msm_ioremap(pdev, "dsi_phy", "DSI_PHY");
 	if (IS_ERR_OR_NULL(pll_8996->phy_cmn_mmio)) {
@@ -778,6 +824,7 @@ struct msm_dsi_pll *msm_dsi_pll_8996_init(struct platform_device *pdev, int id)
 	pll->disable_seq = dsi_pll_8996_disable_seq;
 	pll->save_state = dsi_pll_8996_save_state;
 	pll->restore_state = dsi_pll_8996_restore_state;
+	pll->set_usecase = dsi_pll_8996_set_usecase;
 
 	pll_8996->vco_delay = 1;
 	pll_8996->ssc_en = true;
