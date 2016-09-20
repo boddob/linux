@@ -897,6 +897,7 @@ static int add_components_mdp(struct device *mdp_dev,
 
 	for_each_endpoint_of_node(np, ep_node) {
 		struct device_node *intf;
+		struct device_node *intf_phy;
 		struct of_endpoint ep;
 		int ret;
 
@@ -926,6 +927,14 @@ static int add_components_mdp(struct device *mdp_dev,
 		if (!intf) {
 			of_node_put(ep_node);
 			continue;
+		}
+
+		/* let's assume only one phy per interface right now */
+		intf_phy = of_parse_phandle(intf, "phys", 0);
+		if (intf_phy) {
+			component_match_add(master_dev, matchptr, compare_of,
+					    intf_phy);
+			of_node_put(intf_phy);
 		}
 
 		component_match_add(master_dev, matchptr, compare_of, intf);

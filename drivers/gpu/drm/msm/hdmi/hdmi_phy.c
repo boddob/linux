@@ -143,9 +143,9 @@ static int msm_hdmi_phy_pll_init(struct platform_device *pdev,
 	return ret;
 }
 
-static int msm_hdmi_phy_probe(struct platform_device *pdev)
+static int hdmi_phy_bind(struct device *dev, struct device *master, void *data)
 {
-	struct device *dev = &pdev->dev;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct hdmi_phy *phy;
 	int ret;
 
@@ -189,11 +189,12 @@ static int msm_hdmi_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int msm_hdmi_phy_remove(struct platform_device *pdev)
+static void hdmi_phy_unbind(struct device *dev, struct device *master,
+			   void *data)
 {
-	pm_runtime_disable(&pdev->dev);
+	struct platform_device *pdev = to_platform_device(dev);
 
-	return 0;
+	pm_runtime_disable(&pdev->dev);
 }
 
 static const struct of_device_id msm_hdmi_phy_dt_match[] = {
@@ -209,6 +210,24 @@ static const struct of_device_id msm_hdmi_phy_dt_match[] = {
 	  .data = &msm_hdmi_phy_8996_cfg },
 	{}
 };
+
+static const struct component_ops hdmi_phy_ops = {
+	.bind   = hdmi_phy_bind,
+	.unbind = hdmi_phy_unbind,
+};
+
+static int msm_hdmi_phy_probe(struct platform_device *pdev)
+{
+	DBG("");
+	return component_add(&pdev->dev, &hdmi_phy_ops);
+}
+
+static int msm_hdmi_phy_remove(struct platform_device *pdev)
+{
+	DBG("");
+	component_del(&pdev->dev, &hdmi_phy_ops);
+	return 0;
+}
 
 static struct platform_driver msm_hdmi_phy_platform_driver = {
 	.probe      = msm_hdmi_phy_probe,

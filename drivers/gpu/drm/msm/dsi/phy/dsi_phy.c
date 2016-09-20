@@ -295,10 +295,10 @@ static int dsi_phy_get_id(struct msm_dsi_phy *phy)
 	return -EINVAL;
 }
 
-static int dsi_phy_driver_probe(struct platform_device *pdev)
+static int dsi_phy_bind(struct device *dev, struct device *master, void *data)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct msm_dsi_phy *phy;
-	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
 	int ret;
 
@@ -376,8 +376,10 @@ fail:
 	return ret;
 }
 
-static int dsi_phy_driver_remove(struct platform_device *pdev)
+static void dsi_phy_unbind(struct device *dev, struct device *master,
+			   void *data)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct msm_dsi_phy *phy = platform_get_drvdata(pdev);
 
 	if (phy && phy->pll) {
@@ -386,13 +388,29 @@ static int dsi_phy_driver_remove(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, NULL);
+}
 
+static const struct component_ops dsi_phy_ops = {
+	.bind   = dsi_phy_bind,
+	.unbind = dsi_phy_unbind,
+};
+
+static int msm_dsi_phy_driver_probe(struct platform_device *pdev)
+{
+	DBG("");
+	return component_add(&pdev->dev, &dsi_phy_ops);
+}
+
+static int msm_dsi_phy_driver_remove(struct platform_device *pdev)
+{
+	DBG("");
+	component_del(&pdev->dev, &dsi_phy_ops);
 	return 0;
 }
 
 static struct platform_driver dsi_phy_platform_driver = {
-	.probe      = dsi_phy_driver_probe,
-	.remove     = dsi_phy_driver_remove,
+	.probe      = msm_dsi_phy_driver_probe,
+	.remove     = msm_dsi_phy_driver_remove,
 	.driver     = {
 		.name   = "msm_dsi_phy",
 		.of_match_table = dsi_phy_dt_match,
