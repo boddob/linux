@@ -41,6 +41,8 @@ struct hdmi_pll_8996 {
 	void __iomem *mmio_qserdes_com;
 	/* tx channel base */
 	void __iomem *mmio_qserdes_tx[HDMI_NUM_TX_CHANNEL];
+
+	bool enabled;
 };
 
 #define hw_clk_to_pll(x) container_of(x, struct hdmi_pll_8996, clk_hw)
@@ -633,6 +635,8 @@ static int hdmi_8996_pll_prepare(struct clk_hw *hw)
 	udelay(1);
 	hdmi_phy_write(phy, REG_HDMI_8996_PHY_CFG, 0x19);
 
+	pll->enabled = true;
+
 	return 0;
 }
 
@@ -670,6 +674,8 @@ static unsigned long hdmi_8996_pll_recalc_rate(struct clk_hw *hw,
 
 static void hdmi_8996_pll_unprepare(struct clk_hw *hw)
 {
+	struct hdmi_pll_8996 *pll = hw_clk_to_pll(hw);
+	pll->enabled = false;
 }
 
 static int hdmi_8996_pll_is_enabled(struct clk_hw *hw)
@@ -678,10 +684,11 @@ static int hdmi_8996_pll_is_enabled(struct clk_hw *hw)
 	u32 status;
 	int pll_locked;
 
-	status = hdmi_pll_read(pll, REG_HDMI_PHY_QSERDES_COM_C_READY_STATUS);
-	pll_locked = status & BIT(0);
+	return pll->enabled;
+	//status = hdmi_pll_read(pll, REG_HDMI_PHY_QSERDES_COM_C_READY_STATUS);
+	//pll_locked = status & BIT(0);
 
-	return pll_locked;
+	//return pll_locked;
 }
 
 static struct clk_ops hdmi_8996_pll_ops = {

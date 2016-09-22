@@ -860,7 +860,6 @@
 				interrupt-parent = <&mdss>;
 				interrupts = <8 0>;
 
-				power-domains = <&mmcc MDSS_GDSC>;
 				clocks = <&mmcc MDSS_MDP_CLK>,
 					 <&mmcc MMSS_MMAGIC_AHB_CLK>,
 					 <&mmcc MDSS_AHB_CLK>,
@@ -906,11 +905,11 @@
 					    "hdmi_tx_l3",
 					    "hdmi_phy";
 
-				clocks = <&mmcc MDSS_AHB_CLK>,
-					 <&mmcc MMSS_MMAGIC_AHB_CLK>,
+				clocks = <&mmcc MMSS_MMAGIC_AHB_CLK>,
+					 <&mmcc MDSS_AHB_CLK>,
 					 <&gcc GCC_HDMI_CLKREF_CLK>;
-				clock-names = "iface_clk",
-					      "mmagic_iface_clk",
+				clock-names = "mmagic_iface_clk",
+					      "iface_clk",
 					      "ref_clk";
 			};
 		};
