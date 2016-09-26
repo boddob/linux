@@ -226,6 +226,8 @@ int msm_mdss_init(struct drm_device *dev)
 	 * domain. Remove this once runtime PM is adapted for all the devices.
 	 */
 	pm_runtime_get_sync(dev->dev);
+	pm_runtime_put_sync(dev->dev);
+	pm_runtime_get_sync(dev->dev);
 
 	return 0;
 fail_irq:
