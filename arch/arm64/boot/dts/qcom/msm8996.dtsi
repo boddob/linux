@@ -923,9 +923,11 @@
 
 			dsi0_phy: dsi-phy@994400 {
 				compatible = "qcom,dsi-phy-14nm";
-				reg = <0x994400 0x380>,
+				reg = <0x994400 0x7c>,
+				      <0x994500 0x280>,
 				      <0x994800 0x100>;
 				reg-names = "dsi_phy",
+					    "dsi_phy_lane",
 					    "dsi_pll";
 
 				#clock-cells = <1>;
@@ -994,9 +996,11 @@
 
 			dsi1_phy: dsi-phy@996400 {
 				compatible = "qcom,dsi-phy-14nm";
-				reg = <0x996400 0x380>,
+				reg = <0x996400 0x7c>,
+				      <0x996500 0x280>,
 				      <0x996800 0x100>;
 				reg-names = "dsi_phy",
+					    "dsi_phy_lane",
 					    "dsi_pll";
 
 				#clock-cells = <1>;
