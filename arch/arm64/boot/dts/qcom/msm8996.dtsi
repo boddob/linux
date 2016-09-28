@@ -568,10 +568,6 @@
 				     <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 321 IRQ_TYPE_LEVEL_HIGH>;
 
-			#global-interrupts = <1>;
-			interrupts = <0 73 0>,
-				     <0 320 0>,
-				     <0 321 0>;
 			#iommu-cells = <1>;
 
 			clocks = <&mmcc MMSS_MMAGIC_AHB_CLK>,
