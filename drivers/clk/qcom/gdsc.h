@@ -32,6 +32,8 @@ struct reset_controller_dev;
  * @resets: ids of resets associated with this gdsc
  * @reset_count: number of @resets
  * @rcdev: reset controller
+ * @clk_hw: clk_hw pointer for the dependent clock
+ * @clk: clk pointer for the dependent clock
  */
 struct gdsc {
 	struct generic_pm_domain	pd;
@@ -39,6 +41,7 @@ struct gdsc {
 	struct regmap			*regmap;
 	unsigned int			gdscr;
 	unsigned int			gds_hw_ctrl;
+	unsigned int			clamp_io_ctrl;
 	unsigned int			*cxcs;
 	unsigned int			cxc_count;
 	const u8			pwrsts;
@@ -50,9 +53,13 @@ struct gdsc {
 #define PWRSTS_RET_ON		(PWRSTS_RET | PWRSTS_ON)
 	const u8			flags;
 #define VOTABLE		BIT(0)
+#define CLK_TOGGLE	BIT(1)
+#define ENABLE_AT_BOOT	BIT(2)
 	struct reset_controller_dev	*rcdev;
 	unsigned int			*resets;
 	unsigned int			reset_count;
+	struct clk_hw			*clk_hw;
+	struct clk			*clk;
 };
 
 struct gdsc_desc {

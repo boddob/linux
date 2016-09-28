@@ -13,6 +13,7 @@
 
 #include "msm8996.dtsi"
 #include "apq8096-db820c-pins.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	aliases {
@@ -40,7 +41,7 @@
 
 		serial@75b1000 {
 			label = "LS-UART0";
-			status = "okay";
+			status = "disabled";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&blsp2_uart2_4pins_default>;
 			pinctrl-1 = <&blsp2_uart2_4pins_sleep>;
@@ -83,6 +84,22 @@
 			pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
 			cd-gpios = <&msmgpio 38 0x1>;
 			status = "okay";
+			vmmc-supply = <&pm8994_l21>;
+			vqmmc-supply = <&pm8994_l13>;
+		};
+
+		qcom,pcie@00600000 {
+			perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;
+		};
+
+		qcom,pcie@00608000 {
+			status = "okay";
+			perst-gpio = <&msmgpio 130 GPIO_ACTIVE_LOW>;
+		};
+
+		qcom,pcie@00610000 {
+			status = "okay";
+			perst-gpio = <&msmgpio 114 GPIO_ACTIVE_LOW>;
 		};
 
 		ufsphy@627000 {
@@ -147,6 +164,14 @@
 			};
 		};
 
+		vreg_bb: regulator-fixed@1 {
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-name = "vreg_bb";
+			regulator-type = "voltage";
+			regulator-boot-on;
+		};
 		mdss@900000 {
 			status = "okay";
 
@@ -186,6 +211,7 @@
 					vdd_l14_l15-supply = <&pm8994_s5>;
 					vdd_l20_l21-supply = <&pm8994_s5>;
 					vdd_l25-supply = <&pm8994_s3>;
+					vdd_l13_l19_l23_l24-supply = <&vreg_bb>;
 
 					s3 {
 						regulator-min-microvolt = <1300000>;

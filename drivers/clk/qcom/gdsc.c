@@ -12,6 +12,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/jiffies.h>
@@ -21,6 +22,7 @@
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
+#include "common.h"
 #include "gdsc.h"
 
 #define PWR_ON_MASK		BIT(31)
@@ -30,6 +32,7 @@
 #define SW_OVERRIDE_MASK	BIT(2)
 #define HW_CONTROL_MASK		BIT(1)
 #define SW_COLLAPSE_MASK	BIT(0)
+#define GMEM_CLAMP_IO_MASK	BIT(0)
 
 /* Wait 2^n CXO cycles between all states. Here, n=2 (4 cycles). */
 #define EN_REST_WAIT_VAL	(0x2 << 20)
@@ -39,7 +42,7 @@
 #define RETAIN_MEM		BIT(14)
 #define RETAIN_PERIPH		BIT(13)
 
-#define TIMEOUT_US		100
+#define TIMEOUT_US		500
 
 #define domain_to_gdsc(domain) container_of(domain, struct gdsc, pd)
 
@@ -101,6 +104,8 @@ static int gdsc_toggle_logic(struct gdsc *sc, bool en)
 	if (gdsc_is_enabled(sc, status_reg) == en)
 		return 0;
 
+	pr_err("Timedout %sabling gdsc %s\n", en ? "en" : "dis", sc->pd.name);
+
 	return -ETIMEDOUT;
 }
 
@@ -140,6 +145,16 @@ static inline void gdsc_clear_mem_on(struct gdsc *sc)
 		regmap_update_bits(sc->regmap, sc->cxcs[i], mask, 0);
 }
 
+static inline void gdsc_deassert_clamp_io(struct gdsc *sc)
+{
+	regmap_update_bits(sc->regmap, sc->clamp_io_ctrl, GMEM_CLAMP_IO_MASK, 0);
+}
+
+static inline void gdsc_assert_clamp_io(struct gdsc *sc)
+{
+	regmap_update_bits(sc->regmap, sc->clamp_io_ctrl, GMEM_CLAMP_IO_MASK, 1);
+}
+
 static int gdsc_enable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
@@ -147,6 +162,12 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_deassert_reset(sc);
+
+	if (sc->clk)
+		clk_prepare_enable(sc->clk);
+
+	if (sc->clamp_io_ctrl)
+		gdsc_deassert_clamp_io(sc);
 
 	ret = gdsc_toggle_logic(sc, true);
 	if (ret)
@@ -164,20 +185,35 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	 */
 	udelay(1);
 
+	if (sc->clk && (sc->flags & CLK_TOGGLE))
+		clk_disable_unprepare(sc->clk);
+
 	return 0;
 }
 
 static int gdsc_disable(struct generic_pm_domain *domain)
 {
+	int ret;
 	struct gdsc *sc = domain_to_gdsc(domain);
 
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_assert_reset(sc);
 
+	if (sc->clk && (sc->flags & CLK_TOGGLE))
+		clk_prepare_enable(sc->clk);
+
 	if (sc->pwrsts & PWRSTS_OFF)
 		gdsc_clear_mem_on(sc);
 
-	return gdsc_toggle_logic(sc, false);
+	ret = gdsc_toggle_logic(sc, false);
+
+	if (sc->clamp_io_ctrl)
+		gdsc_assert_clamp_io(sc);
+
+	if (sc->clk)
+		clk_disable_unprepare(sc->clk);
+
+	return ret;
 }
 
 static int gdsc_init(struct gdsc *sc)
@@ -204,12 +240,20 @@ static int gdsc_init(struct gdsc *sc)
 		if (ret)
 			return ret;
 	}
+	
+	if (sc->clk_hw)
+		sc->clk = qcom_clk_hw_get_clk(sc->clk_hw);
+
+	if (sc->flags & ENABLE_AT_BOOT)
+		gdsc_enable(&sc->pd);
 
 	reg = sc->gds_hw_ctrl ? sc->gds_hw_ctrl : sc->gdscr;
 	on = gdsc_is_enabled(sc, reg);
 	if (on < 0)
 		return on;
 
+	if (on)
+		pr_err("gdsc %s is ON\n", sc->pd.name);
 	/*
 	 * Votable GDSCs can be ON due to Vote from other masters.
 	 * If a Votable GDSC is ON, make sure we have a Vote.
@@ -224,6 +268,7 @@ static int gdsc_init(struct gdsc *sc)
 
 	sc->pd.power_off = gdsc_disable;
 	sc->pd.power_on = gdsc_enable;
+
 	pm_genpd_init(&sc->pd, NULL, !on);
 
 	return 0;

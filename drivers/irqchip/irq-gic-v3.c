@@ -137,6 +137,8 @@ static void gic_enable_redist(bool enable)
 	u32 count = 1000000;	/* 1s! */
 	u32 val;
 
+	return;
+
 	rbase = gic_data_rdist_rd_base();
 
 	val = readl_relaxed(rbase + GICR_WAKER);
@@ -530,8 +532,8 @@ static void gic_cpu_init(void)
 	gic_cpu_config(rbase, gic_redist_wait_for_rwp);
 
 	/* Give LPIs a spin */
-	if (IS_ENABLED(CONFIG_ARM_GIC_V3_ITS) && gic_dist_supports_lpis())
-		its_cpu_init();
+	//if (IS_ENABLED(CONFIG_ARM_GIC_V3_ITS) && gic_dist_supports_lpis())
+	//	its_cpu_init();
 
 	/* initialise system registers */
 	gic_cpu_sys_reg_init();
@@ -548,7 +550,7 @@ static int gic_starting_cpu(unsigned int cpu)
 static u16 gic_compute_target_list(int *base_cpu, const struct cpumask *mask,
 				   unsigned long cluster_id)
 {
-	int cpu = *base_cpu;
+	int next_cpu, cpu = *base_cpu;
 	unsigned long mpidr = cpu_logical_map(cpu);
 	u16 tlist = 0;
 
@@ -562,9 +564,10 @@ static u16 gic_compute_target_list(int *base_cpu, const struct cpumask *mask,
 
 		tlist |= 1 << (mpidr & 0xf);
 
-		cpu = cpumask_next(cpu, mask);
-		if (cpu >= nr_cpu_ids)
+		next_cpu = cpumask_next(cpu, mask);
+		if (next_cpu >= nr_cpu_ids)
 			goto out;
+		cpu = next_cpu;
 
 		mpidr = cpu_logical_map(cpu);
 
@@ -952,15 +955,14 @@ static int __init gic_init_bases(void __iomem *dist_base,
 	set_handle_irq(gic_handle_irq);
 
 	node = to_of_node(handle);
-	if (IS_ENABLED(CONFIG_ARM_GIC_V3_ITS) && gic_dist_supports_lpis() &&
-	    node) /* Temp hack to prevent ITS init for ACPI */
-		its_init(node, &gic_data.rdists, gic_data.domain);
+	//if (IS_ENABLED(CONFIG_ARM_GIC_V3_ITS) && gic_dist_supports_lpis() &&
+	//    node) /* Temp hack to prevent ITS init for ACPI */
+	//	its_init(node, &gic_data.rdists, gic_data.domain);
 
 	gic_smp_init();
 	gic_dist_init();
 	gic_cpu_init();
 	gic_cpu_pm_init();
-
 	return 0;
 
 out_free:
