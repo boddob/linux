@@ -719,7 +719,7 @@ static void dsi_intr_ctrl(struct msm_dsi_host *msm_host, u32 mask, int enable)
 	else
 		intr &= ~mask;
 
-	DBG("intr=%x enable=%d", intr, enable);
+	//DBG("intr=%x enable=%d", intr, enable);
 
 	dsi_write(msm_host, REG_DSI_INTR_CTRL, intr);
 	spin_unlock_irqrestore(&msm_host->intr_lock, flags);
@@ -1436,7 +1436,7 @@ static irqreturn_t dsi_host_irq(int irq, void *ptr)
 	dsi_write(msm_host, REG_DSI_INTR_CTRL, isr);
 	spin_unlock_irqrestore(&msm_host->intr_lock, flags);
 
-	DBG("isr=0x%x, id=%d", isr, msm_host->id);
+	//DBG("isr=0x%x, id=%d", isr, msm_host->id);
 
 	if (isr & DSI_IRQ_ERROR)
 		dsi_error(msm_host);

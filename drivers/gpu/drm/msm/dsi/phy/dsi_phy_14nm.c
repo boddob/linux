@@ -60,6 +60,7 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	int i;
 	int ret;
 	void __iomem *base = phy->base;
+	void __iomem *lane_base = phy->lane_base;
 
 	if (msm_dsi_dphy_timing_calc_v2(timing, clk_req)) {
 		dev_err(&phy->pdev->dev,
@@ -76,18 +77,18 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 
 	/* 4 data lanes + 1 clk lane configuration */
 	for (i = 0; i < 5; i++) {
-		dsi_phy_write(base + REG_DSI_14nm_PHY_LN_VREG_CNTRL(i), 0x1d);
+		dsi_phy_write(lane_base + REG_DSI_14nm_PHY_LN_VREG_CNTRL(i), 0x1d);
 
-		dsi_phy_write(base + REG_DSI_14nm_PHY_LN_STRENGTH_CTRL_0(i),
+		dsi_phy_write(lane_base + REG_DSI_14nm_PHY_LN_STRENGTH_CTRL_0(i),
 			0xff);
-		dsi_phy_write(base + REG_DSI_14nm_PHY_LN_STRENGTH_CTRL_1(i),
+		dsi_phy_write(lane_base + REG_DSI_14nm_PHY_LN_STRENGTH_CTRL_1(i),
 			(i == PHY_14NM_CKLN_IDX) ? 0x00 : 0x06);
 
-		dsi_phy_write(base + REG_DSI_14nm_PHY_LN_CFG3(i),
+		dsi_phy_write(lane_base + REG_DSI_14nm_PHY_LN_CFG3(i),
 			(i == PHY_14NM_CKLN_IDX) ? 0x8f : 0x0f);
-		dsi_phy_write(base + REG_DSI_14nm_PHY_LN_CFG2(i), 0x10);
-		dsi_phy_write(base + REG_DSI_14nm_PHY_LN_TEST_DATAPATH(i), 0);
-		dsi_phy_write(base + REG_DSI_14nm_PHY_LN_TEST_STR(i), 0x88);
+		dsi_phy_write(lane_base + REG_DSI_14nm_PHY_LN_CFG2(i), 0x10);
+		dsi_phy_write(lane_base + REG_DSI_14nm_PHY_LN_TEST_DATAPATH(i), 0);
+		dsi_phy_write(lane_base + REG_DSI_14nm_PHY_LN_TEST_STR(i), 0x88);
 
 		dsi_14nm_dphy_set_timing(phy, timing, i);
 	}
