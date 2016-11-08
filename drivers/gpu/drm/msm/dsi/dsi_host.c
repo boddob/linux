@@ -446,7 +446,7 @@ static int dsi_bus_clk_enable(struct msm_dsi_host *msm_host)
 		if (ret) {
 			pr_err("%s: failed to enable bus clock %d ret %d\n",
 				__func__, i, ret);
-			goto err;
+			//goto err;
 		}
 	}
 
@@ -473,37 +473,37 @@ static int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host)
 {
 	int ret;
 
-	DBG("Set clk rates: pclk=%d, byteclk=%d",
+	DBG("DSI%d Set clk rates: pclk=%d, byteclk=%d", msm_host->id,
 		msm_host->mode->clock, msm_host->byte_clk_rate);
 
 	ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
 	if (ret) {
 		pr_err("%s: Failed to set rate byte clk, %d\n", __func__, ret);
-		goto error;
+		//goto error;
 	}
 
 	ret = clk_set_rate(msm_host->pixel_clk, msm_host->mode->clock * 1000);
 	if (ret) {
 		pr_err("%s: Failed to set rate pixel clk, %d\n", __func__, ret);
-		goto error;
+		//goto error;
 	}
 
 	ret = clk_prepare_enable(msm_host->esc_clk);
 	if (ret) {
 		pr_err("%s: Failed to enable dsi esc clk\n", __func__);
-		goto error;
+		//goto error;
 	}
 
 	ret = clk_prepare_enable(msm_host->byte_clk);
 	if (ret) {
 		pr_err("%s: Failed to enable dsi byte clk\n", __func__);
-		goto byte_clk_err;
+		//goto byte_clk_err;
 	}
 
 	ret = clk_prepare_enable(msm_host->pixel_clk);
 	if (ret) {
 		pr_err("%s: Failed to enable dsi pixel clk\n", __func__);
-		goto pixel_clk_err;
+		//goto pixel_clk_err;
 	}
 
 	return 0;

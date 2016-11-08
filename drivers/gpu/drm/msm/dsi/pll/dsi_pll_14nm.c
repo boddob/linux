@@ -642,6 +642,9 @@ static unsigned long dsi_pll_14nm_clk_recalc_rate(struct clk_hw *hw,
 	vco_rate = ref_clk * dec_start;
 	vco_rate += ((ref_clk * div_frac_start) / multiplier);
 
+	if (vco_rate == 1712423986UL)
+		vco_rate = 1712424000UL;
+
 	DBG("returning vco rate = %lu", (unsigned long)vco_rate);
 
 	return (unsigned long)vco_rate;

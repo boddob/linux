@@ -445,7 +445,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	ret = msm_dsi_host_power_on(host, &phy_shared_timings[id]);
 	if (ret) {
 		pr_err("%s: power on host %d failed, %d\n", __func__, id, ret);
-		goto host_on_fail;
+		//goto host_on_fail;
 	}
 
 	if (is_dual_dsi && msm_dsi1) {
@@ -454,7 +454,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 		if (ret) {
 			pr_err("%s: power on host1 failed, %d\n",
 							__func__, ret);
-			goto host1_on_fail;
+			//goto host1_on_fail;
 		}
 	}
 
@@ -466,21 +466,21 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 		if (ret) {
 			pr_err("%s: prepare panel %d failed, %d\n", __func__,
 								id, ret);
-			goto panel_prep_fail;
+			//goto panel_prep_fail;
 		}
 	}
 
 	ret = msm_dsi_host_enable(host);
 	if (ret) {
 		pr_err("%s: enable host %d failed, %d\n", __func__, id, ret);
-		goto host_en_fail;
+		//goto host_en_fail;
 	}
 
 	if (is_dual_dsi && msm_dsi1) {
 		ret = msm_dsi_host_enable(msm_dsi1->host);
 		if (ret) {
 			pr_err("%s: enable host1 failed, %d\n", __func__, ret);
-			goto host1_en_fail;
+			//goto host1_en_fail;
 		}
 	}
 
@@ -489,7 +489,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 		if (ret) {
 			pr_err("%s: enable panel %d failed, %d\n", __func__, id,
 									ret);
-			goto panel_en_fail;
+			//goto panel_en_fail;
 		}
 	}
 
