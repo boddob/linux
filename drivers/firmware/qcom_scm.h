@@ -56,8 +56,17 @@ extern int  __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_mss_reset(struct device *dev, bool reset);
 
+#define QCOM_SCM_SVC_MP			0xc
+#define QCOM_SCM_IOMMU_SECURE_PTBL_SIZE	3
+#define QCOM_SCM_IOMMU_SECURE_PTBL_INIT	4
+extern int __qcom_scm_iommu_secure_ptbl_size(struct device *dev, u32 spare,
+					     size_t *size);
+extern int __qcom_scm_iommu_secure_ptbl_init(struct device *dev, u64 addr,
+					     u32 size, u32 spare);
+
 /* common error codes */
 #define QCOM_SCM_V2_EBUSY	-12
+#define QCOM_SCM_NOT_PERMITTED	-8
 #define QCOM_SCM_ENOMEM		-5
 #define QCOM_SCM_EOPNOTSUPP	-4
 #define QCOM_SCM_EINVAL_ADDR	-3
@@ -79,6 +88,8 @@ static inline int qcom_scm_remap_error(int err)
 		return -ENOMEM;
 	case QCOM_SCM_V2_EBUSY:
 		return -EBUSY;
+	case QCOM_SCM_NOT_PERMITTED:
+		return -EPERM;
 	}
 	return -EINVAL;
 }
