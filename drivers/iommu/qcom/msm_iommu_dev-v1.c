@@ -274,6 +274,7 @@ static int msm_iommu_pmon_parse_dt(struct platform_device *pdev,
 #define MAKE_VERSION(major, minor, patch) \
 	(((major & 0x3FF) << 22) | ((minor & 0x3FF) << 12) | (patch & 0xFFF))
 
+#if 0
 static int msm_iommu_sec_ptbl_init(struct device *dev)
 {
 	int psize[2] = {0, 0};
@@ -284,6 +285,7 @@ static int msm_iommu_sec_ptbl_init(struct device *dev)
 	dma_addr_t paddr;
 	unsigned long attrs;
 	static bool allocated = false;
+	size_t size;
 
 	if (allocated)
 		return 0;
@@ -299,7 +301,7 @@ static int msm_iommu_sec_ptbl_init(struct device *dev)
 		}
 	}
 
-	ret = qcom_scm_iommu_secure_ptbl_size(spare, psize);
+	ret = qcom_scm_iommu_secure_ptbl_size(spare, &size);
 	if (ret) {
 		dev_err(dev, "failed to get iommu secure pgtable size (%d)\n",
 			ret);
@@ -337,7 +339,7 @@ free_mem:
 	dma_free_attrs(dev, psize[0], cpu_addr, paddr, attrs);
 	return ret;
 }
-
+#endif
 static int msm_iommu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -402,13 +404,13 @@ static int msm_iommu_probe(struct platform_device *pdev)
 
 	dev_info(dev, "device %s (model: %d) mapped at %p, with %d ctx banks\n",
 		 drvdata->name, drvdata->model, drvdata->base, drvdata->ncb);
-
+#if 0
 	if (drvdata->sec_id != -1) {
 		ret = msm_iommu_sec_ptbl_init(dev);
 		if (ret)
 			return ret;
 	}
-
+#endif
 	platform_set_drvdata(pdev, drvdata);
 
 	pmon_info = msm_iommu_pm_alloc(dev);
