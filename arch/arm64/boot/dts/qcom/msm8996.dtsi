@@ -782,7 +782,7 @@
 			qcom,skip-init;
 			qcom,no-smr-check;
 
-			status = "okay";
+			status = "disabled";
 		};
 
 		mdss: mdss@900000 {
