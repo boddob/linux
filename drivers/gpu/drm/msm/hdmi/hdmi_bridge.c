@@ -97,6 +97,7 @@ static void msm_hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 	if (!hdmi->power_on) {
 		msm_hdmi_phy_resource_enable(phy);
 		msm_hdmi_power_on(bridge);
+		msm_hdmi_config_avmute(hdmi, true);
 		hdmi->power_on = true;
 		msm_hdmi_audio_update(hdmi);
 	}

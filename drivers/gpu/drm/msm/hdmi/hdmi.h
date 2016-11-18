@@ -124,6 +124,7 @@ struct hdmi_platform_config {
 };
 
 void msm_hdmi_set_mode(struct hdmi *hdmi, bool power_on);
+void msm_hdmi_config_avmute(struct hdmi *hdmi, bool enable);
 
 static inline void hdmi_write(struct hdmi *hdmi, u32 reg, u32 data)
 {

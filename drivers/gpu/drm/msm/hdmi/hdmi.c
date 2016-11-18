@@ -37,6 +37,7 @@ void msm_hdmi_set_mode(struct hdmi *hdmi, bool power_on)
 		} else {
 			ctrl |= HDMI_CTRL_HDMI;
 		}
+		ctrl |= BIT(31);
 	} else {
 		ctrl = HDMI_CTRL_HDMI;
 	}
@@ -45,6 +46,34 @@ void msm_hdmi_set_mode(struct hdmi *hdmi, bool power_on)
 	spin_unlock_irqrestore(&hdmi->reg_lock, flags);
 	DBG("HDMI Core: %s, HDMI_CTRL=0x%08x",
 			power_on ? "Enable" : "Disable", ctrl);
+}
+
+void msm_hdmi_config_avmute(struct hdmi *hdmi, bool enable)
+{
+	u32 gc;
+	bool av_pk_en = false;
+
+	gc = hdmi_read(hdmi, REG_HDMI_GC);
+
+	DBG("gc =  %x", gc);
+
+	if (enable) {
+		if (!(gc & HDMI_GC_MUTE))
+			av_pk_en = true;
+	} else {
+		if ((gc & HDMI_GC_MUTE))
+			av_pk_en = true;
+	}
+
+	if (av_pk_en) {
+		u32 vbi_pkt_ctrl = hdmi_read(hdmi, REG_HDMI_VBI_PKT_CTRL);
+
+		vbi_pkt_ctrl |= HDMI_VBI_PKT_CTRL_GC_ENABLE |
+				HDMI_VBI_PKT_CTRL_GC_EVERY_FRAME;
+
+		hdmi_write(hdmi, REG_HDMI_VBI_PKT_CTRL, vbi_pkt_ctrl);
+	}
+	DBG("AVMUTE %d", av_pk_en);
 }
 
 static irqreturn_t msm_hdmi_irq(int irq, void *dev_id)
