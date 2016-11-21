@@ -178,6 +178,57 @@ static void mdp5_crtc_destroy(struct drm_crtc *crtc)
 	kfree(mdp5_crtc);
 }
 
+/* called with lm_lock held */
+static void blend_setup_stage(struct mdp5_kms *mdp5_kms,
+			      struct mdp5_hw_mixer *mixer, int stage,
+			      struct mdp5_plane_state *pstate)
+{
+	uint32_t blend_op, fg_alpha, bg_alpha;
+	const struct mdp_format *format;
+	uint32_t lm = mixer->lm;
+
+#define blender(stage)	((stage) - STAGE0)
+
+	format = to_mdp_format(msm_framebuffer_format(pstate->base.fb));
+	blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_CONST) |
+		   MDP5_LM_BLEND_OP_MODE_BG_ALPHA(BG_CONST);
+	fg_alpha = pstate->alpha;
+	bg_alpha = 0xff - pstate->alpha;
+
+	DBG("Stage %d fg_alpha %x bg_alpha %x", stage, fg_alpha, bg_alpha);
+
+	if (format->alpha_enable && pstate->premultiplied) {
+		blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_CONST) |
+			   MDP5_LM_BLEND_OP_MODE_BG_ALPHA(FG_PIXEL);
+		if (fg_alpha != 0xff) {
+			bg_alpha = fg_alpha;
+			blend_op |= MDP5_LM_BLEND_OP_MODE_BG_MOD_ALPHA |
+				    MDP5_LM_BLEND_OP_MODE_BG_INV_MOD_ALPHA;
+		} else {
+			blend_op |= MDP5_LM_BLEND_OP_MODE_BG_INV_ALPHA;
+		}
+	} else if (format->alpha_enable) {
+		blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_PIXEL) |
+			   MDP5_LM_BLEND_OP_MODE_BG_ALPHA(FG_PIXEL);
+		if (fg_alpha != 0xff) {
+			bg_alpha = fg_alpha;
+			blend_op |= MDP5_LM_BLEND_OP_MODE_FG_MOD_ALPHA |
+				    MDP5_LM_BLEND_OP_MODE_FG_INV_MOD_ALPHA |
+				    MDP5_LM_BLEND_OP_MODE_BG_MOD_ALPHA |
+				    MDP5_LM_BLEND_OP_MODE_BG_INV_MOD_ALPHA;
+		} else {
+			blend_op |= MDP5_LM_BLEND_OP_MODE_BG_INV_ALPHA;
+		}
+	}
+
+	mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_OP_MODE(lm, blender(stage)),
+		   blend_op);
+	mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_FG_ALPHA(lm, blender(stage)),
+		   fg_alpha);
+	mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_BG_ALPHA(lm, blender(stage)),
+		   bg_alpha);
+}
+
 /*
  * blend_setup() - blend all the planes of a CRTC
  *
@@ -192,14 +243,11 @@ static void blend_setup(struct drm_crtc *crtc)
 	struct drm_plane *plane;
 	const struct mdp5_cfg_hw *hw_cfg;
 	struct mdp5_plane_state *pstate, *pstates[STAGE_MAX + 1] = {NULL};
-	const struct mdp_format *format;
 	struct mdp5_hw_mixer *mixer = mdp5_crtc->mixer;
-	uint32_t lm = mixer->lm;
-	uint32_t blend_op, fg_alpha, bg_alpha, ctl_blend_flags = 0;
+	uint32_t ctl_blend_flags = 0;
 	unsigned long flags;
 	uint8_t stage[STAGE_MAX + 1];
 	int i, plane_cnt = 0;
-#define blender(stage)	((stage) - STAGE0)
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
@@ -227,47 +275,7 @@ static void blend_setup(struct drm_crtc *crtc)
 		if (!pstates[i])
 			continue;
 
-		format = to_mdp_format(
-			msm_framebuffer_format(pstates[i]->base.fb));
-		plane = pstates[i]->base.plane;
-		blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_CONST) |
-			MDP5_LM_BLEND_OP_MODE_BG_ALPHA(BG_CONST);
-		fg_alpha = pstates[i]->alpha;
-		bg_alpha = 0xFF - pstates[i]->alpha;
-		DBG("Stage %d fg_alpha %x bg_alpha %x", i, fg_alpha, bg_alpha);
-
-		if (format->alpha_enable && pstates[i]->premultiplied) {
-			blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_CONST) |
-				MDP5_LM_BLEND_OP_MODE_BG_ALPHA(FG_PIXEL);
-			if (fg_alpha != 0xff) {
-				bg_alpha = fg_alpha;
-				blend_op |=
-					MDP5_LM_BLEND_OP_MODE_BG_MOD_ALPHA |
-					MDP5_LM_BLEND_OP_MODE_BG_INV_MOD_ALPHA;
-			} else {
-				blend_op |= MDP5_LM_BLEND_OP_MODE_BG_INV_ALPHA;
-			}
-		} else if (format->alpha_enable) {
-			blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_PIXEL) |
-				MDP5_LM_BLEND_OP_MODE_BG_ALPHA(FG_PIXEL);
-			if (fg_alpha != 0xff) {
-				bg_alpha = fg_alpha;
-				blend_op |=
-				       MDP5_LM_BLEND_OP_MODE_FG_MOD_ALPHA |
-				       MDP5_LM_BLEND_OP_MODE_FG_INV_MOD_ALPHA |
-				       MDP5_LM_BLEND_OP_MODE_BG_MOD_ALPHA |
-				       MDP5_LM_BLEND_OP_MODE_BG_INV_MOD_ALPHA;
-			} else {
-				blend_op |= MDP5_LM_BLEND_OP_MODE_BG_INV_ALPHA;
-			}
-		}
-
-		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_OP_MODE(lm,
-				blender(i)), blend_op);
-		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_FG_ALPHA(lm,
-				blender(i)), fg_alpha);
-		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_BG_ALPHA(lm,
-				blender(i)), bg_alpha);
+		blend_setup_stage(mdp5_kms, mixer, i, pstates[i]);
 	}
 
 	mdp5_ctl_blend(mdp5_crtc->ctl, stage, plane_cnt, ctl_blend_flags);
