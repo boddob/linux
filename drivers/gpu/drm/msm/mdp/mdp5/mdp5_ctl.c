@@ -43,7 +43,8 @@ struct mdp5_ctl {
 	struct mdp5_ctl_manager *ctlm;
 
 	u32 id;
-	struct mdp5_hw_mixer *mixer;
+	struct mdp5_hw_mixer *mixers[2];
+	int num_mixers;
 
 	/* CTL status bitmask */
 	u32 status;
@@ -175,10 +176,11 @@ static void set_ctl_op(struct mdp5_ctl *ctl, struct mdp5_interface *intf)
 }
 
 int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl, struct mdp5_interface *intf,
-			  struct mdp5_hw_mixer *mixer)
+			  struct mdp5_hw_mixer **mixers, int num_mixers)
 {
 	struct mdp5_ctl_manager *ctl_mgr = ctl->ctlm;
 	struct mdp5_kms *mdp5_kms = get_kms(ctl_mgr);
+	int i;
 
 	if (unlikely(WARN_ON(intf->num != ctl->pipeline.intf.num))) {
 		dev_err(mdp5_kms->dev->dev,
@@ -187,12 +189,17 @@ int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl, struct mdp5_interface *intf,
 		return -EINVAL;
 	}
 
-	ctl->mixer = mixer;
-
 	memcpy(&ctl->pipeline.intf, intf, sizeof(*intf));
 
-	ctl->pipeline.start_mask = mdp_ctl_flush_mask_lm(mixer->lm) |
-				   mdp_ctl_flush_mask_encoder(intf);
+	ctl->pipeline.start_mask = mdp_ctl_flush_mask_encoder(intf);
+
+	ctl->num_mixers = num_mixers;
+
+	for (i = 0; i < num_mixers; i++) {
+		ctl->mixers[i] = mixers[i];
+
+		ctl->pipeline.start_mask |= mdp_ctl_flush_mask_lm(mixers[i]->lm);
+	}
 
 	/* Virtual interfaces need not set a display intf (e.g.: Writeback) */
 	if (!mdp5_cfg_intf_is_virtual(intf->type))
@@ -240,8 +247,12 @@ static void refill_start_mask(struct mdp5_ctl *ctl)
 {
 	struct op_mode *pipeline = &ctl->pipeline;
 	struct mdp5_interface *intf = &ctl->pipeline.intf;
+	int i;
 
-	pipeline->start_mask = mdp_ctl_flush_mask_lm(ctl->mixer->lm);
+	pipeline->start_mask = 0;
+
+	for (i = 0; i < ctl->num_mixers; i++)
+		pipeline->start_mask |= mdp_ctl_flush_mask_lm(ctl->mixers[i]->lm);
 
 	/*
 	 * Writeback encoder needs to program & flush
@@ -285,7 +296,14 @@ int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, int cursor_id, bool enable)
 	struct mdp5_ctl_manager *ctl_mgr = ctl->ctlm;
 	unsigned long flags;
 	u32 blend_cfg;
-	struct mdp5_hw_mixer *mixer= ctl->mixer;
+	struct mdp5_hw_mixer *mixer;
+
+	if (ctl->num_mixers > 1) {
+		dev_err(ctl_mgr->dev->dev, "unsupported configuration");
+		return -EINVAL;
+	}
+
+	mixer = ctl->mixers[0];
 
 	if (unlikely(WARN_ON(!mixer))) {
 		dev_err(ctl_mgr->dev->dev, "CTL %d cannot find LM",
@@ -351,38 +369,51 @@ static u32 mdp_ctl_blend_ext_mask(enum mdp5_pipe pipe,
 	}
 }
 
-int mdp5_ctl_blend(struct mdp5_ctl *ctl, u8 *stage, u32 stage_cnt,
-	u32 ctl_blend_op_flags)
+int mdp5_ctl_blend(struct mdp5_ctl *ctl,
+		   enum mdp5_pipe stage[][STAGE_MAX+1][MAX_PIPE_STAGE],
+		   u32 stage_cnt, u32 ctl_blend_op_flags)
 {
-	struct mdp5_hw_mixer *mixer = ctl->mixer;
 	unsigned long flags;
-	u32 blend_cfg = 0, blend_ext_cfg = 0;
-	int i, start_stage;
+	u32 blend_cfg[2] =  { 0 };
+	u32 blend_ext_cfg[2] = { 0 };
+	int i, m, start_stage;
 
 	if (ctl_blend_op_flags & MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT) {
 		start_stage = STAGE0;
-		blend_cfg |= MDP5_CTL_LAYER_REG_BORDER_COLOR;
+		blend_cfg[0] |= MDP5_CTL_LAYER_REG_BORDER_COLOR;
 	} else {
 		start_stage = STAGE_BASE;
 	}
 
 	for (i = start_stage; i < start_stage + stage_cnt; i++) {
-		blend_cfg |= mdp_ctl_blend_mask(stage[i], i);
-		blend_ext_cfg |= mdp_ctl_blend_ext_mask(stage[i], i);
+		for (m = 0; m < ctl->num_mixers; m++) {
+			blend_cfg[m] |= mdp_ctl_blend_mask(stage[m][i][0], i);
+			blend_ext_cfg[m] |= mdp_ctl_blend_ext_mask(stage[m][i][0], i);
+		}
 	}
 
 	spin_lock_irqsave(&ctl->hw_lock, flags);
 	if (ctl->cursor_on)
-		blend_cfg |=  MDP5_CTL_LAYER_REG_CURSOR_OUT;
+		blend_cfg[0] |=  MDP5_CTL_LAYER_REG_CURSOR_OUT;
 
-	ctl_write(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, mixer->lm), blend_cfg);
-	ctl_write(ctl, REG_MDP5_CTL_LAYER_EXT_REG(ctl->id, mixer->lm), blend_ext_cfg);
+	for (i = 0; i < ctl->num_mixers; i++) {
+		struct mdp5_hw_mixer *mixer = ctl->mixers[i];
+
+		ctl_write(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, mixer->lm), blend_cfg[i]);
+		ctl_write(ctl, REG_MDP5_CTL_LAYER_EXT_REG(ctl->id, mixer->lm), blend_ext_cfg[i]);
+	}
+
 	spin_unlock_irqrestore(&ctl->hw_lock, flags);
 
-	ctl->pending_ctl_trigger = mdp_ctl_flush_mask_lm(mixer->lm);
+	ctl->pending_ctl_trigger = mdp_ctl_flush_mask_lm(ctl->mixers[0]->lm);
+	if (ctl->mixers[1])
+		ctl->pending_ctl_trigger |= mdp_ctl_flush_mask_lm(ctl->mixers[1]->lm);
 
-	DBG("lm%d: blend config = 0x%08x. ext_cfg = 0x%08x", mixer->lm,
-		blend_cfg, blend_ext_cfg);
+	DBG("lm%d: blend config = 0x%08x. ext_cfg = 0x%08x", ctl->mixers[0]->lm,
+		blend_cfg[0], blend_ext_cfg[0]);
+	if (ctl->mixers[1])
+		DBG("lm%d: blend config = 0x%08x. ext_cfg = 0x%08x", ctl->mixers[1]->lm,
+			blend_cfg[1], blend_ext_cfg[1]);
 
 	return 0;
 }
@@ -447,7 +478,7 @@ static u32 fix_sw_flush(struct mdp5_ctl *ctl, u32 flush_mask)
 
 	/* for some targets, cursor bit is the same as LM bit */
 	if (BIT_NEEDS_SW_FIX(MDP5_CTL_FLUSH_CURSOR_0))
-		sw_mask |= mdp_ctl_flush_mask_lm(ctl->mixer->lm);
+		sw_mask |= mdp_ctl_flush_mask_lm(ctl->mixers[0]->lm);
 
 	return sw_mask;
 }
@@ -615,7 +646,7 @@ struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctl_mgr,
 found:
 	ctl = &ctl_mgr->ctls[c];
 	ctl->pipeline.intf.num = intf_num;
-	ctl->mixer = NULL;
+	ctl->mixers[0] = ctl->mixers[1] = NULL;
 	ctl->status |= CTL_STAT_BUSY;
 	ctl->pending_ctl_trigger = 0;
 	DBG("CTL %d allocated", ctl->id);

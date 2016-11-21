@@ -34,7 +34,8 @@ struct mdp5_crtc {
 	int id;
 	bool enabled;
 
-	struct mdp5_hw_mixer *mixer;
+	struct mdp5_hw_mixer *mixers[MAX_LM_CRTC];
+	int num_mixers;
 
 	/* CTL used for this CRTC: */
 	struct mdp5_ctl *ctl;
@@ -110,9 +111,9 @@ static u32 crtc_flush(struct drm_crtc *crtc, u32 flush_mask)
 static u32 crtc_flush_all(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-	struct mdp5_hw_mixer *mixer;
 	struct drm_plane *plane;
 	uint32_t flush_mask = 0;
+	int i;
 
 	/* this should not happen: */
 	if (WARN_ON(!mdp5_crtc->ctl))
@@ -122,8 +123,10 @@ static u32 crtc_flush_all(struct drm_crtc *crtc)
 		flush_mask |= mdp5_plane_get_flush(plane);
 	}
 
-	mixer = mdp5_crtc->mixer;
-	flush_mask |= mdp_ctl_flush_mask_lm(mixer->lm);
+	for (i = 0; i < mdp5_crtc->num_mixers; i++) {
+		struct mdp5_hw_mixer *mixer = mdp5_crtc->mixers[i];
+		flush_mask |= mdp_ctl_flush_mask_lm(mixer->lm);
+	}
 
 	return crtc_flush(crtc, flush_mask);
 }
@@ -243,25 +246,22 @@ static void blend_setup(struct drm_crtc *crtc)
 	struct drm_plane *plane;
 	const struct mdp5_cfg_hw *hw_cfg;
 	struct mdp5_plane_state *pstate, *pstates[STAGE_MAX + 1] = {NULL};
-	struct mdp5_hw_mixer *mixer = mdp5_crtc->mixer;
 	uint32_t ctl_blend_flags = 0;
 	unsigned long flags;
-	uint8_t stage[STAGE_MAX + 1];
-	int i, plane_cnt = 0;
+	enum mdp5_pipe stage[MAX_LM_CRTC][STAGE_MAX + 1][MAX_PIPE_STAGE] = { 0 };
+	int i, j, plane_cnt = 0;
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
-	spin_lock_irqsave(&mixer->lm_lock, flags);
-
 	/* ctl could be released already when we are shutting down: */
 	if (!mdp5_crtc->ctl)
-		goto out;
+		return;
 
 	/* Collect all plane information */
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		pstate = to_mdp5_plane_state(plane->state);
 		pstates[pstate->stage] = pstate;
-		stage[pstate->stage] = mdp5_plane_pipe(plane);
+		stage[0][pstate->stage][0] = mdp5_plane_pipe(plane);
 		plane_cnt++;
 	}
 
@@ -275,23 +275,27 @@ static void blend_setup(struct drm_crtc *crtc)
 		if (!pstates[i])
 			continue;
 
-		blend_setup_stage(mdp5_kms, mixer, i, pstates[i]);
+		for (j = 0; j < mdp5_crtc->num_mixers; j++) {
+			struct mdp5_hw_mixer *mixer = mdp5_crtc->mixers[j];
+
+			spin_lock_irqsave(&mixer->lm_lock, flags);
+
+			blend_setup_stage(mdp5_kms, mixer, i, pstates[i]);
+
+			spin_unlock_irqrestore(&mixer->lm_lock, flags);
+		}
 	}
 
 	mdp5_ctl_blend(mdp5_crtc->ctl, stage, plane_cnt, ctl_blend_flags);
-
-out:
-	spin_unlock_irqrestore(&mixer->lm_lock, flags);
 }
 
 static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
-	struct mdp5_hw_mixer *mixer = mdp5_crtc->mixer;
-	uint32_t lm = mixer->lm;
 	unsigned long flags;
 	struct drm_display_mode *mode;
+	int i;
 
 	if (WARN_ON(!crtc->state))
 		return;
@@ -307,11 +311,15 @@ static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 			mode->vsync_end, mode->vtotal,
 			mode->type, mode->flags);
 
-	spin_lock_irqsave(&mixer->lm_lock, flags);
-	mdp5_write(mdp5_kms, REG_MDP5_LM_OUT_SIZE(lm),
-			MDP5_LM_OUT_SIZE_WIDTH(mode->hdisplay) |
-			MDP5_LM_OUT_SIZE_HEIGHT(mode->vdisplay));
-	spin_unlock_irqrestore(&mixer->lm_lock, flags);
+	for (i = 0; i < mdp5_crtc->num_mixers; i++) {
+		struct mdp5_hw_mixer *mixer = mdp5_crtc->mixers[i];
+
+		spin_lock_irqsave(&mixer->lm_lock, flags);
+		mdp5_write(mdp5_kms, REG_MDP5_LM_OUT_SIZE(mixer->lm),
+				MDP5_LM_OUT_SIZE_WIDTH(mode->hdisplay) |
+				MDP5_LM_OUT_SIZE_HEIGHT(mode->vdisplay));
+		spin_unlock_irqrestore(&mixer->lm_lock, flags);
+	}
 }
 
 static void mdp5_crtc_disable(struct drm_crtc *crtc)
@@ -519,6 +527,9 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	if (NULL == mdp5_crtc->ctl)
 		return -EINVAL;
 
+	if (mdp5_crtc->num_mixers > 1)
+		return -EINVAL;
+
 	if (!handle) {
 		DBG("Cursor off");
 		cursor_enable = false;
@@ -533,7 +544,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	if (ret)
 		return -EINVAL;
 
-	lm = mdp5_crtc->mixer->lm;
+	lm = mdp5_crtc->mixers[0]->lm;
 	stride = width * drm_format_plane_cpp(DRM_FORMAT_ARGB8888, 0);
 
 	spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
@@ -585,7 +596,7 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-	uint32_t lm = mdp5_crtc->mixer->lm;
+	uint32_t lm;
 	uint32_t flush_mask = mdp_ctl_flush_mask_cursor(0);
 	uint32_t roi_w;
 	uint32_t roi_h;
@@ -595,10 +606,15 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	if (unlikely(!crtc->state->enable))
 		return 0;
 
+	if (mdp5_crtc->num_mixers > 1)
+		return -EINVAL;
+
 	mdp5_crtc->cursor.x = x = max(x, 0);
 	mdp5_crtc->cursor.y = y = max(y, 0);
 
 	get_roi(crtc, &roi_w, &roi_h);
+
+	lm = mdp5_crtc->mixers[0]->lm;
 
 	spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_SIZE(lm),
@@ -679,7 +695,7 @@ static void mdp5_crtc_wait_for_pp_done(struct drm_crtc *crtc)
 						msecs_to_jiffies(50));
 	if (ret == 0)
 		dev_warn(dev->dev, "pp done time out, lm=%d\n",
-			 mdp5_crtc->mixer->lm);
+			 mdp5_crtc->mixers[0]->lm);
 }
 
 static void mdp5_crtc_wait_for_flush_done(struct drm_crtc *crtc)
@@ -719,7 +735,7 @@ void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
-	struct mdp5_hw_mixer *mixer = mdp5_crtc->mixer;
+	struct mdp5_hw_mixer *mixer = mdp5_crtc->mixers[0];
 
 	/* now that we know what irq's we want: */
 	mdp5_crtc->err.irqmask = intf2err(intf->num);
@@ -739,14 +755,15 @@ void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
 	mdp_irq_update(&mdp5_kms->base);
 
 	mdp5_crtc->ctl = ctl;
-	mdp5_ctl_set_pipeline(ctl, intf, mixer);
+	mdp5_ctl_set_pipeline(ctl, intf, mdp5_crtc->mixers,
+			      mdp5_crtc->num_mixers);
 }
 
 struct mdp5_hw_mixer *mdp5_crtc_get_mixer(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-	return WARN_ON(!crtc) || WARN_ON(!mdp5_crtc->mixer) ?
-		ERR_PTR(-EINVAL) : mdp5_crtc->mixer;
+	return WARN_ON(!crtc) || WARN_ON(!mdp5_crtc->mixers[0]) ?
+		ERR_PTR(-EINVAL) : mdp5_crtc->mixers[0];
 }
 
 void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc)
@@ -791,7 +808,9 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 	plane->crtc = crtc;
 
 	mdp5_kms = get_kms(crtc);
-	mdp5_crtc->mixer = mdp5_kms->hwmixers[id];
+
+	mdp5_crtc->mixers[0] = mdp5_kms->hwmixers[id];
+	mdp5_crtc->num_mixers = 1;
 
 	return crtc;
 }
