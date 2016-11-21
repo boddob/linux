@@ -612,7 +612,7 @@ static void qcom_pcie_host_init(struct pcie_port *pp)
 
 	ret = qcom_pcie_establish_link(pcie);
 	if (ret)
-		goto err;
+		printk(KERN_ERR "problem with getting link up -> %d, ignoring error for now\n", ret);
 
 	return;
 err:
