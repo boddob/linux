@@ -259,9 +259,26 @@ static void blend_setup(struct drm_crtc *crtc)
 
 	/* Collect all plane information */
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		enum mdp5_pipe right_pipe;
+
 		pstate = to_mdp5_plane_state(plane->state);
 		pstates[pstate->stage] = pstate;
 		stage[0][pstate->stage][0] = mdp5_plane_pipe(plane);
+
+		/* stage right pipe to right layer mixer */
+		right_pipe = mdp5_plane_right_pipe(plane);
+		if (right_pipe) {
+			stage[0][pstate->stage][1] = right_pipe;
+			stage[1][pstate->stage][0] = mdp5_plane_pipe(plane);
+			stage[1][pstate->stage][1] = right_pipe;
+		/*
+		 * if there isn't a right pipe, but there is a right layer mixer,
+		 * then stage the same pipe to the right layer mixer too
+		 */
+		} else if (mdp5_crtc->mixers[1]){
+			stage[1][pstate->stage][0] = mdp5_plane_pipe(plane);
+		}
+
 		plane_cnt++;
 	}
 

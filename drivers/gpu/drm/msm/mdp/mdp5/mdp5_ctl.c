@@ -381,6 +381,8 @@ int mdp5_ctl_blend(struct mdp5_ctl *ctl,
 	if (ctl_blend_op_flags & MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT) {
 		start_stage = STAGE0;
 		blend_cfg[0] |= MDP5_CTL_LAYER_REG_BORDER_COLOR;
+		if (ctl->num_mixers  > 1)
+			blend_cfg[1] |= MDP5_CTL_LAYER_REG_BORDER_COLOR;
 	} else {
 		start_stage = STAGE_BASE;
 	}
@@ -389,6 +391,11 @@ int mdp5_ctl_blend(struct mdp5_ctl *ctl,
 		for (m = 0; m < ctl->num_mixers; m++) {
 			blend_cfg[m] |= mdp_ctl_blend_mask(stage[m][i][0], i);
 			blend_ext_cfg[m] |= mdp_ctl_blend_ext_mask(stage[m][i][0], i);
+			if (stage[m][i][1]) {
+				blend_cfg[m] |= mdp_ctl_blend_mask(stage[m][i][1], i);
+				blend_ext_cfg[m] |= mdp_ctl_blend_ext_mask(stage[m][i][1], i);
+			}
+
 		}
 	}
 
