@@ -106,6 +106,7 @@ struct mdp5_plane_state {
 	struct drm_plane_state base;
 
 	struct mdp5_hw_pipe *hwpipe;
+	struct mdp5_hw_pipe *right_hwpipe;
 
 	/* aligned with property */
 	uint8_t premultiplied;

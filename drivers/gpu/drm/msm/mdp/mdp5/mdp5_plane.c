@@ -277,7 +277,9 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 	struct drm_plane_state *old_state = plane->state;
 	struct mdp5_cfg *config = mdp5_cfg_get_config(get_kms(plane)->cfg);
 	bool new_hwpipe = false;
-	uint32_t max_width, max_height;
+	bool need_right_pipe = false;
+	bool out_of_bounds = false;
+	uint32_t max_lm_width, max_lm_height;
 	uint32_t caps = 0;
 
 	DBG("%s: check (%d -> %d)", plane->name,
@@ -290,11 +292,22 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(to_mdp5_plane_state(old_state)->pending))
 		return -EBUSY;
 
-	max_width = config->hw->lm.max_width << 16;
-	max_height = config->hw->lm.max_height << 16;
+	max_lm_width = config->hw->lm.max_width << 16;
+	max_lm_height = config->hw->lm.max_height << 16;
 
 	/* Make sure source dimensions are within bounds. */
-	if ((state->src_w > max_width) || (state->src_h > max_height)) {
+	if (state->src_h > max_lm_height)
+		out_of_bounds = true;
+
+	if (state->src_w > max_lm_width) {
+		if (config->hw->mdp.caps & MDP_CAP_SRC_SPLIT &&
+		    (state->src_w < 2 * max_lm_width))
+			need_right_pipe = true;
+		else
+			out_of_bounds = true;
+	}
+
+	if (out_of_bounds) {
 		struct drm_rect src = drm_plane_state_src(state);
 		DBG("Invalid source size "DRM_RECT_FP_FMT,
 				DRM_RECT_FP_ARG(&src));
@@ -330,6 +343,12 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 		if (!mdp5_state->hwpipe || (caps & ~mdp5_state->hwpipe->caps))
 			new_hwpipe = true;
 
+		if ((need_right_pipe && !mdp5_state->right_hwpipe) ||
+		    (!need_right_pipe && mdp5_state->right_hwpipe))
+			new_hwpipe = true;
+
+		DBG("new_hwpipe %d right_hwpipe %d", new_hwpipe, need_right_pipe);
+
 		if (mdp5_kms->smp) {
 			const struct mdp_format *format =
 				to_mdp_format(msm_framebuffer_format(state->fb));
@@ -348,13 +367,28 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 			 * it available for other planes?
 			 */
 			struct mdp5_hw_pipe *hwpipe = mdp5_state->hwpipe;
+			struct mdp5_hw_pipe *right_hwpipe = mdp5_state->right_hwpipe;
+
 			mdp5_state->hwpipe = mdp5_pipe_assign(state->state,
 					plane, caps, blkcfg);
 			if (IS_ERR(mdp5_state->hwpipe)) {
 				DBG("%s: failed to assign hwpipe!", plane->name);
 				return PTR_ERR(mdp5_state->hwpipe);
 			}
+
+			if (need_right_pipe) {
+				mdp5_state->right_hwpipe = mdp5_pipe_assign(state->state,
+								plane, caps, blkcfg);
+				if (IS_ERR(mdp5_state->right_hwpipe)) {
+					DBG("%s: failed to assign hwpipe!", plane->name);
+					return PTR_ERR(mdp5_state->right_hwpipe);
+				}
+			} else {
+				mdp5_state->right_hwpipe = NULL;
+			}
+
 			mdp5_pipe_release(state->state, hwpipe);
+			mdp5_pipe_release(state->state, right_hwpipe);
 		}
 	}
 
