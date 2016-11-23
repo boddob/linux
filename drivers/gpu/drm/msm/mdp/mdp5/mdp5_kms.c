@@ -451,6 +451,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	const struct mdp5_cfg_hw *hw_cfg;
 	unsigned int num_crtcs;
 	int i, ret;
+	int rev = mdp5_cfg_get_hw_rev(mdp5_kms->cfg);
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
@@ -480,6 +481,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		bool primary = i < num_crtcs;
 		struct drm_plane *plane;
 		struct drm_crtc *crtc;
+		bool big_crtc = false;
 
 		plane = mdp5_plane_init(dev, primary);
 		if (IS_ERR(plane)) {
@@ -492,7 +494,14 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		if (!primary)
 			continue;
 
-		crtc  = mdp5_crtc_init(dev, plane, i);
+		if (rev == 7) {
+			if (i == 0)
+				big_crtc = true;
+			else if (i == 1)
+				continue;
+		}
+
+		crtc  = mdp5_crtc_init(dev, plane, i, big_crtc);
 		if (IS_ERR(crtc)) {
 			ret = PTR_ERR(crtc);
 			dev_err(dev->dev, "failed to construct crtc %d (%d)\n", i, ret);
@@ -508,7 +517,11 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	for (i = 0; i < priv->num_encoders; i++) {
 		struct drm_encoder *encoder = priv->encoders[i];
 
-		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
+		/* only link HDMI encoder to big CRTC */
+		if (rev == 7 && encoder->encoder_type == DRM_MODE_ENCODER_TMDS)
+			encoder->possible_crtcs = 1;
+		else
+			encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
 	}
 
 	return 0;

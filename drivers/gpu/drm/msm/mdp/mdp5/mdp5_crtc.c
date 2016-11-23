@@ -695,6 +695,16 @@ static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.cursor_move = mdp5_crtc_cursor_move,
 };
 
+static const struct drm_crtc_funcs mdp5_crtc_funcs_no_lm_cursor = {
+	.set_config = drm_atomic_helper_set_config,
+	.destroy = mdp5_crtc_destroy,
+	.page_flip = drm_atomic_helper_page_flip,
+	.set_property = drm_atomic_helper_crtc_set_property,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+};
+
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
 	.mode_set_nofb = mdp5_crtc_mode_set_nofb,
 	.disable = mdp5_crtc_disable,
@@ -831,7 +841,7 @@ void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc)
 
 /* initialize crtc */
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
-		struct drm_plane *plane, int id)
+		struct drm_plane *plane, int id, bool big_crtc)
 {
 	struct drm_crtc *crtc = NULL;
 	struct mdp5_crtc *mdp5_crtc;
@@ -851,8 +861,14 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 	mdp5_crtc->vblank.irq = mdp5_crtc_vblank_irq;
 	mdp5_crtc->err.irq = mdp5_crtc_err_irq;
 
-	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp5_crtc_funcs,
-				  NULL);
+	if (big_crtc)
+		drm_crtc_init_with_planes(dev, crtc, plane, NULL,
+					  &mdp5_crtc_funcs_no_lm_cursor,
+					  NULL);
+	else
+		drm_crtc_init_with_planes(dev, crtc, plane, NULL,
+					  &mdp5_crtc_funcs,
+					  NULL);
 
 	drm_flip_work_init(&mdp5_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);
@@ -862,8 +878,14 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 
 	mdp5_kms = get_kms(crtc);
 
-	mdp5_crtc->mixers[0] = mdp5_kms->hwmixers[id];
-	mdp5_crtc->num_mixers = 1;
+	if (big_crtc) {
+		mdp5_crtc->mixers[0] = mdp5_kms->hwmixers[id];
+		mdp5_crtc->mixers[1] = mdp5_kms->hwmixers[id + 1];
+		mdp5_crtc->num_mixers = 2;
+	} else {
+		mdp5_crtc->mixers[0] = mdp5_kms->hwmixers[id];
+		mdp5_crtc->num_mixers = 1;
+	}
 
 	return crtc;
 }
