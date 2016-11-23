@@ -57,16 +57,17 @@ enum mdp5_intfnum {
 };
 
 enum mdp5_pipe {
-	SSPP_VIG0 = 0,
-	SSPP_VIG1 = 1,
-	SSPP_VIG2 = 2,
-	SSPP_RGB0 = 3,
-	SSPP_RGB1 = 4,
-	SSPP_RGB2 = 5,
-	SSPP_DMA0 = 6,
-	SSPP_DMA1 = 7,
-	SSPP_VIG3 = 8,
-	SSPP_RGB3 = 9,
+	SSPP_NONE = 0,
+	SSPP_VIG0 = 1,
+	SSPP_VIG1 = 2,
+	SSPP_VIG2 = 3,
+	SSPP_RGB0 = 4,
+	SSPP_RGB1 = 5,
+	SSPP_RGB2 = 6,
+	SSPP_DMA0 = 7,
+	SSPP_DMA1 = 8,
+	SSPP_VIG3 = 9,
+	SSPP_RGB3 = 10,
 };
 
 enum mdp5_ctl_mode {
