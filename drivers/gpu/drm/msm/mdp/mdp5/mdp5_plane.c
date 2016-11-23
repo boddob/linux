@@ -827,6 +827,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane)
 {
 	struct drm_plane_state *pstate = plane->state;
 	struct mdp5_hw_pipe *hwpipe = to_mdp5_plane_state(pstate)->hwpipe;
+	struct mdp5_hw_pipe *right_hwpipe = to_mdp5_plane_state(pstate)->right_hwpipe;
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	uint32_t pitches[4] = { 0 };
 	uint32_t iovas[4] = { 0 };
@@ -877,6 +878,28 @@ static int mdp5_plane_mode_set(struct drm_plane *plane)
 		iovas[i] = msm_framebuffer_iova(fb, mdp5_kms->id, i);
 	}
 
+	if (right_hwpipe) {
+		uint32_t src_x_r;
+		int crtc_x_r;
+
+		crtc_w /= 2;
+		src_w /= 2;
+		src_img_w /= 2;
+
+		crtc_x_r = crtc_x + crtc_w;
+		src_x_r = src_x + src_w;
+
+		ret = mdp5_hwpipe_mode_set(mdp5_kms, right_hwpipe, nplanes, format,
+				   hflip, vflip,
+				   crtc_x_r, crtc_y, crtc_w, crtc_h,
+				   src_x_r, src_y, src_w, src_h,
+				   src_img_w, src_img_h, pitches, iovas);
+		if (ret) {
+			DBG("problem with right plane");
+			return ret;
+		}
+	}
+
 	ret = mdp5_hwpipe_mode_set(mdp5_kms, hwpipe, nplanes, format,
 				   hflip, vflip,
 				   crtc_x, crtc_y, crtc_w, crtc_h,
@@ -896,14 +919,30 @@ enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane)
 	return pstate->hwpipe->pipe;
 }
 
+enum mdp5_pipe mdp5_plane_right_pipe(struct drm_plane *plane)
+{
+	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
+
+	if (!pstate->right_hwpipe)
+		return SSPP_NONE;
+
+	return pstate->right_hwpipe->pipe;
+}
+
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane)
 {
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
+	uint32_t mask;
 
 	if (WARN_ON(!pstate->hwpipe))
 		return 0;
 
-	return pstate->hwpipe->flush_mask;
+	mask = pstate->hwpipe->flush_mask;
+
+	if (pstate->right_hwpipe)
+		mask |= pstate->right_hwpipe->flush_mask;
+
+	return mask;
 }
 
 /* called after vsync in thread context */

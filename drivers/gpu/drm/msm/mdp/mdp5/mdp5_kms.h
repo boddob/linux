@@ -257,6 +257,7 @@ uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
 void mdp5_plane_complete_commit(struct drm_plane *plane,
 	struct drm_plane_state *state);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
+enum mdp5_pipe mdp5_plane_right_pipe(struct drm_plane *plane);
 struct drm_plane *mdp5_plane_init(struct drm_device *dev, bool primary);
 
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
