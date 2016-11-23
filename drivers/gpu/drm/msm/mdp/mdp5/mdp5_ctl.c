@@ -170,6 +170,11 @@ static void set_ctl_op(struct mdp5_ctl *ctl, struct mdp5_interface *intf)
 		break;
 	}
 
+	if (ctl->num_mixers > 1) {
+		ctl_op |= MDP5_CTL_OP_PACK_3D_ENABLE |
+			  MDP5_CTL_OP_PACK_3D(1);
+	}
+
 	spin_lock_irqsave(&ctl->hw_lock, flags);
 	ctl_write(ctl, REG_MDP5_CTL_OP(ctl->id), ctl_op);
 	spin_unlock_irqrestore(&ctl->hw_lock, flags);
