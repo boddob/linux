@@ -419,6 +419,7 @@ const struct mdp5_cfg_hw msm8x96_config = {
 		.count = 1,
 		.caps = MDP_CAP_DSC |
 			MDP_CAP_CDM |
+			MDP_CAP_SRC_SPLIT |
 			0,
 	},
 	.ctl = {
