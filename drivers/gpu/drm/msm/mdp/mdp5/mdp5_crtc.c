@@ -295,6 +295,7 @@ static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	unsigned long flags;
 	struct drm_display_mode *mode;
+	u32 mixer_width;
 	int i;
 
 	if (WARN_ON(!crtc->state))
@@ -311,13 +312,24 @@ static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 			mode->vsync_end, mode->vtotal,
 			mode->type, mode->flags);
 
+	mixer_width = mode->hdisplay / mdp5_crtc->num_mixers;
+
 	for (i = 0; i < mdp5_crtc->num_mixers; i++) {
+		u32 val;
 		struct mdp5_hw_mixer *mixer = mdp5_crtc->mixers[i];
 
 		spin_lock_irqsave(&mixer->lm_lock, flags);
 		mdp5_write(mdp5_kms, REG_MDP5_LM_OUT_SIZE(mixer->lm),
-				MDP5_LM_OUT_SIZE_WIDTH(mode->hdisplay) |
+				MDP5_LM_OUT_SIZE_WIDTH(mixer_width) |
 				MDP5_LM_OUT_SIZE_HEIGHT(mode->vdisplay));
+
+		val = mdp5_read(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(mixer->lm));
+		if (i == 1)
+			val |= MDP5_LM_BLEND_COLOR_OUT_SPLIT_LEFT_RIGHT;
+		else
+			val &= ~MDP5_LM_BLEND_COLOR_OUT_SPLIT_LEFT_RIGHT;
+		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(mixer->lm), val);
+
 		spin_unlock_irqrestore(&mixer->lm_lock, flags);
 	}
 }
