@@ -65,6 +65,8 @@ void msm_hdmi_config_avmute(struct hdmi *hdmi, bool enable)
 			av_pk_en = true;
 	}
 
+	hdmi_write(hdmi, REG_HDMI_VBI_PKT_CTRL, 0x2030);
+
 	if (av_pk_en) {
 		u32 vbi_pkt_ctrl = hdmi_read(hdmi, REG_HDMI_VBI_PKT_CTRL);
 
