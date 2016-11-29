@@ -612,6 +612,7 @@ static void arm_smmu_tlb_inv_context(void *cookie)
 	bool stage1 = cfg->cbar != CBAR_TYPE_S2_TRANS;
 	void __iomem *base;
 
+	pm_runtime_get_sync(smmu->dev);
 	if (stage1) {
 		base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
 		writel_relaxed(ARM_SMMU_CB_ASID(smmu, cfg),
@@ -634,6 +635,7 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 	bool stage1 = cfg->cbar != CBAR_TYPE_S2_TRANS;
 	void __iomem *reg;
 
+	pm_runtime_get_sync(smmu->dev);
 	if (stage1) {
 		reg = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
 		reg += leaf ? ARM_SMMU_CB_S1_TLBIVAL : ARM_SMMU_CB_S1_TLBIVA;
@@ -2125,6 +2127,8 @@ static int arm_smmu_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
 
+	printk(KERN_ERR "%s\n", __func__);
+	WARN_ON(1);
 	return arm_smmu_enable_clocks(smmu);
 }
 
@@ -2133,6 +2137,8 @@ static int arm_smmu_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
 
+	printk(KERN_ERR "%s\n", __func__);
+	WARN_ON(1);
 	arm_smmu_disable_clocks(smmu);
 
 	return 0;
