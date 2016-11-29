@@ -406,7 +406,7 @@ static void adv7511_irq_work(struct work_struct *work)
 {
 	struct adv7511 *adv7511 = container_of(work, struct adv7511, irq_work);
 
-	drm_helper_hpd_irq_event(adv7511->connector.dev);
+	drm_kms_helper_hotplug_event(adv7511->connector.dev);
 }
 
 
