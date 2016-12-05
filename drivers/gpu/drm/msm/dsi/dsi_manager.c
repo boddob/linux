@@ -774,6 +774,18 @@ bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len)
 	return true;
 }
 
+void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags)
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_drm_private *priv = msm_dsi->dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+	struct drm_encoder *encoder = msm_dsi_get_encoder(msm_dsi);
+
+	if (encoder && kms->funcs->set_encoder_mode)
+		if (!(device_flags & MIPI_DSI_MODE_VIDEO))
+			kms->funcs->set_encoder_mode(kms, encoder, true);
+}
+
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 {
 	struct msm_dsi_manager *msm_dsim = &msm_dsim_glb;
