@@ -29,10 +29,7 @@ struct mdp5_plane {
 
 static int mdp5_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h);
+		struct drm_rect *src, struct drm_rect *dest);
 
 static void set_scanout_locked(struct drm_plane *plane,
 		struct drm_framebuffer *fb);
@@ -278,6 +275,7 @@ static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
 	msm_framebuffer_cleanup(fb, mdp5_kms->id);
 }
 
+#define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
 static int mdp5_plane_atomic_check(struct drm_plane *plane,
 		struct drm_plane_state *state)
 {
@@ -286,10 +284,19 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 	struct mdp5_cfg *config = mdp5_cfg_get_config(get_kms(plane)->cfg);
 	bool new_hwpipe = false;
 	uint32_t max_width, max_height;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_rect clip;
+	int min_scale, max_scale;
 	uint32_t caps = 0;
+	int ret;
 
 	DBG("%s: check (%d -> %d)", plane->name,
 			plane_enabled(old_state), plane_enabled(state));
+
+	crtc = state->crtc ? state->crtc : plane->state->crtc;
+	if (!crtc)
+		return 0;
 
 	/* We don't allow faster-than-vblank updates.. if we did add this
 	 * some day, we would need to disallow in cases where hwpipe
@@ -308,6 +315,22 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 				DRM_RECT_FP_ARG(&src));
 		return -ERANGE;
 	}
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	if (WARN_ON(!crtc_state))
+		return -EINVAL;
+
+	clip.x1 = 0;
+	clip.y1 = 0;
+	clip.x2 = crtc_state->adjusted_mode.hdisplay;
+	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	min_scale = FRAC_16_16(1, 8);
+	max_scale = FRAC_16_16(8, 1);
+
+	ret = drm_plane_helper_check_state(state, &clip, min_scale,
+					   max_scale, true, true);
+	if (ret)
+		return ret;
 
 	if (plane_enabled(state)) {
 		unsigned int rotation;
@@ -379,15 +402,12 @@ static void mdp5_plane_atomic_update(struct drm_plane *plane,
 
 	mdp5_state->pending = true;
 
-	if (plane_enabled(state)) {
+	if (plane_enabled(state) && state->visible) {
 		int ret;
 
 		ret = mdp5_plane_mode_set(plane,
 				state->crtc, state->fb,
-				state->crtc_x, state->crtc_y,
-				state->crtc_w, state->crtc_h,
-				state->src_x,  state->src_y,
-				state->src_w, state->src_h);
+				&state->src, &state->dst);
 		/* atomic_check should have ensured that this doesn't fail */
 		WARN_ON(ret < 0);
 	}
@@ -680,10 +700,7 @@ static void mdp5_write_pixel_ext(struct mdp5_kms *mdp5_kms, enum mdp5_pipe pipe,
 
 static int mdp5_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h)
+		struct drm_rect *src, struct drm_rect *dest)
 {
 	struct drm_plane_state *pstate = plane->state;
 	struct mdp5_hw_pipe *hwpipe = to_mdp5_plane_state(pstate)->hwpipe;
@@ -699,6 +716,10 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	uint32_t pix_format;
 	unsigned int rotation;
 	bool vflip, hflip;
+	int crtc_x, crtc_y;
+	unsigned int crtc_w, crtc_h;
+	uint32_t src_x, src_y;
+	uint32_t src_w, src_h;
 	unsigned long flags;
 	int ret;
 
@@ -710,6 +731,16 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 
 	format = to_mdp_format(msm_framebuffer_format(fb));
 	pix_format = format->base.pixel_format;
+
+	src_x = src->x1;
+	src_y = src->y1;
+	src_w = drm_rect_width(src);
+	src_h = drm_rect_height(src);
+
+	crtc_x = dest->x1;
+	crtc_y = dest->y1;
+	crtc_w = drm_rect_width(dest);
+	crtc_h = drm_rect_height(dest);
 
 	/* src values are in Q16 fixed point, convert to integer: */
 	src_x = src_x >> 16;
