@@ -185,6 +185,46 @@
 				status = "okay";
 			};
 
+			dsi@994000 {
+				vddio-supply = <&pm8994_l14>;
+				vdda-supply = <&pm8994_l2>;
+				vcca-supply = <&pm8994_l28>;
+				status = "okay";
+
+				panel@0 {
+					reg = <0>;
+					compatible = "innolux,n070icn-pb1";
+					power-on-delay= <50>;
+					reset-delay = <100>;
+					init-delay = <100>;
+					#flip-horizontal;
+					#flip-vertical;
+					panel-width-mm = <58>;
+
+					panel-height-mm = <103>;
+					//mipisw-gpio = <&msmgpio 32 0>;
+
+					pwr-en-gpio = <&msmgpio 29 0>;
+					bl-en-gpio = <&msmgpio 24 0>;
+					pwm-gpio = <&pm8994_gpios 5 0>;
+
+					port {
+						panel0_in: endpoint {
+							remote-endpoint = <&dsi0_out>;
+						};
+					};
+				};
+
+				ports {
+					port@1 {
+						endpoint {
+							remote-endpoint = <&panel0_in>;
+							data-lanes = <0 1 2 3>;
+						};
+					};
+				};
+			};
+
 			hdmi-phy@9a0600 {
 				status = "okay";
 
