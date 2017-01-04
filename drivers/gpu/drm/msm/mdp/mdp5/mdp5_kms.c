@@ -536,7 +536,7 @@ static void read_mdp_hw_revision(struct mdp5_kms *mdp5_kms,
 
 	mdp5_enable(mdp5_kms);
 	version = mdp5_read(mdp5_kms, REG_MDP5_HW_VERSION);
-	mdp5_disable(mdp5_kms);
+	//mdp5_disable(mdp5_kms);
 
 	*major = FIELD(version, MDP5_HW_VERSION_MAJOR);
 	*minor = FIELD(version, MDP5_HW_VERSION_MINOR);
@@ -879,7 +879,7 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	struct mdp5_kms *mdp5_kms;
 	struct mdp5_cfg *config;
 	u32 major, minor;
-	int ret;
+	int i, ret;
 
 	mdp5_kms = devm_kzalloc(&pdev->dev, sizeof(*mdp5_kms), GFP_KERNEL);
 	if (!mdp5_kms) {

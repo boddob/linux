@@ -22,6 +22,7 @@
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 
 #include <dt-bindings/clock/qcom,mmcc-msm8996.h>
 
@@ -3328,6 +3329,7 @@ static int mmcc_msm8996_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int i, ret;
 	struct regmap *regmap;
+	u32 val;
 
 	regmap = qcom_cc_map(pdev, &mmcc_msm8996_desc);
 	if (IS_ERR(regmap))
@@ -3337,6 +3339,41 @@ static int mmcc_msm8996_probe(struct platform_device *pdev)
 	regmap_update_bits(regmap, 0x50d8, BIT(31), 0);
 	/* Disable the NoC FSM for mmss_mmagic_cfg_ahb_clk */
 	regmap_update_bits(regmap, 0x5054, BIT(15), 0);
+
+#if 1
+
+	//regmap_update_bits(regmap, 0x2324, BIT(0), 0);
+       /* read hdmi regmap bits */
+       regmap_read(regmap, 0x2060, &val);
+       printk(KERN_ERR "%s CMD %x\n", __func__, val);
+       regmap_read(regmap, 0x2064, &val);
+       printk(KERN_ERR "%s CFG %x\n", __func__, val);
+
+       /* change source to xo */
+       regmap_update_bits(regmap, 0x2064, BIT(8), 0);
+
+       regmap_update_bits(regmap, 0x2060, BIT(0), 1);
+       udelay(500);
+       regmap_read(regmap, 0x2060, &val);
+       printk(KERN_ERR "%s CMD %x\n", __func__, val);
+
+	/* byte0/1, pck0/1 */
+       regmap_update_bits(regmap, 0x233c, BIT(0), 0);
+       regmap_update_bits(regmap, 0x2124, BIT(8), 0);
+       regmap_update_bits(regmap, 0x2120, BIT(0), 1);
+
+       regmap_update_bits(regmap, 0x2340, BIT(0), 0);
+       regmap_update_bits(regmap, 0x2144, BIT(8), 0);
+       regmap_update_bits(regmap, 0x2140, BIT(0), 1);
+
+       regmap_update_bits(regmap, 0x2314, BIT(0), 0);
+       regmap_update_bits(regmap, 0x2004, BIT(8), 0);
+       regmap_update_bits(regmap, 0x2000, BIT(0), 1);
+
+       regmap_update_bits(regmap, 0x2318, BIT(0), 0);
+       regmap_update_bits(regmap, 0x2024, BIT(8), 0);
+       regmap_update_bits(regmap, 0x2020, BIT(0), 1);
+#endif
 
 	for (i = 0; i < ARRAY_SIZE(mmcc_msm8996_hws); i++) {
 		ret = devm_clk_hw_register(dev, mmcc_msm8996_hws[i]);
