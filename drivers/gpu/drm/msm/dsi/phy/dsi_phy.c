@@ -357,6 +357,14 @@ static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 
 	pm_runtime_get_sync(dev);
 
+	if (phy->mmagic_ahb_clk) {
+		ret = clk_prepare_enable(phy->mmagic_ahb_clk);
+		if (ret) {
+			dev_err(dev, "%s: can't enable mmagic_ahb clk, %d\n", __func__, ret);
+			pm_runtime_put_sync(dev);
+		}
+	}
+
 	ret = clk_prepare_enable(phy->ahb_clk);
 	if (ret) {
 		dev_err(dev, "%s: can't enable ahb clk, %d\n", __func__, ret);
@@ -369,6 +377,8 @@ static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 static void dsi_phy_disable_resource(struct msm_dsi_phy *phy)
 {
 	clk_disable_unprepare(phy->ahb_clk);
+	if (phy->mmagic_ahb_clk)
+		clk_disable_unprepare(phy->mmagic_ahb_clk);
 	pm_runtime_put_sync(&phy->pdev->dev);
 }
 
@@ -483,6 +493,11 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	phy->mmagic_ahb_clk = devm_clk_get(dev, "mmagic_iface_clk");
+	if (IS_ERR(phy->mmagic_ahb_clk)) {
+		DBG("didn't get mmagic ahb clk");
+		phy->mmagic_ahb_clk = NULL;
+	}
 
 	if (phy->cfg->ops.init) {
 		ret = phy->cfg->ops.init(phy);
