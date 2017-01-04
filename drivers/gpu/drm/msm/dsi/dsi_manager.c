@@ -818,9 +818,17 @@ bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len)
 void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct msm_drm_private *priv = msm_dsi->dev->dev_private;
-	struct msm_kms *kms = priv->kms;
-	struct drm_encoder *encoder = msm_dsi_get_encoder(msm_dsi);
+	struct drm_device *dev = msm_dsi->dev;
+	struct msm_drm_private *priv;
+	struct msm_kms *kms;
+	struct drm_encoder *encoder;
+
+	if (!dev)
+		return;
+
+	priv = dev->dev_private;
+	kms = priv->kms;
+	encoder = msm_dsi_get_encoder(msm_dsi);
 
 	if (encoder && kms->funcs->set_encoder_mode)
 		if (!(device_flags & MIPI_DSI_MODE_VIDEO))
