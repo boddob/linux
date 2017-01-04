@@ -82,6 +82,7 @@ struct msm_dsi_phy {
 	int id;
 
 	struct clk *ahb_clk;
+	struct clk *mmagic_ahb_clk;
 	struct regulator_bulk_data supplies[DSI_DEV_REGULATOR_MAX];
 
 	struct msm_dsi_dphy_timing timing;
