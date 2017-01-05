@@ -92,8 +92,6 @@ struct msm_dsi_phy {
 	bool regulator_ldo_mode;
 
 	struct msm_dsi_pll *pll;
-
-	void *priv;
 };
 
 /*
