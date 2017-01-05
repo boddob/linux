@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,16 +20,19 @@
 /*
  * DSI PLL 14nm - clock diagram (eg: DSI0):
  *
- *                 +----+     +----+
+ *         dsi0n1_postdiv_clk
+ *                         |
+ *                         |
+ *                 +----+  |  +----+
  *  dsi0vco_clk ---| n1 |--o--| /8 |-- dsi0pllbyte
  *                 +----+  |  +----+
- *                         |
- *                         |   +----+
- *                         o---| /2 |---|\
- *                         |   +----+   | \   +----+
- *                         |            |  |--| n2 |--dsi0pll
- *                         o------------| /   +----+
- *                                      |/
+ *                         |           dsi0n1_postdivby2_clk
+ *                         |   +----+  |
+ *                         o---| /2 |--o--|\
+ *                         |   +----+     | \   +----+
+ *                         |              |  |--| n2 |-- dsi0pll
+ *                         o--------------| /   +----+
+ *                                        |/
  */
 
 #define POLL_MAX_READS			15
@@ -37,7 +40,6 @@
 
 #define NUM_PROVIDED_CLKS		2
 
-#define VCO_REF_CLK_RATE		19200000
 #define VCO_MIN_RATE			1300000000UL
 #define VCO_MAX_RATE			2600000000UL
 
@@ -46,75 +48,70 @@
 
 #define DSI_PLL_DEFAULT_VCO_POSTDIV	1
 
-#define CEIL(x, y)		(((x) + ((y)-1)) / (y))
-
 struct dsi_pll_input {
-	u32 fref;	/* 19.2 Mhz, reference clk */
+	u32 fref;	/* reference clk */
 	u32 fdata;	/* bit clock rate */
-	u32 dsiclk_sel; /* 1, reg: 0x0014 */
-	u32 n2div;	/* 1, reg: 0x0010, bit 4-7 */
-	u32 ssc_en;	/* 1, reg: 0x0094, bit 0 */
-	u32 ldo_en;	/* 0,  reg: 0x004c, bit 0 */
+	u32 dsiclk_sel; /* Mux configuration (see diagram) */
+	u32 ssc_en;	/* SSC enable/disable */
+	u32 ldo_en;
 
-	/* fixed  */
-	u32 refclk_dbler_en;	/* 0, reg: 0x00c0, bit 1 */
-	u32 vco_measure_time;	/* 5, unknown */
-	u32 kvco_measure_time;	/* 5, unknown */
-	u32 bandgap_timer;	/* 4, reg: 0x0030, bit 3 - 5 */
-	u32 pll_wakeup_timer;	/* 5, reg: 0x003c, bit 0 - 2 */
-	u32 plllock_cnt;	/* 1, reg: 0x0088, bit 1 - 2 */
-	u32 plllock_rng;	/* 1, reg: 0x0088, bit 3 - 4 */
-	u32 ssc_center;		/* 0, reg: 0x0094, bit 1 */
-	u32 ssc_adj_period;	/* 37, reg: 0x498, bit 0 - 9 */
-	u32 ssc_spread;		/* 0.005  */
-	u32 ssc_freq;		/* unknown */
-	u32 pll_ie_trim;	/* 4, reg: 0x0000 */
-	u32 pll_ip_trim;	/* 4, reg: 0x0004 */
-	u32 pll_iptat_trim;	/* reg: 0x0010 */
-	u32 pll_cpcset_cur;	/* 1, reg: 0x00f0, bit 0 - 2 */
-	u32 pll_cpmset_cur;	/* 1, reg: 0x00f0, bit 3 - 5 */
+	/* fixed params */
+	u32 refclk_dbler_en;
+	u32 vco_measure_time;
+	u32 kvco_measure_time;
+	u32 bandgap_timer;
+	u32 pll_wakeup_timer;
+	u32 plllock_cnt;
+	u32 plllock_rng;
+	u32 ssc_center;
+	u32 ssc_adj_period;
+	u32 ssc_spread;
+	u32 ssc_freq;
+	u32 pll_ie_trim;
+	u32 pll_ip_trim;
+	u32 pll_iptat_trim;
+	u32 pll_cpcset_cur;
+	u32 pll_cpmset_cur;
 
-	u32 pll_icpmset;	/* 4, reg: 0x00fc, bit 3 - 5 */
-	u32 pll_icpcset;	/* 4, reg: 0x00fc, bit 0 - 2 */
+	u32 pll_icpmset;
+	u32 pll_icpcset;
 
-	u32 pll_icpmset_p;	/* 0, reg: 0x00f4, bit 0 - 2 */
-	u32 pll_icpmset_m;	/* 0, reg: 0x00f4, bit 3 - 5 */
+	u32 pll_icpmset_p;
+	u32 pll_icpmset_m;
 
-	u32 pll_icpcset_p;	/* 0, reg: 0x00f8, bit 0 - 2 */
-	u32 pll_icpcset_m;	/* 0, reg: 0x00f8, bit 3 - 5 */
+	u32 pll_icpcset_p;
+	u32 pll_icpcset_m;
 
-	u32 pll_lpf_res1;	/* 3, reg: 0x0104, bit 0 - 3 */
-	u32 pll_lpf_cap1;	/* 11, reg: 0x0100, bit 0 - 3 */
-	u32 pll_lpf_cap2;	/* 1, reg: 0x0100, bit 4 - 7 */
-	u32 pll_c3ctrl;		/* 2, reg: 0x00c4 */
-	u32 pll_r3ctrl;		/* 1, reg: 0x00c4 */
+	u32 pll_lpf_res1;
+	u32 pll_lpf_cap1;
+	u32 pll_lpf_cap2;
+	u32 pll_c3ctrl;
+	u32 pll_r3ctrl;
 };
 
 struct dsi_pll_output {
-	u32 pll_txclk_en;	/* reg: 0x00c0 */
-	u32 dec_start;		/* reg: 0x0090 */
-	u32 div_frac_start;	/* reg: 0x00b4, 0x00b8, 0x00bc */
-	u32 ssc_period;		/* reg: 0x00a0, 0x00a4 */
-	u32 ssc_step_size;	/* reg: 0x00a8, 0x00ac */
-	u32 plllock_cmp;	/* reg: 0x007c, 0x0080, 0x0084 */
-	u32 pll_vco_div_ref;	/* reg: 0x006c, 0x0070 */
-	u32 pll_vco_count;	/* reg: 0x0074, 0x0078 */
-	u32 pll_kvco_div_ref;	/* reg: 0x0040, 0x0044 */
-	u32 pll_kvco_count;	/* reg: 0x0048, 0x004c */
-	u32 pll_misc1;		/* reg: 0x00e8 */
-	u32 pll_lpf2_postdiv;	/* reg: 0x0104 */
-	u32 pll_resetsm_cntrl;	/* reg: 0x002c */
-	u32 pll_resetsm_cntrl2;	/* reg: 0x0030 */
-	u32 pll_resetsm_cntrl5;	/* reg: 0x003c */
-	u32 pll_kvco_code;		/* reg: 0x0058 */
+	u32 pll_txclk_en;
+	u32 dec_start;
+	u32 div_frac_start;
+	u32 ssc_period;
+	u32 ssc_step_size;
+	u32 plllock_cmp;
+	u32 pll_vco_div_ref;
+	u32 pll_vco_count;
+	u32 pll_kvco_div_ref;
+	u32 pll_kvco_count;
+	u32 pll_misc1;
+	u32 pll_lpf2_postdiv;
+	u32 pll_resetsm_cntrl;
+	u32 pll_resetsm_cntrl2;
+	u32 pll_resetsm_cntrl5;
+	u32 pll_kvco_code;
 
-	u32 cmn_clk_cfg0;	/* reg: 0x0010 */
-	u32 cmn_clk_cfg1;	/* reg: 0x0014 */
-	u32 cmn_ldo_cntrl;	/* reg: 0x004c */
+	u32 cmn_clk_cfg0;
+	u32 cmn_clk_cfg1;
+	u32 cmn_ldo_cntrl;
 
-	u32 pll_postdiv;	/* vco */
-	u32 pll_n1div;		/* vco */
-	u32 pll_n2div;		/* hr_oclk3, pixel */
+	u32 pll_postdiv;
 	u32 fcvo;
 };
 
@@ -138,16 +135,9 @@ struct dsi_pll_14nm {
 	struct dsi_pll_input in;
 	struct dsi_pll_output out;
 
-	bool ssc_en;		/* share pll with master */
-	bool ssc_center;	/* default is down spread */
-	u32 ssc_freq;
-	u32 ssc_ppm;
-
 	spinlock_t postdiv_lock;
 
-	/* maybe remove? */
 	s64 vco_current_rate;
-	s64 vco_locking_rate;
 	s64 vco_ref_clk_rate;
 
 	/* private clocks: */
@@ -163,6 +153,7 @@ struct dsi_pll_14nm {
 	enum msm_dsi_phy_usecase uc;
 	struct dsi_pll_14nm *slave;
 };
+#define to_pll_14nm(x)	container_of(x, struct dsi_pll_14nm, base)
 
 struct dsi_pll_14nm_postdiv {
 	struct clk_hw hw;
@@ -176,12 +167,11 @@ struct dsi_pll_14nm_postdiv {
 };
 #define to_pll_14nm_postdiv(_hw) container_of(_hw, struct dsi_pll_14nm_postdiv, hw)
 
+/* global list of private pll data pointers */
 static struct dsi_pll_14nm *pll_14nm_list[DSI_MAX];
 
-#define to_pll_14nm(x)	container_of(x, struct dsi_pll_14nm, base)
-
 static bool pll_14nm_poll_for_ready(struct dsi_pll_14nm *pll_14nm,
-				u32 nb_tries, u32 timeout_us)
+				    u32 nb_tries, u32 timeout_us)
 {
 	bool pll_locked = false;
 	void __iomem *base = pll_14nm->mmio;
@@ -189,7 +179,8 @@ static bool pll_14nm_poll_for_ready(struct dsi_pll_14nm *pll_14nm,
 
 	tries = nb_tries;
 	while (tries--) {
-		val = pll_read(base + REG_DSI_14nm_PHY_PLL_RESET_SM_READY_STATUS);
+		val = pll_read(base +
+			       REG_DSI_14nm_PHY_PLL_RESET_SM_READY_STATUS);
 		pll_locked = !!(val & BIT(5));
 
 		if (pll_locked)
@@ -201,7 +192,8 @@ static bool pll_14nm_poll_for_ready(struct dsi_pll_14nm *pll_14nm,
 	if (!pll_locked) {
 		tries = nb_tries;
 		while (tries--) {
-			val = pll_read(base + REG_DSI_14nm_PHY_PLL_RESET_SM_READY_STATUS);
+			val = pll_read(base +
+				REG_DSI_14nm_PHY_PLL_RESET_SM_READY_STATUS);
 			pll_locked = !!(val & BIT(0));
 
 			if (pll_locked)
@@ -211,49 +203,56 @@ static bool pll_14nm_poll_for_ready(struct dsi_pll_14nm *pll_14nm,
 		}
 	}
 
-	DBG("DSI PLL is %slocked", pll_locked ? "" : "*not* ");
+	if (pll_locked)
+		DBG("DSI%d PLL is locked", pll_14nm->id);
+	else
+		DRM_ERROR("DSI%d PLL did *not* lock\n", pll_14nm->id);
 
 	return pll_locked;
 }
 
 static void dsi_pll_14nm_input_init(struct dsi_pll_14nm *pll)
 {
-	pll->in.fref = VCO_REF_CLK_RATE;	/* 19.2 Mhz*/
-	pll->in.fdata = 0;		/* bit clock rate */
-	pll->in.dsiclk_sel = 1;		/* 1, reg: 0x0014 */
-	pll->in.ssc_en = pll->ssc_en;		/* 1, reg: 0x0094, bit 0 */
-	pll->in.ldo_en = 0;		/* 0,  reg: 0x004c, bit 0 */
+	pll->in.fref = pll->vco_ref_clk_rate;
+	pll->in.fdata = 0;
+	pll->in.dsiclk_sel = 1;	/* Use the /2 path in Mux */
+	pll->in.ldo_en = 0;	/* disabled for now */
 
-	/* fixed  input */
-	pll->in.refclk_dbler_en = 0;	/* 0, reg: 0x00c0, bit 1 */
-	pll->in.vco_measure_time = 5;	/* 5, unknown */
-	pll->in.kvco_measure_time = 5;	/* 5, unknown */
-	pll->in.bandgap_timer = 4;	/* 4, reg: 0x0030, bit 3 - 5 */
-	pll->in.pll_wakeup_timer = 5;	/* 5, reg: 0x003c, bit 0 - 2 */
-	pll->in.plllock_cnt = 1;	/* 1, reg: 0x0088, bit 1 - 2 */
-	pll->in.plllock_rng = 0;	/* 0, reg: 0x0088, bit 3 - 4 */
-	pll->in.ssc_center = pll->ssc_center;/* 0, reg: 0x0094, bit 1 */
-	pll->in.ssc_adj_period = 37;	/* 37, reg: 0x0098, bit 0 - 9 */
-	pll->in.ssc_spread = pll->ssc_ppm / 1000;
-	pll->in.ssc_freq = pll->ssc_freq;
+	/* fixed input */
+	pll->in.refclk_dbler_en = 0;
+	pll->in.vco_measure_time = 5;
+	pll->in.kvco_measure_time = 5;
+	pll->in.bandgap_timer = 4;
+	pll->in.pll_wakeup_timer = 5;
+	pll->in.plllock_cnt = 1;
+	pll->in.plllock_rng = 0;
 
-	pll->in.pll_ie_trim = 4;	/* 4, reg: 0x0000 */
-	pll->in.pll_ip_trim = 4;	/* 4, reg: 0x0004 */
-	pll->in.pll_cpcset_cur = 1;	/* 1, reg: 0x00f0, bit 0 - 2 */
-	pll->in.pll_cpmset_cur = 1;	/* 1, reg: 0x00f0, bit 3 - 5 */
-	pll->in.pll_icpmset = 4;	/* 4, reg: 0x00fc, bit 3 - 5 */
-	pll->in.pll_icpcset = 4;	/* 4, reg: 0x00fc, bit 0 - 2 */
-	pll->in.pll_icpmset_p = 0;	/* 0, reg: 0x00f4, bit 0 - 2 */
-	pll->in.pll_icpmset_m = 0;	/* 0, reg: 0x00f4, bit 3 - 5 */
-	pll->in.pll_icpcset_p = 0;	/* 0, reg: 0x00f8, bit 0 - 2 */
-	pll->in.pll_icpcset_m = 0;	/* 0, reg: 0x00f8, bit 3 - 5 */
-	pll->in.pll_lpf_res1 = 3;	/* 3, reg: 0x0104, bit 0 - 3 */
-	pll->in.pll_lpf_cap1 = 11;	/* 11, reg: 0x0100, bit 0 - 3 */
-	pll->in.pll_lpf_cap2 = 1;	/* 1, reg: 0x0100, bit 4 - 7 */
+	/* SSC is disabled for now. Some of these params need to come via DT */
+	pll->in.ssc_en = 0;		/* disabled for now */
+	pll->in.ssc_center = 0;		/* down spread by default */
+	pll->in.ssc_adj_period = 37;
+	pll->in.ssc_spread = 5;		/* PPM / 1000 */
+	pll->in.ssc_freq = 31500;
+
+	pll->in.pll_ie_trim = 4;
+	pll->in.pll_ip_trim = 4;
+	pll->in.pll_cpcset_cur = 1;
+	pll->in.pll_cpmset_cur = 1;
+	pll->in.pll_icpmset = 4;
+	pll->in.pll_icpcset = 4;
+	pll->in.pll_icpmset_p = 0;
+	pll->in.pll_icpmset_m = 0;
+	pll->in.pll_icpcset_p = 0;
+	pll->in.pll_icpcset_m = 0;
+	pll->in.pll_lpf_res1 = 3;
+	pll->in.pll_lpf_cap1 = 11;
+	pll->in.pll_lpf_cap2 = 1;
 	pll->in.pll_iptat_trim = 7;
-	pll->in.pll_c3ctrl = 2;		/* 2 */
-	pll->in.pll_r3ctrl = 1;		/* 1 */
+	pll->in.pll_c3ctrl = 2;
+	pll->in.pll_r3ctrl = 1;
 }
+
+#define CEIL(x, y)		(((x) + ((y)-1)) / (y))
 
 static void pll_14nm_ssc_calc(struct dsi_pll_14nm *pll)
 {
@@ -269,7 +268,9 @@ static void pll_14nm_ssc_calc(struct dsi_pll_14nm *pll)
 	ssc_period -= 1;
 	pll->out.ssc_period = ssc_period;
 
-	DBG("ssc freq=%d spread=%d period=%d", pll->in.ssc_freq, pll->in.ssc_spread, pll->out.ssc_period);
+	DBG("ssc freq=%d spread=%d period=%d", pll->in.ssc_freq,
+					       pll->in.ssc_spread,
+					       pll->out.ssc_period);
 
 	step_size = (u32)pll->vco_current_rate;
 	ref = pll->vco_ref_clk_rate;
@@ -322,14 +323,13 @@ static void pll_14nm_dec_frac_calc(struct dsi_pll_14nm *pll)
 	else
 		duration = 32;
 
-	pll_comp_val =  duration * dec_start_multiple;
-	pll_comp_val =  div_s64(pll_comp_val, multiplier);
+	pll_comp_val = duration * dec_start_multiple;
+	pll_comp_val = div_s64(pll_comp_val, multiplier);
 	do_div(pll_comp_val, 10);
 
 	pout->plllock_cmp = (u32)pll_comp_val;
 
 	pout->pll_txclk_en = 1;
-	/* DSI PLL revision 2 */
 	pout->cmn_ldo_cntrl = 0x3c;
 }
 
@@ -347,11 +347,12 @@ static u32 pll_14nm_kvco_slop(u32 vrate)
 	return slop;
 }
 
-static void pll_14nm_calc_vco_count(struct dsi_pll_14nm *pll,
-			 s64 vco_clk_rate, s64 fref)
+static void pll_14nm_calc_vco_count(struct dsi_pll_14nm *pll)
 {
 	struct dsi_pll_input *pin = &pll->in;
 	struct dsi_pll_output *pout = &pll->out;
+	s64 vco_clk_rate = pll->vco_current_rate;
+	s64 fref = pll->vco_ref_clk_rate;
 	s64 data;
 	u32 cnt;
 
@@ -364,7 +365,7 @@ static void pll_14nm_calc_vco_count(struct dsi_pll_14nm *pll,
 	data = (unsigned long)vco_clk_rate / 1000000;	/* unit is Mhz */
 	data *= pin->vco_measure_time;
 	do_div(data, 10);
-	pout->pll_vco_count = data; /* reg: 0x0474, 0x0478 */
+	pout->pll_vco_count = data;
 
 	data = fref * pin->kvco_measure_time;
 	do_div(data, 1000000);
@@ -494,6 +495,7 @@ static void pll_14nm_software_reset(struct dsi_pll_14nm *pll_14nm)
 	void __iomem *cmn_base = pll_14nm->phy_cmn_mmio;
 
 	/* de assert pll start and apply pll sw reset */
+
 	/* stop pll */
 	pll_write(cmn_base + REG_DSI_14nm_PHY_CMN_PLL_CNTRL, 0);
 
@@ -513,7 +515,7 @@ static void pll_db_commit_14nm(struct dsi_pll_14nm *pll,
 	void __iomem *cmn_base = pll->phy_cmn_mmio;
 	u8 data;
 
-	DBG("PLL%d", pll->id);
+	DBG("DSI%d PLL", pll->id);
 
 	data = pout->cmn_ldo_cntrl;
 	pll_write(cmn_base + REG_DSI_14nm_PHY_CMN_LDO_CNTRL, data);
@@ -572,7 +574,7 @@ static void pll_db_commit_14nm(struct dsi_pll_14nm *pll,
 	data = (((pout->pll_postdiv - 1) << 4) | pin->pll_lpf_res1);
 	pll_write(base + REG_DSI_14nm_PHY_PLL_PLL_LPF2_POSTDIV, data);
 
-	if (pll->ssc_en)
+	if (pin->ssc_en)
 		pll_db_commit_ssc(pll);
 
 	wmb();	/* make sure register committed */
@@ -592,24 +594,28 @@ static int dsi_pll_14nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	DBG("DSI PLL%d rate=%lu, parent's=%lu", pll_14nm->id, rate, parent_rate);
 
 	pll_14nm->vco_current_rate = rate;
-	pll_14nm->vco_ref_clk_rate = VCO_REF_CLK_RATE;
+	pll_14nm->vco_ref_clk_rate = parent_rate;
 
 	dsi_pll_14nm_input_init(pll_14nm);
+
 	/*
-	 * tx_band = pll_postdiv
-	 * 0: divided by 1 <== for now
+	 * This configures the post divider internal to the VCO. It's
+	 * fixed to divide by 1 for now.
+	 *
+	 * tx_band = pll_postdiv.
+	 * 0: divided by 1
 	 * 1: divided by 2
 	 * 2: divided by 4
 	 * 3: divided by 8
 	 */
-	pll_14nm->out.pll_postdiv = DSI_PLL_DEFAULT_VCO_POSTDIV;
+	pout->pll_postdiv = DSI_PLL_DEFAULT_VCO_POSTDIV;
 
 	pll_14nm_dec_frac_calc(pll_14nm);
 
-	if (pll_14nm->ssc_en)
+	if (pin->ssc_en)
 		pll_14nm_ssc_calc(pll_14nm);
 
-	pll_14nm_calc_vco_count(pll_14nm, rate, VCO_REF_CLK_RATE);
+	pll_14nm_calc_vco_count(pll_14nm);
 
 	/* commit the slave DSI PLL registers if we're master. Note that we
 	 * don't lock the slave PLL. We just ensure that the PLL/PHY registers
@@ -635,7 +641,7 @@ static unsigned long dsi_pll_14nm_clk_recalc_rate(struct clk_hw *hw,
 	u64 vco_rate, multiplier = BIT(20);
 	s32 div_frac_start;
 	u32 dec_start;
-	u64 ref_clk = VCO_REF_CLK_RATE;
+	u64 ref_clk = parent_rate;
 
 	dec_start = pll_read(base + REG_DSI_14nm_PHY_PLL_DEC_START);
 	dec_start &= 0x0ff;
@@ -826,7 +832,7 @@ static int dsi_pll_14nm_restore_state(struct msm_dsi_pll *pll)
 		return ret;
 	}
 
-	data = cached_state->n1postdiv | ( cached_state->n2postdiv << 4);
+	data = cached_state->n1postdiv | (cached_state->n2postdiv << 4);
 
 	DBG("DSI%d PLL restore state %x %x", pll_14nm->id,
 					     cached_state->n1postdiv,
@@ -834,7 +840,7 @@ static int dsi_pll_14nm_restore_state(struct msm_dsi_pll *pll)
 
 	pll_write(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0, data);
 
-	/* also restore post dividers for slave DSI PLL */
+	/* also restore post-dividers for slave DSI PLL */
 	if (pll_14nm->uc == MSM_DSI_PHY_MASTER) {
 		struct dsi_pll_14nm *pll_14nm_slave = pll_14nm->slave;
 		void __iomem *slave_base = pll_14nm_slave->phy_cmn_mmio;
@@ -878,8 +884,8 @@ static int dsi_pll_14nm_set_usecase(struct msm_dsi_pll *pll,
 }
 
 static int dsi_pll_14nm_get_provider(struct msm_dsi_pll *pll,
-				struct clk **byte_clk_provider,
-				struct clk **pixel_clk_provider)
+				     struct clk **byte_clk_provider,
+				     struct clk **pixel_clk_provider)
 {
 	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(pll);
 
@@ -946,7 +952,7 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm)
 	int num = 0;
 	int ret;
 
-	DBG("%d", pll_14nm->id);
+	DBG("DSI%d", pll_14nm->id);
 
 	snprintf(vco_name, 32, "dsi%dvco_clk", pll_14nm->id);
 	pll_14nm->base.clk_hw.init = &vco_init;
@@ -962,7 +968,7 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm)
 	snprintf(clk_name, 32, "dsi%dpllbyte", pll_14nm->id);
 	snprintf(parent1, 32, "dsi%dn1_postdiv_clk", pll_14nm->id);
 
-	/* Byte clock VCO_CLK/N1/8 */
+	/* DSI Byte clock = VCO_CLK / N1 / 8 */
 	clks[num++] = provided_clks[DSI_BYTE_PLL_CLK] =
 			clk_register_fixed_factor(dev, clk_name,
 				parent1, CLK_SET_RATE_PARENT, 1, 8);
@@ -980,8 +986,9 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm)
 	snprintf(clk_name, 32, "dsi%dpll", pll_14nm->id);
 	snprintf(parent1, 32, "dsi%dn1_postdivby2_clk", pll_14nm->id);
 
-	/* DSI pixel clock. This is the output of N2 postdiv, bits 4 - 7 in
-	 * REG_DSI_14nm_PHY_CMN_CLK_CFG0. Don't let it set parent
+	/* DSI pixel clock = VCO_CLK / N1 / 2 / N2
+	 * This is the output of N2 postdiv, bits 4 - 7 in
+	 * REG_DSI_14nm_PHY_CMN_CLK_CFG0. Don't let it set parent.
 	 */
 	clks[num++] = provided_clks[DSI_PIXEL_PLL_CLK] =
 				pll_14nm_postdiv_register(pll_14nm, clk_name,
@@ -1046,7 +1053,6 @@ struct msm_dsi_pll *msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
 	pll->set_usecase = dsi_pll_14nm_set_usecase;
 
 	pll_14nm->vco_delay = 1;
-	pll_14nm->ssc_en = false;
 
 	pll->en_seq_cnt = 1;
 	pll->enable_seqs[0] = dsi_pll_14nm_enable_seq;
