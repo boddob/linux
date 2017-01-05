@@ -143,6 +143,8 @@ struct dsi_pll_14nm {
 	u32 ssc_freq;
 	u32 ssc_ppm;
 
+	spinlock_t postdiv_lock;
+
 	/* maybe remove? */
 	s64 vco_current_rate;
 	s64 vco_locking_rate;
@@ -161,6 +163,18 @@ struct dsi_pll_14nm {
 	enum msm_dsi_phy_usecase uc;
 	struct dsi_pll_14nm *slave;
 };
+
+struct dsi_pll_14nm_postdiv {
+	struct clk_hw hw;
+
+	/* divider params (similar to the ones in struct clk_divider) */
+	u8 shift;
+	u8 width;
+	u8 flags;
+
+	struct dsi_pll_14nm *pll;
+};
+#define to_pll_14nm_postdiv(_hw) container_of(_hw, struct dsi_pll_14nm_postdiv, hw)
 
 static struct dsi_pll_14nm *pll_14nm_list[DSI_MAX];
 
@@ -558,13 +572,6 @@ static void pll_db_commit_14nm(struct dsi_pll_14nm *pll,
 	data = (((pout->pll_postdiv - 1) << 4) | pin->pll_lpf_res1);
 	pll_write(base + REG_DSI_14nm_PHY_PLL_PLL_LPF2_POSTDIV, data);
 
-#if 0
-	/* configured by fixed factor dividers */
-	data = (pout->pll_n1div | (pout->pll_n2div << 4));
-	pll_write(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0, data);
-#else
-	DBG("CMN_CLK_CFG0 %x", pll_read(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0));
-#endif
 	if (pll->ssc_en)
 		pll_db_commit_ssc(pll);
 
@@ -583,7 +590,6 @@ static int dsi_pll_14nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct dsi_pll_output *pout = &pll_14nm->out;
 
 	DBG("DSI PLL%d rate=%lu, parent's=%lu", pll_14nm->id, rate, parent_rate);
-	/* Write to REG_DSI_14nm_PHY_PLL_PLL_LPF2_POSTDIV and REG_DSI_14nm_PHY_CMN_CLK_CFG1 at some point here */
 
 	pll_14nm->vco_current_rate = rate;
 	pll_14nm->vco_ref_clk_rate = VCO_REF_CLK_RATE;
@@ -605,11 +611,12 @@ static int dsi_pll_14nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	pll_14nm_calc_vco_count(pll_14nm, rate, VCO_REF_CLK_RATE);
 
+	/* commit the slave DSI PLL registers if we're master. Note that we
+	 * don't lock the slave PLL. We just ensure that the PLL/PHY registers
+	 * of the master and slave are identical
+	 */
 	if (pll_14nm->uc == MSM_DSI_PHY_MASTER) {
 		struct dsi_pll_14nm *pll_14nm_slave = pll_14nm->slave;
-
-		/* HACK */
-		pll_write(pll_14nm_slave->phy_cmn_mmio + REG_DSI_14nm_PHY_CMN_CLK_CFG0, 0x32);
 
 		pll_db_commit_14nm(pll_14nm_slave, pin, pout);
 	}
@@ -665,6 +672,89 @@ static const struct clk_ops clk_ops_dsi_pll_14nm_vco = {
 	.unprepare = msm_dsi_pll_helper_clk_unprepare,
 };
 
+#define div_mask(width)	((1 << (width)) - 1)
+static unsigned long dsi_pll_14nm_postdiv_recalc_rate(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	struct dsi_pll_14nm_postdiv *pll_postdiv = to_pll_14nm_postdiv(hw);
+	struct dsi_pll_14nm *pll_14nm = pll_postdiv->pll;
+	void __iomem *base = pll_14nm->phy_cmn_mmio;
+	u8 shift = pll_postdiv->shift;
+	u8 width = pll_postdiv->width;
+	u32 val;
+
+	DBG("DSI%d PLL parent rate=%lu", pll_14nm->id, parent_rate);
+
+	val = pll_read(base + REG_DSI_14nm_PHY_CMN_CLK_CFG0) >> shift;
+	val &= div_mask(width);
+
+	return divider_recalc_rate(hw, parent_rate, val, NULL,
+				   pll_postdiv->flags);
+}
+
+static long dsi_pll_14nm_postdiv_round_rate(struct clk_hw *hw,
+					unsigned long rate,
+					unsigned long *prate)
+{
+	struct dsi_pll_14nm_postdiv *pll_postdiv = to_pll_14nm_postdiv(hw);
+	struct dsi_pll_14nm *pll_14nm = pll_postdiv->pll;
+
+	DBG("DSI%d PLL parent rate=%lu", pll_14nm->id, rate);
+
+	return divider_round_rate(hw, rate, prate, NULL,
+				  pll_postdiv->width,
+				  pll_postdiv->flags);
+}
+
+static int dsi_pll_14nm_postdiv_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
+{
+	struct dsi_pll_14nm_postdiv *pll_postdiv = to_pll_14nm_postdiv(hw);
+	struct dsi_pll_14nm *pll_14nm = pll_postdiv->pll;
+	void __iomem *base = pll_14nm->phy_cmn_mmio;
+	spinlock_t *lock = &pll_14nm->postdiv_lock;
+	u8 shift = pll_postdiv->shift;
+	u8 width = pll_postdiv->width;
+	unsigned int value;
+	unsigned long flags = 0;
+	u32 val;
+
+	DBG("DSI%d PLL parent rate=%lu parent rate %lu", pll_14nm->id, rate,
+							 parent_rate);
+
+	value = divider_get_val(rate, parent_rate, NULL, pll_postdiv->width,
+				pll_postdiv->flags);
+
+	spin_lock_irqsave(lock, flags);
+
+	val = pll_read(base + REG_DSI_14nm_PHY_CMN_CLK_CFG0);
+	val &= ~(div_mask(width) << shift);
+
+	val |= value << shift;
+	pll_write(base + REG_DSI_14nm_PHY_CMN_CLK_CFG0, val);
+
+	/* If we're master in dual DSI mode, then the slave PLL's post dividers
+	 * follow the masters'
+	 */
+	if (pll_14nm->uc == MSM_DSI_PHY_MASTER) {
+		struct dsi_pll_14nm *pll_14nm_slave = pll_14nm->slave;
+		void __iomem *slave_base = pll_14nm_slave->phy_cmn_mmio;
+
+		pll_write(slave_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0, val);
+	}
+
+	spin_unlock_irqrestore(lock, flags);
+
+	return 0;
+}
+
+static const struct clk_ops clk_ops_dsi_pll_14nm_postdiv = {
+	.recalc_rate = dsi_pll_14nm_postdiv_recalc_rate,
+	.round_rate = dsi_pll_14nm_postdiv_round_rate,
+	.set_rate = dsi_pll_14nm_postdiv_set_rate,
+};
+
+
 /*
  * PLL Callbacks
  */
@@ -713,7 +803,9 @@ static void dsi_pll_14nm_save_state(struct msm_dsi_pll *pll)
 	cached_state->n1postdiv = data & 0xf;
 	cached_state->n2postdiv = (data >> 4) & 0xf;
 
-	DBG("save state %x %x", cached_state->n1postdiv, cached_state->n2postdiv);
+	DBG("DSI%d PLL save state %x %x", pll_14nm->id,
+					  cached_state->n1postdiv,
+					  cached_state->n2postdiv);
 
 	cached_state->vco_rate = clk_hw_get_rate(&pll->clk_hw);
 }
@@ -735,8 +827,20 @@ static int dsi_pll_14nm_restore_state(struct msm_dsi_pll *pll)
 	}
 
 	data = cached_state->n1postdiv | ( cached_state->n2postdiv << 4);
-	DBG("restore state %x %x", cached_state->n1postdiv, cached_state->n2postdiv);
-	pll_write(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0, 0x32 /*data */);
+
+	DBG("DSI%d PLL restore state %x %x", pll_14nm->id,
+					     cached_state->n1postdiv,
+					     cached_state->n2postdiv);
+
+	pll_write(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0, data);
+
+	/* also restore post dividers for slave DSI PLL */
+	if (pll_14nm->uc == MSM_DSI_PHY_MASTER) {
+		struct dsi_pll_14nm *pll_14nm_slave = pll_14nm->slave;
+		void __iomem *slave_base = pll_14nm_slave->phy_cmn_mmio;
+
+		pll_write(slave_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0, data);
+	}
 
 	return 0;
 }
@@ -795,6 +899,37 @@ static void dsi_pll_14nm_destroy(struct msm_dsi_pll *pll)
 					pll_14nm->clks, pll_14nm->num_clks);
 }
 
+static struct clk *pll_14nm_postdiv_register(struct dsi_pll_14nm *pll_14nm,
+					     const char *name,
+					     const char *parent_name,
+					     unsigned long flags,
+					     u8 shift)
+{
+	struct dsi_pll_14nm_postdiv *pll_postdiv;
+	struct device *dev = &pll_14nm->pdev->dev;
+	struct clk_init_data postdiv_init = {
+		.parent_names = (const char *[]) { parent_name },
+		.num_parents = 1,
+		.name = name,
+		.flags = flags,
+		.ops = &clk_ops_dsi_pll_14nm_postdiv,
+	};
+
+	pll_postdiv = devm_kzalloc(dev, sizeof(*pll_postdiv), GFP_KERNEL);
+	if (!pll_postdiv)
+		return ERR_PTR(-ENOMEM);
+
+	pll_postdiv->pll = pll_14nm;
+	pll_postdiv->shift = shift;
+	/* both N1 and N2 postdividers are 4 bits wide */
+	pll_postdiv->width = 4;
+	/* range of each divider is from 1 to 15 */
+	pll_postdiv->flags = CLK_DIVIDER_ONE_BASED;
+	pll_postdiv->hw.init = &postdiv_init;
+
+	return clk_register(dev, &pll_postdiv->hw);
+}
+
 static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm)
 {
 	char clk_name[32], parent1[32], vco_name[32];
@@ -820,11 +955,9 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm)
 	snprintf(clk_name, 32, "dsi%dn1_postdiv_clk", pll_14nm->id);
 	snprintf(parent1, 32, "dsi%dvco_clk", pll_14nm->id);
 
-	/* N1 postdiv */
-	clks[num++] = clk_register_divider(dev, clk_name,
-			parent1, CLK_SET_RATE_PARENT,
-			pll_14nm->phy_cmn_mmio + REG_DSI_14nm_PHY_CMN_CLK_CFG0,
-			0, 4, CLK_DIVIDER_ONE_BASED, NULL);
+	/* N1 postdiv, bits 0 - 3 in REG_DSI_14nm_PHY_CMN_CLK_CFG0 */
+	clks[num++] = pll_14nm_postdiv_register(pll_14nm, clk_name, parent1,
+						CLK_SET_RATE_PARENT, 0);
 
 	snprintf(clk_name, 32, "dsi%dpllbyte", pll_14nm->id);
 	snprintf(parent1, 32, "dsi%dn1_postdiv_clk", pll_14nm->id);
@@ -847,12 +980,12 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm)
 	snprintf(clk_name, 32, "dsi%dpll", pll_14nm->id);
 	snprintf(parent1, 32, "dsi%dn1_postdivby2_clk", pll_14nm->id);
 
-	/* DSICLK. Don't let it set parent */
+	/* DSI pixel clock. This is the output of N2 postdiv, bits 4 - 7 in
+	 * REG_DSI_14nm_PHY_CMN_CLK_CFG0. Don't let it set parent
+	 */
 	clks[num++] = provided_clks[DSI_PIXEL_PLL_CLK] =
-				clk_register_divider(dev, clk_name,
-				parent1, 0,
-				pll_14nm->phy_cmn_mmio + REG_DSI_14nm_PHY_CMN_CLK_CFG0,
-				4, 4, CLK_DIVIDER_ONE_BASED, NULL);
+				pll_14nm_postdiv_register(pll_14nm, clk_name,
+							  parent1, 0, 4);
 
 	pll_14nm->num_clks = num;
 
@@ -899,6 +1032,8 @@ struct msm_dsi_pll *msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
 		dev_err(&pdev->dev, "failed to map PLL base\n");
 		return ERR_PTR(-ENOMEM);
 	}
+
+	spin_lock_init(&pll_14nm->postdiv_lock);
 
 	pll = &pll_14nm->base;
 	pll->min_rate = VCO_MIN_RATE;
