@@ -99,7 +99,7 @@ static const struct msm_dsi_config msm8994_dsi_cfg = {
  * without it too. Figure out why it doesn't enable and uncomment below
  */
 static const char * const dsi_8996_bus_clk_names[] = {
-	"mdp_core_clk", "iface_clk", "bus_clk", /* "core_mmss_clk", */
+	"mdp_core_clk", "mmagic_iface_clk", "iface_clk", "bus_clk", /* "core_mmss_clk", */
 };
 
 static const struct msm_dsi_config msm8996_dsi_cfg = {

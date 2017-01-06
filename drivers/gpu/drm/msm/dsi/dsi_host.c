@@ -204,7 +204,7 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 	const struct msm_dsi_cfg_handler *cfg_hnd = NULL;
 	struct device *dev = &msm_host->pdev->dev;
 	struct regulator *gdsc_reg;
-	struct clk *ahb_clk;
+	struct clk *ahb_clk, *mmagic_ahb_clk;
 	int ret;
 	u32 major = 0, minor = 0;
 
@@ -220,10 +220,24 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 		goto put_gdsc;
 	}
 
+	mmagic_ahb_clk = clk_get(dev, "mmagic_iface_clk");
+	if (IS_ERR(mmagic_ahb_clk)) {
+		DBG("cannot get mmagic interface clock");
+		mmagic_ahb_clk = NULL;
+	}
+
 	ret = regulator_enable(gdsc_reg);
 	if (ret) {
 		pr_err("%s: unable to enable gdsc\n", __func__);
 		goto put_clk;
+	}
+
+	if (mmagic_ahb_clk) {
+		ret = clk_prepare_enable(mmagic_ahb_clk);
+		if (ret) {
+			pr_err("%s: unable to enable mmagic_ahb_clk\n", __func__);
+			goto disable_gdsc;
+		}
 	}
 
 	ret = clk_prepare_enable(ahb_clk);
@@ -244,6 +258,8 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 
 disable_clks:
 	clk_disable_unprepare(ahb_clk);
+	if (mmagic_ahb_clk)
+		clk_disable_unprepare(mmagic_ahb_clk);
 disable_gdsc:
 	regulator_disable(gdsc_reg);
 put_clk:
