@@ -25,7 +25,6 @@ config RPMSG_QCOM_GLINK_RPM
 config RPMSG_QCOM_SMD
 	tristate "Qualcomm Shared Memory Driver (SMD)"
 	depends on QCOM_SMEM
-	depends on QCOM_SMD=n
 	select RPMSG
 	help
 	  Say y here to enable support for the Qualcomm Shared Memory Driver
