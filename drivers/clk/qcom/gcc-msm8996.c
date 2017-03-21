@@ -1333,7 +1333,7 @@ static struct clk_branch gcc_mmss_noc_cfg_ahb_clk = {
 			.name = "gcc_mmss_noc_cfg_ahb_clk",
 			.parent_names = (const char *[]){ "config_noc_clk_src" },
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 			.ops = &clk_branch2_ops,
 		},
 	},
