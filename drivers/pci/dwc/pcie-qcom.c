@@ -580,11 +580,14 @@ static void qcom_pcie_deinit_v2(struct qcom_pcie *pcie)
 	clk_disable_unprepare(res->aux_clk);
 }
 
-static void qcom_pcie_host_init(struct pcie_port *pp)
+static int qcom_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct qcom_pcie *pcie = to_qcom_pcie(pci);
 	int ret;
+
+
+	pm_runtime_get_sync(pci->dev);
 
 	qcom_ep_reset_assert(pcie);
 
@@ -610,12 +613,15 @@ static void qcom_pcie_host_init(struct pcie_port *pp)
 	if (ret)
 		goto err;
 
-	return;
+	return ret;
 err:
 	qcom_ep_reset_assert(pcie);
 	phy_power_off(pcie->phy);
 err_deinit:
 	pcie->ops->deinit(pcie);
+	pm_runtime_put_sync(pci->dev);
+
+	return ret;
 }
 
 static int qcom_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
@@ -682,6 +688,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	if (!pci)
 		return -ENOMEM;
 
+	pm_runtime_enable(dev);
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
 	pp = &pci->pp;
@@ -730,6 +737,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 				       IRQF_SHARED, "qcom-pcie-msi", pp);
 		if (ret) {
 			dev_err(dev, "cannot request msi irq\n");
+			pm_runtime_disable(&pdev->dev);
 			return ret;
 		}
 	}
@@ -743,6 +751,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(dev, "cannot initialize host\n");
+		pm_runtime_disable(&pdev->dev);
 		return ret;
 	}
 
