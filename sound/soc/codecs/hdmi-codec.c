@@ -653,9 +653,8 @@ static const struct snd_soc_dai_ops hdmi_dai_ops = {
  * This list is only for formats allowed on the I2S bus. So there is
  * some formats listed that are not supported by HDMI interface. For
  * instance allowing the 32-bit formats enables 24-precision with CPU
- * DAIs that do not support 24-bit formats. If the extra formats cause
- * problems, we should add the video side driver an option to disable
- * them.
+ * DAIs that do not support 24-bit formats. Driver can either use this
+ * list or specify supported formats in formats field of hdmi_codec_pdata.
  */
 #define I2S_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |\
 			 SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S20_3BE |\
@@ -780,6 +779,9 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 		hcp->daidrv[i] = hdmi_i2s_dai;
 		hcp->daidrv[i].playback.channels_max =
 			hcd->max_i2s_channels;
+
+		if (hcd->formats)
+			hcp->daidrv[i].playback.formats = hcd->formats;
 		i++;
 	}
 
