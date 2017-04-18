@@ -1040,7 +1040,7 @@
 		};
 
 		mdp_smmu: arm,smmu@d00000 {
-			compatible = "qcom,smmu-v2";
+			compatible = "arm,smmu-v2";
 			reg = <0xd00000 0x10000>;
 
 			#global-interrupts = <1>;
@@ -1056,11 +1056,11 @@
 				 <&mmcc SMMU_MDP_AHB_CLK>,
 				 <&mmcc SMMU_MDP_AXI_CLK>,
 				 <&mmcc MMAGIC_MDSS_AXI_CLK>;
-			clock-names = "mmagic_ahb_clk",
-				"mmagic_cfg_ahb_clk",
-				"smmu_core_ahb_clk",
-				"smmu_core_axi_clk",
-				"mmagic_core_axi_clk";
+			clock-names = "mmagic_iface_clk",
+				      "mmagic_cfg_iface_clk",
+				      "smmu_iface_clk",
+				      "smmu_bus_clk",
+				      "mmagic_mdss_bus_clk";
 
 			status = "okay";
 		};
