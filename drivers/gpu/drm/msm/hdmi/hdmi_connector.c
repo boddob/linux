@@ -410,6 +410,9 @@ static int msm_hdmi_connector_mode_valid(struct drm_connector *connector,
 	if (actual != requested)
 		return MODE_CLOCK_RANGE;
 
+	if (mode->clock == 138500)
+		return MODE_CLOCK_RANGE;
+
 	return 0;
 }
 
