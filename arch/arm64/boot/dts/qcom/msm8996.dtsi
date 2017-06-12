@@ -1347,7 +1347,6 @@
 				};
 			};
 		};
->>>>>>> dts:arm64: msm8996: add apr and sound card nodes
 	};
 
 	adsp-smp2p {
