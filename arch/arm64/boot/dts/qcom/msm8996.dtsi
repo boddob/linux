@@ -1057,15 +1057,11 @@
 				     <0 330 0>;
 			#iommu-cells = <1>;
 
-			clocks = <&mmcc MMSS_MMAGIC_AHB_CLK>,
-				<&mmcc MMSS_MMAGIC_CFG_AHB_CLK>,
-				<&mmcc GPU_AHB_CLK>,
+			clocks = <&mmcc GPU_AHB_CLK>,
 				<&gcc GCC_MMSS_BIMC_GFX_CLK>,
 				<&gcc GCC_BIMC_GFX_CLK>,
 				<&mmcc MMSS_MISC_AHB_CLK>;
-			clock-names = "mmagic_ahb_clk",
-				"mmagic_cfg_ahb_clk",
-				"gpu_ahb_clk",
+			clock-names = "gpu_ahb_clk",
 				"gcc_mmss_bimc_gfx_clk",
 				"gcc_bimc_gfx_clk",
 				"mmss_misc_bus_clk";
@@ -1093,15 +1089,13 @@
 				<&mmcc GPU_AHB_CLK>,
 				<&mmcc GPU_GX_RBBMTIMER_CLK>,
 				<&gcc GCC_BIMC_GFX_CLK>,
-				<&gcc GCC_MMSS_BIMC_GFX_CLK>,
-				<&mmcc MMSS_MMAGIC_AHB_CLK>;
+				<&gcc GCC_MMSS_BIMC_GFX_CLK>;
 
 			clock-names = "core",
 				"iface",
 				"rbbmtimer",
 				"mem",
-				"mem_iface",
-				"alt_mem_iface";
+				"mem_iface";
 
 			power-domains = <&mmcc GPU_GDSC>;
 			iommus = <&adreno_smmu 0>;
