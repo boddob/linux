@@ -1169,14 +1169,12 @@
 				interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
 
 				clocks = <&mmcc MDSS_MDP_CLK>,
-					 <&mmcc MMSS_MMAGIC_AHB_CLK>,
 					 <&mmcc MDSS_AHB_CLK>,
 					 <&mmcc MDSS_HDMI_CLK>,
 					 <&mmcc MDSS_HDMI_AHB_CLK>,
 					 <&mmcc MDSS_EXTPCLK_CLK>;
 				clock-names =
 					"mdp_core_clk",
-					"mmagic_iface_clk",
 					"iface_clk",
 					"core_clk",
 					"alt_iface_clk",
@@ -1214,11 +1212,9 @@
 					    "hdmi_tx_l3",
 					    "hdmi_phy";
 
-				clocks = <&mmcc MMSS_MMAGIC_AHB_CLK>,
-					 <&mmcc MDSS_AHB_CLK>,
+				clocks = <&mmcc MDSS_AHB_CLK>,
 					 <&gcc GCC_HDMI_CLKREF_CLK>;
-				clock-names = "mmagic_iface_clk",
-					      "iface_clk",
+				clock-names = "iface_clk",
 					      "ref_clk";
 			};
 		};
