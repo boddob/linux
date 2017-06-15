@@ -133,7 +133,7 @@ static void msm_hdmi_config_avi_infoframe(struct hdmi *hdmi)
 	hdmi_write(hdmi, REG_HDMI_AVI_INFO(3),
 		   buffer[15] |
 		   buffer[16] << 8 |
-		   buffer[1] << 16);
+		   buffer[1] << 24);
 
 	hdmi_write(hdmi, REG_HDMI_INFOFRAME_CTRL0,
 		   HDMI_INFOFRAME_CTRL0_AVI_SEND |
@@ -196,7 +196,8 @@ static void msm_hdmi_bridge_post_disable(struct drm_bridge *bridge)
 	if (hdmi->power_on) {
 		power_off(bridge);
 		hdmi->power_on = false;
-		msm_hdmi_audio_update(hdmi);
+		if (hdmi->hdmi_mode)
+			msm_hdmi_audio_update(hdmi);
 		msm_hdmi_phy_resource_disable(phy);
 	}
 }
