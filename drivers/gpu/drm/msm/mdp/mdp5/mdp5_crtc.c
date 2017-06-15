@@ -413,6 +413,7 @@ static void mdp5_crtc_disable(struct drm_crtc *crtc)
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+	struct device *dev = &mdp5_kms->pdev->dev;
 
 	DBG("%s", crtc->name);
 
@@ -423,7 +424,7 @@ static void mdp5_crtc_disable(struct drm_crtc *crtc)
 		mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->pp_done);
 
 	mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->err);
-	mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(dev);
 
 	mdp5_crtc->enabled = false;
 }
@@ -433,13 +434,14 @@ static void mdp5_crtc_enable(struct drm_crtc *crtc)
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+	struct device *dev = &mdp5_kms->pdev->dev;
 
 	DBG("%s", crtc->name);
 
 	if (WARN_ON(mdp5_crtc->enabled))
 		return;
 
-	mdp5_enable(mdp5_kms);
+	pm_runtime_get_sync(dev);
 	mdp_irq_register(&mdp5_kms->base, &mdp5_crtc->err);
 
 	if (mdp5_cstate->cmd_mode)

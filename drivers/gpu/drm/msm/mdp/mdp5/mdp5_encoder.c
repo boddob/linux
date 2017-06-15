@@ -326,6 +326,7 @@ static const struct drm_encoder_helper_funcs mdp5_encoder_helper_funcs = {
 	.atomic_check = mdp5_encoder_atomic_check,
 };
 
+/* caller expected to enable clocks here */
 int mdp5_encoder_get_linecount(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
@@ -350,6 +351,7 @@ int mdp5_vid_encoder_set_split_display(struct drm_encoder *encoder,
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_encoder *mdp5_slave_enc = to_mdp5_encoder(slave_encoder);
 	struct mdp5_kms *mdp5_kms;
+	struct device *dev;
 	int intf_num;
 	u32 data = 0;
 
@@ -369,8 +371,10 @@ int mdp5_vid_encoder_set_split_display(struct drm_encoder *encoder,
 	else
 		return -EINVAL;
 
+	dev = &mdp5_kms->pdev->dev;
 	/* Make sure clocks are on when connectors calling this function. */
-	mdp5_enable(mdp5_kms);
+	pm_runtime_get_sync(dev);
+
 	/* Dumb Panel, Sync mode */
 	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, 0);
 	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER, data);
@@ -378,7 +382,7 @@ int mdp5_vid_encoder_set_split_display(struct drm_encoder *encoder,
 
 	mdp5_ctl_pair(mdp5_encoder->ctl, mdp5_slave_enc->ctl, true);
 
-	mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 }

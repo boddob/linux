@@ -31,6 +31,8 @@ struct msm_mdss {
 
 	struct regulator *vdd;
 
+	struct clk *ahb_clk;
+
 	struct {
 		volatile unsigned long enabled_mask;
 		struct irq_domain *domain;
@@ -140,6 +142,24 @@ static int mdss_irq_domain_init(struct msm_mdss *mdss)
 	return 0;
 }
 
+int msm_mdss_enable(struct msm_mdss *mdss)
+{
+	DBG("");
+
+	clk_prepare_enable(mdss->ahb_clk);
+
+	return 0;
+}
+
+int msm_mdss_disable(struct msm_mdss *mdss)
+{
+	DBG("");
+
+	clk_disable_unprepare(mdss->ahb_clk);
+
+	return 0;
+}
+
 void msm_mdss_destroy(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -152,8 +172,6 @@ void msm_mdss_destroy(struct drm_device *dev)
 	mdss->irqcontroller.domain = NULL;
 
 	regulator_disable(mdss->vdd);
-
-	pm_runtime_put_sync(dev->dev);
 
 	pm_runtime_disable(dev->dev);
 }
@@ -190,6 +208,12 @@ int msm_mdss_init(struct drm_device *dev)
 		goto fail;
 	}
 
+	mdss->ahb_clk = devm_clk_get(dev->dev, "iface_clk");
+	if (IS_ERR(mdss->ahb_clk)) {
+		ret = PTR_ERR(mdss->ahb_clk);
+		goto fail;
+	}
+
 	/* Regulator to enable GDSCs in downstream kernels */
 	mdss->vdd = devm_regulator_get(dev->dev, "vdd");
 	if (IS_ERR(mdss->vdd)) {
@@ -220,12 +244,6 @@ int msm_mdss_init(struct drm_device *dev)
 	priv->mdss = mdss;
 
 	pm_runtime_enable(dev->dev);
-
-	/*
-	 * TODO: This is needed as the MDSS GDSC is only tied to MDSS's power
-	 * domain. Remove this once runtime PM is adapted for all the devices.
-	 */
-	pm_runtime_get_sync(dev->dev);
 
 	return 0;
 fail_irq:
