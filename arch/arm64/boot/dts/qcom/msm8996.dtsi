@@ -1208,18 +1208,14 @@
 
 				clocks = <&mmcc MDSS_AHB_CLK>,
 					 <&mmcc MDSS_AXI_CLK>,
-					 <&mmcc MDP_CLK_SRC>,
 					 <&mmcc MDSS_MDP_CLK>,
 					 <&mmcc SMMU_MDP_AXI_CLK>,
-					 <&mmcc MDSS_VSYNC_CLK>,
-					 <&rpmcc RPM_SMD_MMAXI_CLK>;
+					 <&mmcc MDSS_VSYNC_CLK>;
 				clock-names = "iface_clk",
 					      "bus_clk",
-					      "core_clk_src",
 					      "core_clk",
 					      "iommu_clk",
-					      "vsync_clk",
-					      "rpm_mmaxi_clk";
+					      "vsync_clk";
 
 				iommus = <&mdp_smmu 0>;
 
