@@ -163,7 +163,7 @@ static void mdp5_set_encoder_mode(struct msm_kms *kms,
 static void mdp5_kms_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct msm_gem_address_space *aspace = mdp5_kms->aspace;
+	struct msm_gem_address_space *aspace = kms->aspace;
 	int i;
 
 	for (i = 0; i < mdp5_kms->num_hwmixers; i++)
@@ -252,6 +252,8 @@ int mdp5_disable(struct mdp5_kms *mdp5_kms)
 	clk_disable_unprepare(mdp5_kms->ahb_clk);
 	clk_disable_unprepare(mdp5_kms->axi_clk);
 	clk_disable_unprepare(mdp5_kms->core_clk);
+	if (mdp5_kms->iommu_clk)
+		clk_disable_unprepare(mdp5_kms->iommu_clk);
 	if (mdp5_kms->lut_clk)
 		clk_disable_unprepare(mdp5_kms->lut_clk);
 
@@ -267,6 +269,8 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 	clk_prepare_enable(mdp5_kms->core_clk);
 	if (mdp5_kms->lut_clk)
 		clk_prepare_enable(mdp5_kms->lut_clk);
+	if (mdp5_kms->iommu_clk)
+		clk_prepare_enable(mdp5_kms->iommu_clk);
 
 	return 0;
 }
@@ -692,7 +696,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 			goto fail;
 		}
 
-		mdp5_kms->aspace = aspace;
+		kms->aspace = aspace;
 
 		ret = aspace->mmu->funcs->attach(aspace->mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
@@ -705,13 +709,6 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		dev_info(&pdev->dev,
 			 "no iommu, fallback to phys contig buffers for scanout\n");
 		aspace = NULL;;
-	}
-
-	mdp5_kms->id = msm_register_address_space(dev, aspace);
-	if (mdp5_kms->id < 0) {
-		ret = mdp5_kms->id;
-		dev_err(&pdev->dev, "failed to register mdp5 iommu: %d\n", ret);
-		goto fail;
 	}
 
 	ret = modeset_init(mdp5_kms);
@@ -938,6 +935,7 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 
 	/* optional clocks: */
 	get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk", false);
+	get_clk(pdev, &mdp5_kms->iommu_clk, "iommu_clk", false);
 
 	/* we need to set a default rate before enabling.  Set a safe
 	 * rate first, then figure out hw revision, and then set a
