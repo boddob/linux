@@ -765,6 +765,20 @@ static void sdhci_set_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 	}
 }
 
+static void sdhci_set_blk_size_reg(struct sdhci_host *host,
+				   unsigned int sdma_boundary,
+				   unsigned int blksz)
+{
+	if ((host->quirks2 & SDHCI_QUIRK2_BROKEN_SDMA_BOUNDARY_BUFFER) &&
+			(host->flags & SDHCI_USE_ADMA)) {
+		sdhci_writew(host, SDHCI_MAKE_BLKSZ(0, blksz),
+			     SDHCI_BLOCK_SIZE);
+	} else {
+		sdhci_writew(host, SDHCI_MAKE_BLKSZ(sdma_boundary, blksz),
+			     SDHCI_BLOCK_SIZE);
+	}
+}
+
 static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 {
 	u8 ctrl;
@@ -897,8 +911,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 	sdhci_set_transfer_irqs(host);
 
 	/* Set the DMA boundary value and block size */
-	sdhci_writew(host, SDHCI_MAKE_BLKSZ(SDHCI_DEFAULT_BOUNDARY_ARG,
-		data->blksz), SDHCI_BLOCK_SIZE);
+	sdhci_set_blk_size_reg(host, SDHCI_DEFAULT_BOUNDARY_ARG, data->blksz);
 	sdhci_writew(host, data->blocks, SDHCI_BLOCK_COUNT);
 }
 
@@ -2052,9 +2065,9 @@ static void sdhci_send_tuning(struct sdhci_host *host, u32 opcode)
 	 */
 	if (cmd.opcode == MMC_SEND_TUNING_BLOCK_HS200 &&
 	    mmc->ios.bus_width == MMC_BUS_WIDTH_8)
-		sdhci_writew(host, SDHCI_MAKE_BLKSZ(7, 128), SDHCI_BLOCK_SIZE);
+		sdhci_set_blk_size_reg(host, SDHCI_DEFAULT_BOUNDARY_ARG, 128);
 	else
-		sdhci_writew(host, SDHCI_MAKE_BLKSZ(7, 64), SDHCI_BLOCK_SIZE);
+		sdhci_set_blk_size_reg(host, SDHCI_DEFAULT_BOUNDARY_ARG, 64);
 
 	/*
 	 * The tuning block is sent by the card to the host controller.
@@ -2998,8 +3011,7 @@ void sdhci_cqe_enable(struct mmc_host *mmc)
 		ctrl |= SDHCI_CTRL_ADMA32;
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
-	sdhci_writew(host, SDHCI_MAKE_BLKSZ(SDHCI_DEFAULT_BOUNDARY_ARG, 512),
-		     SDHCI_BLOCK_SIZE);
+	sdhci_set_blk_size_reg(host, SDHCI_DEFAULT_BOUNDARY_ARG, 512);
 
 	/* Set maximum timeout */
 	sdhci_writeb(host, 0xE, SDHCI_TIMEOUT_CONTROL);
