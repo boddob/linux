@@ -146,7 +146,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	fbi->flags = FBINFO_DEFAULT;
 	fbi->fbops = &msm_fb_ops;
 
-	strcpy(fbi->fix.id, "msm");
+	strcpy(fbi->fix.id, FB_NAME);
 
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);

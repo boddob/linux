@@ -286,6 +286,24 @@ static int get_mdp_ver(struct platform_device *pdev)
 
 #include <linux/of_address.h>
 
+static void kick_out_firmware_fb(void)
+{
+	struct apertures_struct *ap;
+
+	ap = alloc_apertures(1);
+	if (!ap)
+		return;
+
+	/* Since msm is a UMA device, the simplefb or efifb node may
+	 * have been located anywhere in memory.
+	 */
+	ap->ranges[0].base = 0;
+	ap->ranges[0].size = MAX_RESOURCE;
+
+	drm_fb_helper_remove_conflicting_framebuffers(ap, FB_NAME, false);
+	kfree(ap);
+}
+
 static int msm_init_vram(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -415,6 +433,8 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	ret = msm_init_vram(ddev);
 	if (ret)
 		goto fail;
+
+	kick_out_firmware_fb();
 
 	msm_gem_shrinker_init(ddev);
 
