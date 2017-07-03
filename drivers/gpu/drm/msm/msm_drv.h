@@ -55,6 +55,8 @@ struct msm_fence_cb;
 struct msm_gem_address_space;
 struct msm_gem_vma;
 
+#define FB_NAME "msm"
+
 struct msm_file_private {
 	rwlock_t queuelock;
 	struct list_head submitqueues;
