@@ -796,6 +796,24 @@ unlock_out:
 		clk_core_disable_unprepare(core->parent);
 }
 
+/* clock and it's parents are already prepared/enabled from bootloader,
+ * so simply record the fact.
+ */
+static void __clk_inherit_enabled(struct clk_core *core)
+{
+	core->enable_count++;
+	core->prepare_count++;
+if (core->hw->init->name) // XXX hack.. something funny with xo/xo_board..
+	if (core->parent)
+		__clk_inherit_enabled(core->parent);
+}
+
+void clk_inherit_enabled(struct clk *clk)
+{
+	__clk_inherit_enabled(clk->core);
+}
+EXPORT_SYMBOL_GPL(clk_inherit_enabled);
+
 static bool clk_ignore_unused;
 static int __init clk_ignore_unused_setup(char *__unused)
 {

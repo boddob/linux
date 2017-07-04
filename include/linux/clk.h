@@ -391,6 +391,15 @@ void clk_disable(struct clk *clk);
 void clk_bulk_disable(int num_clks, const struct clk_bulk_data *clks);
 
 /**
+ * clk_inherit_enabled - update the enable/prepare count of a clock and it's
+ * parents for clock enabled by bootloader.
+ *
+ * Intended to be used by clock drivers to inform the clk core of a clock
+ * that is already running.
+ */
+void clk_inherit_enabled(struct clk *clk);
+
+/**
  * clk_get_rate - obtain the current clock rate (in Hz) for a clock source.
  *		  This is only valid once the clock source has been enabled.
  * @clk: clock source

@@ -11,6 +11,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
@@ -257,6 +258,33 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 
 	if (ret)
 		return ret;
+
+	/* Check which of clocks that we inherit state from bootloader
+	 * are enabled, and fixup enable/prepare state (as well as that
+	 * of it's parents).
+	 *
+	 * TODO can we assume that parents coming from another clk
+	 * driver are already registered?
+	 */
+	for (i = 0; i < num_clks; i++) {
+		struct clk_hw *hw;
+
+		if (!rclks[i])
+			continue;
+
+		hw = &rclks[i]->hw;
+
+		if (!(hw->init->flags & CLK_INHERIT_BOOTLOADER))
+			continue;
+
+		if (!clk_is_enabled_regmap(hw))
+			continue;
+
+		dev_dbg(dev, "%s is enabled from bootloader!\n",
+			  hw->init->name);
+
+		clk_inherit_enabled(hw->clk);
+	}
 
 	reset = &cc->reset;
 	reset->rcdev.of_node = dev->of_node;

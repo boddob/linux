@@ -291,6 +291,12 @@ static int gdsc_init(struct gdsc *sc)
 	if ((sc->flags & VOTABLE) && on)
 		gdsc_enable(&sc->pd);
 
+	if ((sc->flags & INHERIT_BL) && on) {
+		pr_debug("gdsc: %s is enabled from bootloader!\n", sc->pd.name);
+		gdsc_enable(&sc->pd);
+		sc->pd.flags |= GENPD_FLAG_ALWAYS_ON;
+	}
+
 	if (on || (sc->pwrsts & PWRSTS_RET))
 		gdsc_force_mem_on(sc);
 	else
