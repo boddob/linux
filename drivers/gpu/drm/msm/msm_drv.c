@@ -308,6 +308,45 @@ static void kick_out_firmware_fb(void)
 	kfree(ap);
 }
 
+static unsigned long hijack_firmware_fb(struct drm_device *dev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	unsigned long size;
+	int i;
+
+	/* if we have simplefb/efifb, find it's aperture and hijack
+	 * that before we kick out the firmware fb's.
+	 *
+	 * TODO we probably should hold registration_lock
+	 */
+	for (i = 0; i < FB_MAX; i++) {
+		struct fb_info *fb = get_fb_info(i);
+
+		if (IS_ERR_OR_NULL(fb))
+			continue;
+
+		if (!fb->apertures->count)
+			continue;
+
+		/* if we find efifb or simplefb, we are about to
+		 * kick them out, so hijack their memory:
+		 */
+		if ((strcmp(fb->fix.id, "EFI VGA") == 0) ||
+				(strcmp(fb->fix.id, "simple") == 0)) {
+
+			priv->vram.paddr = fb->apertures->ranges[0].base;
+			size = fb->apertures->ranges[0].size;
+		}
+
+		put_fb_info(fb);
+
+		if (size)
+			return size;
+	}
+
+	return 0;
+}
+
 static int msm_init_vram(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -339,39 +378,46 @@ static int msm_init_vram(struct drm_device *dev)
 		of_node_put(node);
 		if (ret)
 			return ret;
-		size = r.end - r.start;
+		size = r.end - r.start - 1;
 		DRM_INFO("using VRAM carveout: %lx@%pa\n", size, &r.start);
 
+	} else if ((size = hijack_firmware_fb(dev))) {
+		DRM_INFO("hijacking VRAM carveout: %lx@%pa\n",
+				size, &priv->vram.paddr);
+	} else if (!iommu_present(&platform_bus_type)) {
 		/* if we have no IOMMU, then we need to use carveout allocator.
 		 * Grab the entire CMA chunk carved out in early startup in
 		 * mach-msm:
 		 */
-	} else if (!iommu_present(&platform_bus_type)) {
 		DRM_INFO("using %s VRAM carveout\n", vram);
 		size = memparse(vram, NULL);
 	}
 
 	if (size) {
-		unsigned long attrs = 0;
-		void *p;
-
 		priv->vram.size = size;
 
-		drm_mm_init(&priv->vram.mm, 0, (size >> PAGE_SHIFT) - 1);
+		drm_mm_init(&priv->vram.mm, 0, (size >> PAGE_SHIFT));
 		spin_lock_init(&priv->vram.lock);
 
-		attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
-		attrs |= DMA_ATTR_WRITE_COMBINE;
+		if (!priv->vram.paddr) {
+			unsigned long attrs = 0;
+			void *p;
 
-		/* note that for no-kernel-mapping, the vaddr returned
-		 * is bogus, but non-null if allocation succeeded:
-		 */
-		p = dma_alloc_attrs(dev->dev, size,
-				&priv->vram.paddr, GFP_KERNEL, attrs);
-		if (!p) {
-			dev_err(dev->dev, "failed to allocate VRAM\n");
-			priv->vram.paddr = 0;
-			return -ENOMEM;
+			attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
+			attrs |= DMA_ATTR_WRITE_COMBINE;
+
+			/* note that for no-kernel-mapping, the vaddr returned
+			 * is bogus, but non-null if allocation succeeded:
+			 */
+			p = dma_alloc_attrs(dev->dev, size,
+					&priv->vram.paddr, GFP_KERNEL, attrs);
+			if (!p) {
+				dev_err(dev->dev, "failed to allocate VRAM\n");
+				priv->vram.paddr = 0;
+				return -ENOMEM;
+			}
+		} else {
+			request_region(priv->vram.paddr, size, "stolen");
 		}
 
 		dev_info(dev->dev, "VRAM: %08x->%08x\n",
