@@ -166,6 +166,9 @@ int adv7533_init_cec(struct adv7511 *adv)
 		goto err;
 	}
 
+	if (adv->powered)
+		return 0;
+
 	ret = regmap_register_patch(adv->regmap_cec,
 				    adv7533_cec_fixed_registers,
 				    ARRAY_SIZE(adv7533_cec_fixed_registers));
