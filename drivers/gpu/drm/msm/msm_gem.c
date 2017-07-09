@@ -24,6 +24,7 @@
 #include "msm_fence.h"
 #include "msm_gem.h"
 #include "msm_gpu.h"
+#include "msm_kms.h"
 #include "msm_mmu.h"
 
 static void msm_gem_vunmap_locked(struct drm_gem_object *obj);
@@ -104,7 +105,8 @@ static struct page **get_pages(struct drm_gem_object *obj)
 		/* For non-cached buffers, ensure the new pages are clean
 		 * because display controller, GPU, etc. are not coherent:
 		 */
-		if (msm_obj->flags & (MSM_BO_WC|MSM_BO_UNCACHED))
+		if ((msm_obj->flags & (MSM_BO_WC|MSM_BO_UNCACHED)) &&
+				use_pages(obj))
 			dma_map_sg(dev->dev, msm_obj->sgt->sgl,
 					msm_obj->sgt->nents, DMA_BIDIRECTIONAL);
 	}
@@ -740,9 +742,8 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 			obj->name, kref_read(&obj->refcount),
 			off, msm_obj->vaddr);
 
-	/* FIXME: we need to print the address space here too */
 	list_for_each_entry(vma, &msm_obj->vmas, list)
-		seq_printf(m, " %08llx", vma->iova);
+		seq_printf(m, " %s:%08llx", vma->aspace->name, vma->iova);
 
 	seq_printf(m, " %zu%s\n", obj->size, madv);
 
@@ -926,16 +927,20 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 		goto fail;
 
 	if (use_vram) {
+		struct msm_gem_object *msm_obj = to_msm_bo(obj);
+		struct msm_gem_address_space *aspace = priv->kms->aspace;
 		struct msm_gem_vma *vma;
 		struct page **pages;
 
-		vma = add_vma(obj, NULL);
+		mutex_lock(&msm_obj->lock);
+		vma = add_vma(obj, aspace);
+		mutex_unlock(&msm_obj->lock);
 		if (IS_ERR(vma)) {
 			ret = PTR_ERR(vma);
 			goto fail;
 		}
 
-		to_msm_bo(obj)->vram_node = &vma->node;
+		msm_obj->vram_node = &vma->node;
 
 		drm_gem_private_object_init(dev, obj, size);
 
@@ -944,6 +949,12 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 			ret = PTR_ERR(pages);
 			goto fail;
 		}
+
+// XXX need a _map_vma_at()..
+//		ret = msm_gem_map_vma(aspace, vma, msm_obj->sgt,
+//				obj->size >> PAGE_SHIFT);
+//		if (ret)
+//			goto fail;
 
 		vma->iova = physaddr(obj);
 	} else {
