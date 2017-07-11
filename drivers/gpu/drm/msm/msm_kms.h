@@ -33,6 +33,8 @@
 struct msm_kms_funcs {
 	/* hw initialization: */
 	int (*hw_init)(struct msm_kms *kms);
+	void (*hw_readback)(struct msm_kms *kms);
+	void (*hw_readback_encoder)(struct msm_kms *kms, struct drm_encoder *encoder);
 	/* irq handling: */
 	void (*irq_preinstall)(struct msm_kms *kms);
 	int (*irq_postinstall)(struct msm_kms *kms);

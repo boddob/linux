@@ -192,6 +192,85 @@ mdp5_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\tstage=%s\n", stage2name(pstate->stage));
 }
 
+void mdp5_plane_readback(struct drm_plane *plane, enum mdp5_pipe pipe)
+{
+	struct mdp5_kms *mdp5_kms = get_kms(plane);
+	struct drm_plane_state *state = plane->state;
+	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
+	struct msm_drm_private *priv = plane->dev->dev_private;
+	uint32_t reg, pitch, format;
+	unsigned i;
+
+	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
+		struct mdp5_hw_pipe *hwpipe = mdp5_kms->hwpipes[i];
+
+		if (hwpipe->pipe == pipe) {
+			mdp5_state->hwpipe = hwpipe;
+			mdp5_kms->state->hwpipe.hwpipe_to_plane[hwpipe->idx] =
+					plane;
+			break;
+		}
+	}
+
+	if (WARN_ON(!mdp5_state->hwpipe))
+		return;
+
+	/* NOTE: we expect to just have a single layer, so punt on
+	 * bothering to figure out how to map blending state back
+	 * to plane state.  And assume no scaling or anything fancy.
+	 *
+	 * TODO: we can't really differentiate between two non-
+	 * overlaping planes hooked to one CRTC, and src-split
+	 * mode, can we?  For now just completely ignore r_hwpipe.
+	 */
+
+	reg = mdp5_read(mdp5_kms, REG_MDP5_PIPE_SRC_IMG_SIZE(pipe));
+	state->src_w = FIELD(reg, MDP5_PIPE_SRC_SIZE_WIDTH) << 16;
+	state->src_h = FIELD(reg, MDP5_PIPE_SRC_SIZE_HEIGHT) << 16;
+
+	reg = mdp5_read(mdp5_kms, REG_MDP5_PIPE_SRC_XY(pipe));
+	state->src_x = FIELD(reg, MDP5_PIPE_SRC_XY_X) << 16;
+	state->src_y = FIELD(reg, MDP5_PIPE_SRC_XY_Y) << 16;
+
+	reg = mdp5_read(mdp5_kms, REG_MDP5_PIPE_OUT_SIZE(pipe));
+	state->crtc_w = FIELD(reg, MDP5_PIPE_OUT_SIZE_WIDTH);
+	state->crtc_h = FIELD(reg, MDP5_PIPE_OUT_SIZE_HEIGHT);
+
+	reg = mdp5_read(mdp5_kms, REG_MDP5_PIPE_OUT_XY(pipe));
+	state->crtc_x = FIELD(reg, MDP5_PIPE_OUT_XY_X);
+	state->crtc_y = FIELD(reg, MDP5_PIPE_OUT_XY_Y);
+
+	state->visible = true;
+	mdp5_state->stage = STAGE_BASE;
+
+	/* Reconstruct a framebuffer.
+	 *
+	 * TODO: assume XRGB8888 .. unpatched lk probably actually
+	 * is using RGB565 or BGR888, but those also don't work with
+	 * grub / EFI GOP, so just ignore it for now instead of
+	 * figuring out how to map the format related registers back
+	 * to a fourcc.  Since we know lk is only going to use one
+	 * of 3 formats, perhaps we could take a simplified approach
+	 * by just looking at MDP5_PIPE_SRC_FORMAT.{A,R,G,B}_BPC.
+	 * Note that mdp5 hw is expressive enough to encoded crazy
+	 * formats (RXBG5856 anyone?) so I don't think we can really
+	 * do a perfect job at mapping back to drm fourcc in any
+	 * case.
+	 */
+	format = DRM_FORMAT_XRGB8888;
+
+	reg = mdp5_read(mdp5_kms, REG_MDP5_PIPE_SRC_STRIDE_A(pipe));
+	pitch = FIELD(reg, MDP5_PIPE_SRC_STRIDE_A_P0);
+
+	state->fb = msm_alloc_stolen_fb(plane->dev,
+			state->src_w >> 16,
+			state->src_h >> 16,
+			pitch, format);
+
+	priv->stolen_fb = state->fb;
+	drm_framebuffer_get(priv->stolen_fb);
+}
+
 static void mdp5_plane_reset(struct drm_plane *plane)
 {
 	struct mdp5_plane_state *mdp5_state;

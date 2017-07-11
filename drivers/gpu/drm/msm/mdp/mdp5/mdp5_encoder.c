@@ -101,6 +101,18 @@ static const struct drm_encoder_funcs mdp5_encoder_funcs = {
 	.destroy = mdp5_encoder_destroy,
 };
 
+static void mdp5_encoder_setup_crtc_state(struct drm_encoder *encoder,
+		struct drm_crtc_state *crtc_state)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc_state);
+	struct mdp5_interface *intf = mdp5_encoder->intf;
+	struct mdp5_ctl *ctl = mdp5_encoder->ctl;
+
+	mdp5_cstate->ctl = ctl;
+	mdp5_cstate->pipeline.intf = intf;
+}
+
 static void mdp5_vid_encoder_mode_set(struct drm_encoder *encoder,
 				      struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode)
@@ -209,6 +221,70 @@ static void mdp5_vid_encoder_mode_set(struct drm_encoder *encoder,
 	mdp5_crtc_set_pipeline(encoder->crtc);
 }
 
+static struct drm_display_mode *
+mdp5_vid_encoder_readback_mode(struct drm_encoder *encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	struct drm_display_mode *mode;
+	int intfn = mdp5_encoder->intf->num;
+	uint32_t hsync_ctl, display_hctl;
+	uint32_t vsync_period, vsync_len;
+	uint32_t display_v_start, display_v_end;
+	uint32_t dtv_hsync_skew = 0;  /* get this from panel? */
+
+	mode = drm_mode_create(encoder->dev);
+
+	hsync_ctl    = mdp5_read(mdp5_kms, REG_MDP5_INTF_HSYNC_CTL(intfn));
+	display_hctl = mdp5_read(mdp5_kms, REG_MDP5_INTF_DISPLAY_HCTL(intfn));
+	vsync_period = mdp5_read(mdp5_kms, REG_MDP5_INTF_VSYNC_PERIOD_F0(intfn));
+	display_v_start = mdp5_read(mdp5_kms, REG_MDP5_INTF_DISPLAY_VSTART_F0(intfn));
+	display_v_end   = mdp5_read(mdp5_kms, REG_MDP5_INTF_DISPLAY_VEND_F0(intfn));
+	vsync_len    = mdp5_read(mdp5_kms, REG_MDP5_INTF_VSYNC_LEN_F0(intfn));
+
+	// TODO I don't think there is a way to recover mode->clock??
+	mode->htotal      = FIELD(hsync_ctl, MDP5_INTF_HSYNC_CTL_PERIOD);
+	mode->hsync_start = mode->htotal - FIELD(display_hctl, MDP5_INTF_DISPLAY_HCTL_START);
+	mode->hsync_end   = FIELD(hsync_ctl, MDP5_INTF_HSYNC_CTL_PULSEW) + mode->hsync_start;
+	mode->hdisplay    = FIELD(display_hctl, MDP5_INTF_DISPLAY_HCTL_END) + 1 -
+			mode->htotal + mode->hsync_start;
+
+	if (mdp5_encoder->intf->type == INTF_eDP) {
+		display_v_start -= mode->htotal - mode->hsync_start;
+	}
+
+	mode->vtotal      = vsync_period / mode->htotal;
+	mode->vsync_start = mode->vtotal - ((display_v_start - dtv_hsync_skew) / mode->htotal);
+	mode->vsync_end   = (vsync_len / mode->htotal) + mode->vsync_start;
+	mode->vdisplay    = mode->vsync_start - ((vsync_period + dtv_hsync_skew - 1 - display_v_end) / mode->htotal);
+
+	// TODO maybe we want a flag to indicate that this is a readback
+	// mode, so not all fields are valid.  (Ie. when comparing to
+	// another mode to decide whether to do full modeset or not,
+	// ignore the fields that are zero.)
+	mode->type = DRM_MODE_TYPE_DRIVER;
+
+	// XXX how can we get these?  Maybe get modes from connector and
+	// see what fits (although that sounds ugly and annoying)
+	mode->clock = 148500;
+	mode->vrefresh = 60;
+
+	drm_mode_set_name(mode);
+
+	drm_mode_set_crtcinfo(mode, 0);
+
+	DBG("readback: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
+			mode->base.id, mode->name,
+			mode->vrefresh, mode->clock,
+			mode->hdisplay, mode->hsync_start,
+			mode->hsync_end, mode->htotal,
+			mode->vdisplay, mode->vsync_start,
+			mode->vsync_end, mode->vtotal,
+			mode->type, mode->flags);
+
+	return mode;
+}
+
 static void mdp5_vid_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
@@ -282,6 +358,54 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 		mdp5_vid_encoder_mode_set(encoder, mode, adjusted_mode);
 }
 
+void mdp5_encoder_readback(struct drm_encoder *encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct msm_drm_private *priv = encoder->dev->dev_private;
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	struct drm_display_mode *mode;
+	struct mdp5_crtc_state *mdp5_cstate;
+	struct mdp5_hw_mixer *mixer;
+	enum mdp5_pipe pipe;
+
+	if (mdp5_encoder->intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
+		mode = mdp5_cmd_encoder_readback_mode(encoder);
+	else
+		mode = mdp5_vid_encoder_readback_mode(encoder);
+
+	if (!mode)
+		return;
+
+	/* things like the chosen ctl and mixer need to be read back
+	 * and punched in to crtc state so that crtc knows what reg's
+	 * to readback.  The ctl is based on the encoder connected to
+	 * the crtc (ie. us) and the ctl is needed to figure out what
+	 * mixer is used.
+	 *
+	 * The good news is that since the crtc is fully virtualized,
+	 * we can just pick any one!
+	 */
+	encoder->crtc = priv->crtcs[0];
+	encoder->crtc->state->encoder_mask = (1 << drm_encoder_index(encoder));
+
+	mdp5_cstate = to_mdp5_crtc_state(encoder->crtc->state);
+
+	mdp5_encoder_setup_crtc_state(encoder, encoder->crtc->state);
+
+	mixer = mdp5_ctl_readback(mdp5_cstate->ctl, &pipe);
+	if (WARN_ON(!mixer))
+		return;
+
+	DBG("got mixer=%u, pipe=%s", mixer->lm, pipe2name(pipe));
+
+	mdp5_cstate->pipeline.mixer = mixer;
+	mdp5_kms->state->hwmixer.hwmixer_to_crtc[mixer->idx] = encoder->crtc;
+
+	mdp5_encoder->enabled = true;
+
+	mdp5_crtc_readback(encoder->crtc, mode, pipe);
+}
+
 static void mdp5_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
@@ -312,13 +436,7 @@ static int mdp5_encoder_atomic_check(struct drm_encoder *encoder,
 				     struct drm_crtc_state *crtc_state,
 				     struct drm_connector_state *conn_state)
 {
-	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
-	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc_state);
-	struct mdp5_interface *intf = mdp5_encoder->intf;
-	struct mdp5_ctl *ctl = mdp5_encoder->ctl;
-
-	mdp5_cstate->ctl = ctl;
-	mdp5_cstate->pipeline.intf = intf;
+	mdp5_encoder_setup_crtc_state(encoder, crtc_state);
 
 	return 0;
 }
