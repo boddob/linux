@@ -584,6 +584,7 @@ static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
 {
 	struct msm_kms *kms = &mdp5_kms->base.base;
 
+DBG("set iova for %s: %x\n", pipe2name(pipe), msm_framebuffer_iova(fb, kms->aspace, 0));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_STRIDE_A(pipe),
 			MDP5_PIPE_SRC_STRIDE_A_P0(fb->pitches[0]) |
 			MDP5_PIPE_SRC_STRIDE_A_P1(fb->pitches[1]));

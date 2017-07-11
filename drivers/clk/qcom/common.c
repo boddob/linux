@@ -11,6 +11,8 @@
  * GNU General Public License for more details.
  */
 
+#define DEBUG 1
+
 #include <linux/clk.h>
 #include <linux/export.h>
 #include <linux/module.h>

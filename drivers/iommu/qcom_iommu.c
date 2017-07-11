@@ -59,6 +59,7 @@ struct qcom_iommu_dev {
 	u32			 sec_id;
 	u8			 num_ctxs;
 	struct qcom_iommu_ctx	*ctxs[0];   /* indexed by asid-1 */
+	int enabled;
 };
 
 struct qcom_iommu_ctx {
@@ -101,24 +102,36 @@ static struct qcom_iommu_ctx * to_ctx(struct iommu_fwspec *fwspec, unsigned asid
 static inline void
 iommu_writel(struct qcom_iommu_ctx *ctx, unsigned reg, u32 val)
 {
+	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(ctx->dev->parent);
+	if (WARN_ON(qcom_iommu->enabled <= 0))
+		return;
 	writel_relaxed(val, ctx->base + reg);
 }
 
 static inline void
 iommu_writeq(struct qcom_iommu_ctx *ctx, unsigned reg, u64 val)
 {
+	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(ctx->dev->parent);
+	if (WARN_ON(qcom_iommu->enabled <= 0))
+		return;
 	writeq_relaxed(val, ctx->base + reg);
 }
 
 static inline u32
 iommu_readl(struct qcom_iommu_ctx *ctx, unsigned reg)
 {
+	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(ctx->dev->parent);
+	if (WARN_ON(qcom_iommu->enabled <= 0))
+		return 0;
 	return readl_relaxed(ctx->base + reg);
 }
 
 static inline u64
 iommu_readq(struct qcom_iommu_ctx *ctx, unsigned reg)
 {
+	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(ctx->dev->parent);
+	if (WARN_ON(qcom_iommu->enabled <= 0))
+		return 0;
 	return readq_relaxed(ctx->base + reg);
 }
 
@@ -595,11 +608,14 @@ static int qcom_iommu_enable_clocks(struct qcom_iommu_dev *qcom_iommu)
 		return ret;
 	}
 
+	qcom_iommu->enabled++;
+
 	return 0;
 }
 
 static void qcom_iommu_disable_clocks(struct qcom_iommu_dev *qcom_iommu)
 {
+	qcom_iommu->enabled--;
 	clk_disable_unprepare(qcom_iommu->bus_clk);
 	clk_disable_unprepare(qcom_iommu->iface_clk);
 }
@@ -634,6 +650,7 @@ static int qcom_iommu_sec_ptbl_init(struct device *dev)
 			psize);
 		return -ENOMEM;
 	}
+printk(KERN_ERR"%s:%d: cpu_addr=%p, padder=%llx\n", __func__, __LINE__, cpu_addr, paddr);
 
 	ret = qcom_scm_iommu_secure_ptbl_init(paddr, psize, spare);
 	if (ret) {

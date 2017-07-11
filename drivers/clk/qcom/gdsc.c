@@ -11,6 +11,7 @@
  * GNU General Public License for more details.
  */
 
+#define DEBUG 1
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -171,6 +172,8 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	struct gdsc *sc = domain_to_gdsc(domain);
 	int ret;
 
+pr_warn("GDSC: enabling: %s\n", sc->pd.name);
+
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_deassert_reset(sc);
 
@@ -216,6 +219,8 @@ static int gdsc_disable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
 	int ret;
+
+pr_warn("GDSC: disabling: %s\n", sc->pd.name);
 
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_assert_reset(sc);

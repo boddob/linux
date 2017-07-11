@@ -168,15 +168,31 @@ struct mdp5_encoder {
 };
 #define to_mdp5_encoder(x) container_of(x, struct mdp5_encoder, base)
 
+static bool __check_clks(struct mdp5_kms *mdp5_kms)
+{
+	if (WARN_ON(mdp5_kms->enable_count <= 0))
+		return false;
+	if (WARN_ON(!__clk_is_enabled(mdp5_kms->ahb_clk))) {
+		DRM_ERROR("bad clk state: ahb=%d, axi=%d, core=%d\n",
+			__clk_is_enabled(mdp5_kms->ahb_clk),
+			__clk_is_enabled(mdp5_kms->axi_clk),
+			__clk_is_enabled(mdp5_kms->core_clk));
+		return false;
+	}
+	return true;
+}
+
 static inline void mdp5_write(struct mdp5_kms *mdp5_kms, u32 reg, u32 data)
 {
-	WARN_ON(mdp5_kms->enable_count <= 0);
+	if (!__check_clks(mdp5_kms))
+		return;
 	msm_writel(data, mdp5_kms->mmio + reg);
 }
 
 static inline u32 mdp5_read(struct mdp5_kms *mdp5_kms, u32 reg)
 {
-	WARN_ON(mdp5_kms->enable_count <= 0);
+	if (!__check_clks(mdp5_kms))
+		return 0;
 	return msm_readl(mdp5_kms->mmio + reg);
 }
 

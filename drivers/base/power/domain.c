@@ -6,6 +6,7 @@
  * This file is released under the GPLv2.
  */
 
+#define DEBUG 1
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
@@ -298,6 +299,8 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	struct pm_domain_data *pdd;
 	struct gpd_link *link;
 	unsigned int not_suspended = 0;
+
+	pr_debug("genpd: power off: %s\n", genpd->name);
 
 	/*
 	 * Do not try to power off the domain in the following situations:

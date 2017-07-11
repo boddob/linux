@@ -2156,6 +2156,8 @@ static int _regulator_enable(struct regulator_dev *rdev)
 
 	lockdep_assert_held_once(&rdev->mutex);
 
+pr_info("REG: enable: %s\n", rdev->desc->name);
+
 	/* check voltage and requested load before enabling */
 	if (regulator_ops_is_valid(rdev, REGULATOR_CHANGE_DRMS))
 		drms_uA_update(rdev);
@@ -2259,6 +2261,8 @@ static int _regulator_disable(struct regulator_dev *rdev)
 	int ret = 0;
 
 	lockdep_assert_held_once(&rdev->mutex);
+
+pr_info("REG: disable: %s\n", rdev->desc->name);
 
 	if (WARN(rdev->use_count <= 0,
 		 "unbalanced disables for %s\n", rdev_get_name(rdev)))
