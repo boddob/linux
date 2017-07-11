@@ -1088,6 +1088,8 @@ struct msm_dsi_pll *msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
 	pll->save_state = dsi_pll_14nm_save_state;
 	pll->restore_state = dsi_pll_14nm_restore_state;
 	pll->set_usecase = dsi_pll_14nm_set_usecase;
+	pll->pll_on = pll_14nm_poll_for_ready(pll_14nm, POLL_MAX_READS,
+			POLL_TIMEOUT_US);
 
 	pll_14nm->vco_delay = 1;
 

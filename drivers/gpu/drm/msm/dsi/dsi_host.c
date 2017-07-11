@@ -28,11 +28,14 @@
 #include <linux/regmap.h>
 #include <video/mipi_display.h>
 
+#include "msm_drv.h"
+#include "msm_kms.h"
 #include "dsi.h"
 #include "dsi.xml.h"
 #include "sfpb.xml.h"
 #include "dsi_cfg.h"
 #include "msm_kms.h"
+#include "phy/dsi_phy.h"
 
 static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 {
@@ -1864,6 +1867,35 @@ void msm_dsi_host_unregister(struct mipi_dsi_host *host)
 		host->ops = NULL;
 		msm_host->registered = false;
 	}
+}
+
+// XXX msm_dsi_host_hw_readback()... preserve the layer-cake?
+void msm_dsi_hw_readback(struct msm_dsi *msm_dsi)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(msm_dsi->host);
+	struct msm_drm_private *priv = msm_dsi->dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+
+	if (!__clk_is_enabled(msm_host->pixel_clk))
+		return;
+
+	kms->funcs->hw_readback_encoder(kms, msm_dsi->encoder);
+	msm_dsi->connector->state->crtc = msm_dsi->encoder->crtc;
+	msm_dsi->connector->state->best_encoder = msm_dsi->encoder;
+	msm_dsi->encoder->crtc->state->connector_mask =
+		(1 << drm_connector_index(msm_dsi->connector));
+	msm_host->power_on = true;
+
+	/* also fixup refcnt on regulators: */
+	dsi_host_regulator_enable(msm_host);
+
+	/* clocks will already be on, but with just a single refcnt,
+	 * whereas normally (at least in some cases) both dsi and
+	 * mdp5 take a reference to the same clks.  So take an extra
+	 * reference here to balance things out in the disable path.
+	 */
+	dsi_bus_clk_enable(msm_host);
+	dsi_phy_enable_resource(msm_dsi->phy);
 }
 
 int msm_dsi_host_xfer_prepare(struct mipi_dsi_host *host,

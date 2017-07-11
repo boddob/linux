@@ -446,6 +446,54 @@ int mdp5_ctl_blend(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
 	return 0;
 }
 
+/* Look at the CTL_LAYER_REG's and figure out currently used layermixer
+ * and pipe.  This is really only suitable for the single layer case,
+ * but that is all we'll get from the bootloader.
+ */
+struct mdp5_hw_mixer * mdp5_ctl_readback(struct mdp5_ctl *ctl,
+		enum mdp5_pipe *pipe)
+{
+	struct mdp5_kms *mdp5_kms = get_kms(ctl->ctlm);
+	int i;
+
+	for (i = 0; i < mdp5_kms->num_hwmixers; i++) {
+		struct mdp5_hw_mixer *mixer = mdp5_kms->hwmixers[i];
+		uint32_t reg;
+
+		reg = ctl_read(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, mixer->lm));
+
+		if (!reg)
+			continue;
+
+		if (FIELD(reg, MDP5_CTL_LAYER_REG_RGB0))
+			*pipe = SSPP_RGB0;
+		else if (FIELD(reg, MDP5_CTL_LAYER_REG_RGB1))
+			*pipe = SSPP_RGB1;
+		else if (FIELD(reg, MDP5_CTL_LAYER_REG_RGB2))
+			*pipe = SSPP_RGB2;
+		else if (FIELD(reg, MDP5_CTL_LAYER_REG_RGB3))
+			*pipe = SSPP_RGB3;
+		else if (FIELD(reg, MDP5_CTL_LAYER_REG_VIG0))
+			*pipe = SSPP_VIG0;
+		else if (FIELD(reg, MDP5_CTL_LAYER_REG_VIG1))
+			*pipe = SSPP_VIG1;
+		else if (FIELD(reg, MDP5_CTL_LAYER_REG_VIG2))
+			*pipe = SSPP_VIG2;
+		else if (FIELD(reg, MDP5_CTL_LAYER_REG_VIG2))
+			*pipe = SSPP_VIG2;
+		else if (FIELD(reg, MDP5_CTL_LAYER_REG_DMA0))
+			*pipe = SSPP_DMA0;
+		else if (FIELD(reg, MDP5_CTL_LAYER_REG_DMA1))
+			*pipe = SSPP_DMA1;
+		else
+			continue; /* WTF? */
+
+		return mixer;
+	}
+
+	return NULL;
+}
+
 u32 mdp_ctl_flush_mask_encoder(struct mdp5_interface *intf)
 {
 	if (intf->type == INTF_WB)

@@ -313,6 +313,7 @@ static const struct clk_ops clk_ops_dsi_pll_28nm_vco = {
 	.prepare = msm_dsi_pll_helper_clk_prepare,
 	.unprepare = msm_dsi_pll_helper_clk_unprepare,
 	.is_enabled = dsi_pll_28nm_clk_is_enabled,
+	.is_prepared = dsi_pll_28nm_clk_is_enabled,
 };
 
 /*
@@ -619,6 +620,7 @@ struct msm_dsi_pll *msm_dsi_pll_28nm_init(struct platform_device *pdev,
 	pll->disable_seq = dsi_pll_28nm_disable_seq;
 	pll->save_state = dsi_pll_28nm_save_state;
 	pll->restore_state = dsi_pll_28nm_restore_state;
+	pll->pll_on = pll_28nm_poll_for_ready(pll_28nm, 10, 50);
 
 	if (type == MSM_DSI_PHY_28NM_HPM) {
 		pll_28nm->vco_delay = 1;

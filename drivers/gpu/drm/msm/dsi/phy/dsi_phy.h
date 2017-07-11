@@ -103,6 +103,7 @@ int msm_dsi_dphy_timing_calc_v2(struct msm_dsi_dphy_timing *timing,
 void msm_dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
 				u32 bit_mask);
 int msm_dsi_phy_init_common(struct msm_dsi_phy *phy);
+int dsi_phy_enable_resource(struct msm_dsi_phy *phy);
 
 #endif /* __DSI_PHY_H__ */
 

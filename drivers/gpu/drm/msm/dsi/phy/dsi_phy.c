@@ -354,10 +354,12 @@ fail:
 	return ret;
 }
 
-static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
+int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 {
 	struct device *dev = &phy->pdev->dev;
 	int ret;
+
+	DBG("");
 
 	pm_runtime_get_sync(dev);
 
@@ -372,6 +374,7 @@ static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 
 static void dsi_phy_disable_resource(struct msm_dsi_phy *phy)
 {
+	DBG("");
 	clk_disable_unprepare(phy->ahb_clk);
 	pm_runtime_put_sync(&phy->pdev->dev);
 }

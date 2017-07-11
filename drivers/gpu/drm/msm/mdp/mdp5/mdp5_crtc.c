@@ -409,6 +409,27 @@ static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&mdp5_crtc->lm_lock, flags);
 }
 
+void mdp5_crtc_readback(struct drm_crtc *crtc, struct drm_display_mode *mode,
+		enum mdp5_pipe pipe)
+{
+	struct drm_crtc_state *state = crtc->state;
+	struct drm_plane *plane = crtc->primary;
+	int ret;
+
+	// TODO probably just drop mdp5_state->enabled?
+	to_mdp5_crtc(crtc)->enabled = true;
+
+	state->active = true;
+	ret = drm_atomic_set_mode_for_crtc(state, mode);
+	WARN_ON(ret);
+	drm_mode_copy(&state->adjusted_mode, mode);
+
+	state->plane_mask = 1 << drm_plane_index(plane);
+	plane->state->crtc = crtc;
+
+	mdp5_plane_readback(plane, pipe);
+}
+
 static void mdp5_crtc_disable(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);

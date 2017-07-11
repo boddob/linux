@@ -74,6 +74,7 @@ struct mdp5_kms {
 	spinlock_t resource_lock;
 
 	bool rpm_enabled;
+	bool poweron_enabled;     /* display already on when driver probed */
 
 	struct mdp_irq error_handler;
 
@@ -273,12 +274,15 @@ void mdp5_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 int mdp5_irq_domain_init(struct mdp5_kms *mdp5_kms);
 void mdp5_irq_domain_fini(struct mdp5_kms *mdp5_kms);
 
+void mdp5_plane_readback(struct drm_plane *plane, enum mdp5_pipe pipe);
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
 enum mdp5_pipe mdp5_plane_right_pipe(struct drm_plane *plane);
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 				  enum drm_plane_type type);
 
+void mdp5_crtc_readback(struct drm_crtc *crtc, struct drm_display_mode *mode,
+		enum mdp5_pipe pipe);
 struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc);
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
 
@@ -290,6 +294,7 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 				struct drm_plane *plane,
 				struct drm_plane *cursor_plane, int id);
 
+void mdp5_encoder_readback(struct drm_encoder *encoder);
 struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
 int mdp5_vid_encoder_set_split_display(struct drm_encoder *encoder,
@@ -302,6 +307,7 @@ u32 mdp5_encoder_get_framecount(struct drm_encoder *encoder);
 void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode);
+struct drm_display_mode *mdp5_cmd_encoder_readback_mode(struct drm_encoder *encoder);
 void mdp5_cmd_encoder_disable(struct drm_encoder *encoder);
 void mdp5_cmd_encoder_enable(struct drm_encoder *encoder);
 int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
@@ -311,6 +317,11 @@ static inline void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 					     struct drm_display_mode *mode,
 					     struct drm_display_mode *adjusted_mode)
 {
+}
+static inline struct drm_display_mode *
+mdp5_cmd_encoder_readback_mode(struct drm_encoder *encoder)
+{
+	return NULL;
 }
 static inline void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
 {

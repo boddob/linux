@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/component.h>
@@ -109,6 +110,7 @@ struct msm_drm_private {
 	struct msm_file_private *lastctx;
 
 	struct drm_fb_helper *fbdev;
+	struct drm_framebuffer *stolen_fb;
 
 	struct msm_rd_state *rd;
 	struct msm_perf_state *perf;

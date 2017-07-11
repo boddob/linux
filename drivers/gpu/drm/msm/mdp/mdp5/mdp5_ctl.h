@@ -65,6 +65,9 @@ int mdp5_ctl_blend(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
 		   enum mdp5_pipe r_stage[][MAX_PIPE_STAGE],
 		   u32 stage_cnt, u32 ctl_blend_op_flags);
 
+struct mdp5_hw_mixer * mdp5_ctl_readback(struct mdp5_ctl *ctl,
+		enum mdp5_pipe *pipe);
+
 /**
  * mdp_ctl_flush_mask...() - Register FLUSH masks
  *

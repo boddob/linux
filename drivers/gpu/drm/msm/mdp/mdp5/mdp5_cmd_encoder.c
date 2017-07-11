@@ -146,6 +146,14 @@ void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 	mdp5_crtc_set_pipeline(encoder->crtc);
 }
 
+struct drm_display_mode *mdp5_cmd_encoder_readback_mode(struct drm_encoder *encoder)
+{
+	// TODO can we even reconstruct something that resembles a mode
+	// in the case of cmd mode?  (And will bootloader ever enable
+	// a panel in cmd mode, or can we just ignore this scenario?)
+	return NULL;
+}
+
 void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);

@@ -545,6 +545,9 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	drm_mode_config_reset(ddev);
 
+	if (kms->funcs->hw_readback)
+		kms->funcs->hw_readback(kms);
+
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (fbdev)
 		priv->fbdev = msm_fbdev_init(ddev);

@@ -78,7 +78,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	struct fb_info *fbi = NULL;
 	uint64_t paddr;
 	uint32_t format;
-	int ret, pitch;
+	int ret;
 
 	format = drm_mode_legacy_fb_format(sizes->surface_bpp, sizes->surface_depth);
 
@@ -86,9 +86,16 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 			sizes->surface_height, sizes->surface_bpp,
 			sizes->fb_width, sizes->fb_height);
 
-	pitch = align_pitch(sizes->surface_width, sizes->surface_bpp);
-	fb = msm_alloc_stolen_fb(dev, sizes->surface_width,
-			sizes->surface_height, pitch, format);
+	if (priv->stolen_fb && (priv->stolen_fb->width == sizes->surface_width) &&
+	    (priv->stolen_fb->height == sizes->surface_height) &&
+	    (priv->stolen_fb->format->format == format)) {
+		DBG("Reusing stolen fb\n");
+		fb = priv->stolen_fb;
+	} else {
+		int pitch = align_pitch(sizes->surface_width, sizes->surface_bpp);
+		fb = msm_alloc_stolen_fb(dev, sizes->surface_width,
+				sizes->surface_height, pitch, format);
+	}
 
 	if (IS_ERR(fb)) {
 		dev_err(dev->dev, "failed to allocate fb\n");

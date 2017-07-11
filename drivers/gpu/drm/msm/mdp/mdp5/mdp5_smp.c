@@ -257,6 +257,35 @@ static unsigned update_smp_state(struct mdp5_smp *smp,
 	return nblks;
 }
 
+static void readback_smp_state(struct mdp5_smp *smp, u32 cid,
+		mdp5_smp_state_t *assigned)
+{
+	struct mdp5_kms *mdp5_kms = get_kms(smp);
+	u32 blk, reg, val;
+
+	for (blk = 0; blk < smp->blk_cnt; blk++) {
+		int idx = blk / 3;
+		int fld = blk % 3;
+
+		reg = mdp5_read(mdp5_kms, REG_MDP5_SMP_ALLOC_W_REG(idx));
+
+		switch (fld) {
+		case 0:
+			val = FIELD(reg, MDP5_SMP_ALLOC_W_REG_CLIENT0);
+			break;
+		case 1:
+			val = FIELD(reg, MDP5_SMP_ALLOC_W_REG_CLIENT1);
+			break;
+		case 2:
+			val = FIELD(reg, MDP5_SMP_ALLOC_W_REG_CLIENT2);
+			break;
+		}
+
+		if (val == cid)
+			set_bit(blk, *assigned);
+	}
+}
+
 void mdp5_smp_prepare_commit(struct mdp5_smp *smp, struct mdp5_smp_state *state)
 {
 	enum mdp5_pipe pipe;
@@ -290,6 +319,22 @@ void mdp5_smp_complete_commit(struct mdp5_smp *smp, struct mdp5_smp_state *state
 	}
 
 	state->released = 0;
+}
+
+void mdp5_smp_readback(struct mdp5_smp *smp, struct mdp5_smp_state *state,
+		enum mdp5_pipe pipe)
+{
+	unsigned i;
+
+	DBG("readback SMP state for %s", pipe2name(pipe));
+
+	for (i = 0; i < pipe2nclients(pipe); i++) {
+		u32 cid = pipe2client(pipe, i);
+		void *cs = state->client_state[cid];
+
+		readback_smp_state(smp, cid, cs);
+		bitmap_or(state->state, state->state, cs, smp->blk_cnt);
+	}
 }
 
 void mdp5_smp_dump(struct mdp5_smp *smp, struct drm_printer *p)
