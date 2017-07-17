@@ -442,6 +442,9 @@ static void mdp5_crtc_enable(struct drm_crtc *crtc)
 		return;
 
 	pm_runtime_get_sync(dev);
+
+	mdp5_crtc_mode_set_nofb(crtc);
+
 	mdp_irq_register(&mdp5_kms->base, &mdp5_crtc->err);
 
 	if (mdp5_cstate->cmd_mode)

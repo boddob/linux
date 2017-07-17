@@ -297,6 +297,10 @@ static void mdp5_encoder_enable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_interface *intf = mdp5_encoder->intf;
+	/* this isn't right I think */
+	struct drm_crtc_state *cstate = encoder->crtc->state;
+
+	mdp5_encoder_mode_set(encoder, &cstate->mode, &cstate->adjusted_mode);
 
 	if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
 		mdp5_cmd_encoder_disable(encoder);
