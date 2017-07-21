@@ -169,6 +169,9 @@ struct msm_drm_private {
 	 * ioctl.
 	 */
 	struct task_struct *struct_mutex_task;
+
+	/* to save/restore state during system susend/resume */
+	struct drm_atomic_state *state;
 };
 
 struct msm_format {

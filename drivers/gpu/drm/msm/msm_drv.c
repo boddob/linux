@@ -16,6 +16,7 @@
  */
 
 #include <drm/drm_of.h>
+#include <linux/console.h>
 
 #include "msm_drv.h"
 #include "msm_debugfs.h"
@@ -855,8 +856,21 @@ static struct drm_driver msm_driver = {
 static int msm_pm_suspend(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = ddev->dev_private;
 
 	drm_kms_helper_poll_disable(ddev);
+
+	if (priv->fbdev) {
+		console_lock();
+		drm_fb_helper_set_suspend(priv->fbdev, 1);
+		console_unlock();
+	}
+
+	priv->state = drm_atomic_helper_suspend(ddev);
+	if (IS_ERR(priv->state)) {
+		drm_kms_helper_poll_enable(ddev);
+		return PTR_ERR(priv->state);
+	}
 
 	return 0;
 }
@@ -864,7 +878,14 @@ static int msm_pm_suspend(struct device *dev)
 static int msm_pm_resume(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = ddev->dev_private;
 
+	drm_atomic_helper_resume(ddev, priv->state);
+	if (priv->fbdev) {
+		console_lock();
+		drm_fb_helper_set_suspend(priv->fbdev, 1);
+		console_unlock();
+	}
 	drm_kms_helper_poll_enable(ddev);
 
 	return 0;
