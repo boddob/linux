@@ -708,7 +708,7 @@ static void dsi_intr_ctrl(struct msm_dsi_host *msm_host, u32 mask, int enable)
 	else
 		intr &= ~mask;
 
-	DBG("intr=%x enable=%d", intr, enable);
+	//DBG("intr=%x enable=%d", intr, enable);
 
 	dsi_write(msm_host, REG_DSI_INTR_CTRL, intr);
 	spin_unlock_irqrestore(&msm_host->intr_lock, flags);
@@ -1311,7 +1311,7 @@ static void dsi_err_worker(struct work_struct *work)
 		container_of(work, struct msm_dsi_host, err_work);
 	u32 status = msm_host->err_work_state;
 
-	pr_err_ratelimited("%s: status=%x\n", __func__, status);
+	//pr_err_ratelimited("%s: status=%x\n", __func__, status);
 	if (status & DSI_ERR_STATE_MDP_FIFO_UNDERFLOW)
 		dsi_sw_reset_restore(msm_host);
 
@@ -1434,7 +1434,7 @@ static irqreturn_t dsi_host_irq(int irq, void *ptr)
 	dsi_write(msm_host, REG_DSI_INTR_CTRL, isr);
 	spin_unlock_irqrestore(&msm_host->intr_lock, flags);
 
-	DBG("isr=0x%x, id=%d", isr, msm_host->id);
+	//DBG("isr=0x%x, id=%d", isr, msm_host->id);
 
 	if (isr & DSI_IRQ_ERROR)
 		dsi_error(msm_host);
