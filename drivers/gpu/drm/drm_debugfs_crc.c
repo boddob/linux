@@ -180,6 +180,7 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 	ret = wait_event_interruptible_lock_irq(crc->wq,
 						crtc_crc_data_count(crc),
 						crc->lock);
+	printk(KERN_ERR "done waiting\n");
 	spin_unlock_irq(&crc->lock);
 
 	WARN_ON(ret);

@@ -1247,6 +1247,9 @@ static inline uint32_t REG_MDP5_LM_CURSOR_BLEND_TRANSP_HIGH1(uint32_t i0) { retu
 
 static inline uint32_t REG_MDP5_LM_GC_LUT_BASE(uint32_t i0) { return 0x00000110 + __offset_LM(i0); }
 
+static inline uint32_t REG_MDP5_LM_MISR_CTRL(uint32_t i0) { return 0x00000310 + __offset_LM(i0); }
+static inline uint32_t REG_MDP5_LM_MISR_SIGNATURE(uint32_t i0) { return 0x00000314 + __offset_LM(i0); }
+
 static inline uint32_t __offset_DSPP(uint32_t idx)
 {
 	switch (idx) {

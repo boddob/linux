@@ -341,6 +341,8 @@ static enum drm_connector_status hdmi_connector_detect(
 	enum drm_connector_status stat_gpio, stat_reg;
 	int retry = 20;
 
+	return connector_status_connected;
+
 	/*
 	 * some platforms may not have hpd gpio. Rely only on the status
 	 * provided by REG_HDMI_HPD_INT_STATUS in this case.

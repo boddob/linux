@@ -44,6 +44,7 @@ struct mdp5_crtc {
 
 #define PENDING_CURSOR 0x1
 #define PENDING_FLIP   0x2
+#define PENDING_MISR   0x4
 	atomic_t pending;
 
 	/* for unref'ing cursor bo's after scanout completes: */
@@ -64,6 +65,8 @@ struct mdp5_crtc {
 		uint32_t width, height;
 		uint32_t x, y;
 	} cursor;
+
+	u32 crc;
 };
 #define to_mdp5_crtc(x) container_of(x, struct mdp5_crtc, base)
 
@@ -916,6 +919,41 @@ static void mdp5_crtc_destroy_state(struct drm_crtc *crtc, struct drm_crtc_state
 	kfree(mdp5_cstate);
 }
 
+int mdp5_set_crc_source(struct drm_crtc *crtc, const char *source,
+			size_t *values_cnt)
+{
+	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+	struct device *dev = &mdp5_kms->pdev->dev;
+	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
+	uint32_t lm = mdp5_cstate->pipeline.mixer->lm;
+
+	pm_runtime_get_sync(dev);
+
+	if (source == NULL) {
+		mdp5_write(mdp5_kms, REG_MDP5_LM_MISR_CTRL(lm), 0x400);
+		wmb();
+		mdp5_write(mdp5_kms, REG_MDP5_LM_MISR_CTRL(lm), 0x0);
+		pm_runtime_put_autosuspend(dev);
+
+		return 0;
+	}
+
+	mdp5_write(mdp5_kms, REG_MDP5_LM_MISR_CTRL(lm), 0x400);
+
+	wmb();
+
+	mdp5_write(mdp5_kms, REG_MDP5_LM_MISR_CTRL(lm), 0x80000101);
+
+	request_pending(crtc, PENDING_MISR);
+
+	pm_runtime_put_autosuspend(dev);
+
+	*values_cnt = 1;
+
+	return 0;
+}
+
 static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = mdp5_crtc_destroy,
@@ -938,6 +976,7 @@ static const struct drm_crtc_funcs mdp5_crtc_no_lm_cursor_funcs = {
 	.atomic_duplicate_state = mdp5_crtc_duplicate_state,
 	.atomic_destroy_state = mdp5_crtc_destroy_state,
 	.atomic_print_state = mdp5_crtc_atomic_print_state,
+	.set_crc_source = mdp5_set_crc_source,
 };
 
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
@@ -966,6 +1005,18 @@ static void mdp5_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)
 
 	if (pending & PENDING_CURSOR)
 		drm_flip_work_commit(&mdp5_crtc->unref_cursor_work, priv->wq);
+
+	if (pending & PENDING_MISR) {
+		struct mdp5_kms *mdp5_kms = get_kms(crtc);
+		struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
+		uint32_t lm = mdp5_cstate->pipeline.mixer->lm;
+
+		mdp5_crtc->crc = mdp5_read(mdp5_kms, REG_MDP5_LM_MISR_SIGNATURE(lm));
+
+		printk(KERN_ERR "MISR %x\n", mdp5_crtc->crc);
+
+		drm_crtc_add_crc_entry(crtc, false, 0x0, &mdp5_crtc->crc);
+	}
 }
 
 static void mdp5_crtc_err_irq(struct mdp_irq *irq, uint32_t irqstatus)
