@@ -48,12 +48,14 @@
 #include <linux/of_iommu.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include <linux/amba/bus.h>
 
 #include "io-pgtable.h"
+#include "arm-smmu-regs.h"
 
 /* Maximum number of context banks per SMMU */
 #define ARM_SMMU_MAX_CBS		128
@@ -83,210 +85,8 @@
 #define smmu_write_atomic_lq		writel_relaxed
 #endif
 
-/* Configuration registers */
-#define ARM_SMMU_GR0_sCR0		0x0
-#define sCR0_CLIENTPD			(1 << 0)
-#define sCR0_GFRE			(1 << 1)
-#define sCR0_GFIE			(1 << 2)
-#define sCR0_EXIDENABLE			(1 << 3)
-#define sCR0_GCFGFRE			(1 << 4)
-#define sCR0_GCFGFIE			(1 << 5)
-#define sCR0_USFCFG			(1 << 10)
-#define sCR0_VMIDPNE			(1 << 11)
-#define sCR0_PTM			(1 << 12)
-#define sCR0_FB				(1 << 13)
-#define sCR0_VMID16EN			(1 << 31)
-#define sCR0_BSU_SHIFT			14
-#define sCR0_BSU_MASK			0x3
-
-/* Auxiliary Configuration register */
-#define ARM_SMMU_GR0_sACR		0x10
-
-/* Identification registers */
-#define ARM_SMMU_GR0_ID0		0x20
-#define ARM_SMMU_GR0_ID1		0x24
-#define ARM_SMMU_GR0_ID2		0x28
-#define ARM_SMMU_GR0_ID3		0x2c
-#define ARM_SMMU_GR0_ID4		0x30
-#define ARM_SMMU_GR0_ID5		0x34
-#define ARM_SMMU_GR0_ID6		0x38
-#define ARM_SMMU_GR0_ID7		0x3c
-#define ARM_SMMU_GR0_sGFSR		0x48
-#define ARM_SMMU_GR0_sGFSYNR0		0x50
-#define ARM_SMMU_GR0_sGFSYNR1		0x54
-#define ARM_SMMU_GR0_sGFSYNR2		0x58
-
-#define ID0_S1TS			(1 << 30)
-#define ID0_S2TS			(1 << 29)
-#define ID0_NTS				(1 << 28)
-#define ID0_SMS				(1 << 27)
-#define ID0_ATOSNS			(1 << 26)
-#define ID0_PTFS_NO_AARCH32		(1 << 25)
-#define ID0_PTFS_NO_AARCH32S		(1 << 24)
-#define ID0_CTTW			(1 << 14)
-#define ID0_NUMIRPT_SHIFT		16
-#define ID0_NUMIRPT_MASK		0xff
-#define ID0_NUMSIDB_SHIFT		9
-#define ID0_NUMSIDB_MASK		0xf
-#define ID0_EXIDS			(1 << 8)
-#define ID0_NUMSMRG_SHIFT		0
-#define ID0_NUMSMRG_MASK		0xff
-
-#define ID1_PAGESIZE			(1 << 31)
-#define ID1_NUMPAGENDXB_SHIFT		28
-#define ID1_NUMPAGENDXB_MASK		7
-#define ID1_NUMS2CB_SHIFT		16
-#define ID1_NUMS2CB_MASK		0xff
-#define ID1_NUMCB_SHIFT			0
-#define ID1_NUMCB_MASK			0xff
-
-#define ID2_OAS_SHIFT			4
-#define ID2_OAS_MASK			0xf
-#define ID2_IAS_SHIFT			0
-#define ID2_IAS_MASK			0xf
-#define ID2_UBS_SHIFT			8
-#define ID2_UBS_MASK			0xf
-#define ID2_PTFS_4K			(1 << 12)
-#define ID2_PTFS_16K			(1 << 13)
-#define ID2_PTFS_64K			(1 << 14)
-#define ID2_VMID16			(1 << 15)
-
-#define ID7_MAJOR_SHIFT			4
-#define ID7_MAJOR_MASK			0xf
-
-/* Global TLB invalidation */
-#define ARM_SMMU_GR0_TLBIVMID		0x64
-#define ARM_SMMU_GR0_TLBIALLNSNH	0x68
-#define ARM_SMMU_GR0_TLBIALLH		0x6c
-#define ARM_SMMU_GR0_sTLBGSYNC		0x70
-#define ARM_SMMU_GR0_sTLBGSTATUS	0x74
-#define sTLBGSTATUS_GSACTIVE		(1 << 0)
-#define TLB_LOOP_TIMEOUT		1000000	/* 1s! */
-#define TLB_SPIN_COUNT			10
-
-/* Stream mapping registers */
-#define ARM_SMMU_GR0_SMR(n)		(0x800 + ((n) << 2))
-#define SMR_VALID			(1 << 31)
-#define SMR_MASK_SHIFT			16
-#define SMR_ID_SHIFT			0
-
-#define ARM_SMMU_GR0_S2CR(n)		(0xc00 + ((n) << 2))
-#define S2CR_CBNDX_SHIFT		0
-#define S2CR_CBNDX_MASK			0xff
-#define S2CR_EXIDVALID			(1 << 10)
-#define S2CR_TYPE_SHIFT			16
-#define S2CR_TYPE_MASK			0x3
-enum arm_smmu_s2cr_type {
-	S2CR_TYPE_TRANS,
-	S2CR_TYPE_BYPASS,
-	S2CR_TYPE_FAULT,
-};
-
-#define S2CR_PRIVCFG_SHIFT		24
-#define S2CR_PRIVCFG_MASK		0x3
-enum arm_smmu_s2cr_privcfg {
-	S2CR_PRIVCFG_DEFAULT,
-	S2CR_PRIVCFG_DIPAN,
-	S2CR_PRIVCFG_UNPRIV,
-	S2CR_PRIVCFG_PRIV,
-};
-
-/* Context bank attribute registers */
-#define ARM_SMMU_GR1_CBAR(n)		(0x0 + ((n) << 2))
-#define CBAR_VMID_SHIFT			0
-#define CBAR_VMID_MASK			0xff
-#define CBAR_S1_BPSHCFG_SHIFT		8
-#define CBAR_S1_BPSHCFG_MASK		3
-#define CBAR_S1_BPSHCFG_NSH		3
-#define CBAR_S1_MEMATTR_SHIFT		12
-#define CBAR_S1_MEMATTR_MASK		0xf
-#define CBAR_S1_MEMATTR_WB		0xf
-#define CBAR_TYPE_SHIFT			16
-#define CBAR_TYPE_MASK			0x3
-#define CBAR_TYPE_S2_TRANS		(0 << CBAR_TYPE_SHIFT)
-#define CBAR_TYPE_S1_TRANS_S2_BYPASS	(1 << CBAR_TYPE_SHIFT)
-#define CBAR_TYPE_S1_TRANS_S2_FAULT	(2 << CBAR_TYPE_SHIFT)
-#define CBAR_TYPE_S1_TRANS_S2_TRANS	(3 << CBAR_TYPE_SHIFT)
-#define CBAR_IRPTNDX_SHIFT		24
-#define CBAR_IRPTNDX_MASK		0xff
-
-#define ARM_SMMU_GR1_CBA2R(n)		(0x800 + ((n) << 2))
-#define CBA2R_RW64_32BIT		(0 << 0)
-#define CBA2R_RW64_64BIT		(1 << 0)
-#define CBA2R_VMID_SHIFT		16
-#define CBA2R_VMID_MASK			0xffff
-
 /* Translation context bank */
 #define ARM_SMMU_CB(smmu, n)	((smmu)->cb_base + ((n) << (smmu)->pgshift))
-
-#define ARM_SMMU_CB_SCTLR		0x0
-#define ARM_SMMU_CB_ACTLR		0x4
-#define ARM_SMMU_CB_RESUME		0x8
-#define ARM_SMMU_CB_TTBCR2		0x10
-#define ARM_SMMU_CB_TTBR0		0x20
-#define ARM_SMMU_CB_TTBR1		0x28
-#define ARM_SMMU_CB_TTBCR		0x30
-#define ARM_SMMU_CB_CONTEXTIDR		0x34
-#define ARM_SMMU_CB_S1_MAIR0		0x38
-#define ARM_SMMU_CB_S1_MAIR1		0x3c
-#define ARM_SMMU_CB_PAR			0x50
-#define ARM_SMMU_CB_FSR			0x58
-#define ARM_SMMU_CB_FAR			0x60
-#define ARM_SMMU_CB_FSYNR0		0x68
-#define ARM_SMMU_CB_S1_TLBIVA		0x600
-#define ARM_SMMU_CB_S1_TLBIASID		0x610
-#define ARM_SMMU_CB_S1_TLBIVAL		0x620
-#define ARM_SMMU_CB_S2_TLBIIPAS2	0x630
-#define ARM_SMMU_CB_S2_TLBIIPAS2L	0x638
-#define ARM_SMMU_CB_TLBSYNC		0x7f0
-#define ARM_SMMU_CB_TLBSTATUS		0x7f4
-#define ARM_SMMU_CB_ATS1PR		0x800
-#define ARM_SMMU_CB_ATSR		0x8f0
-
-#define SCTLR_S1_ASIDPNE		(1 << 12)
-#define SCTLR_CFCFG			(1 << 7)
-#define SCTLR_CFIE			(1 << 6)
-#define SCTLR_CFRE			(1 << 5)
-#define SCTLR_E				(1 << 4)
-#define SCTLR_AFE			(1 << 2)
-#define SCTLR_TRE			(1 << 1)
-#define SCTLR_M				(1 << 0)
-
-#define ARM_MMU500_ACTLR_CPRE		(1 << 1)
-
-#define ARM_MMU500_ACR_CACHE_LOCK	(1 << 26)
-#define ARM_MMU500_ACR_SMTNMB_TLBEN	(1 << 8)
-
-#define CB_PAR_F			(1 << 0)
-
-#define ATSR_ACTIVE			(1 << 0)
-
-#define RESUME_RETRY			(0 << 0)
-#define RESUME_TERMINATE		(1 << 0)
-
-#define TTBCR2_SEP_SHIFT		15
-#define TTBCR2_SEP_UPSTREAM		(0x7 << TTBCR2_SEP_SHIFT)
-#define TTBCR2_AS			(1 << 4)
-
-#define TTBRn_ASID_SHIFT		48
-
-#define FSR_MULTI			(1 << 31)
-#define FSR_SS				(1 << 30)
-#define FSR_UUT				(1 << 8)
-#define FSR_ASF				(1 << 7)
-#define FSR_TLBLKF			(1 << 6)
-#define FSR_TLBMCF			(1 << 5)
-#define FSR_EF				(1 << 4)
-#define FSR_PF				(1 << 3)
-#define FSR_AFF				(1 << 2)
-#define FSR_TF				(1 << 1)
-
-#define FSR_IGN				(FSR_AFF | FSR_ASF | \
-					 FSR_TLBMCF | FSR_TLBLKF)
-#define FSR_FAULT			(FSR_MULTI | FSR_SS | FSR_UUT | \
-					 FSR_EF | FSR_PF | FSR_TF | FSR_IGN)
-
-#define FSYNR0_WNR			(1 << 4)
 
 #define MSI_IOVA_BASE			0x8000000
 #define MSI_IOVA_LENGTH			0x100000
@@ -310,6 +110,7 @@ enum arm_smmu_implementation {
 	GENERIC_SMMU,
 	ARM_MMU500,
 	CAVIUM_SMMUV2,
+	QCOM_MSM8996_SMMUV2,
 };
 
 /* Until ACPICA headers cover IORT rev. C */
@@ -397,6 +198,9 @@ struct arm_smmu_device {
 	u32				num_global_irqs;
 	u32				num_context_irqs;
 	unsigned int			*irqs;
+	int                             num_clks;
+	struct clk                      **clocks;
+	const char * const		*clk_names;
 
 	u32				cavium_id_base; /* Specific to Cavium */
 
@@ -471,6 +275,32 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 				arm_smmu_options[i].prop);
 		}
 	} while (arm_smmu_options[++i].opt);
+}
+
+static int arm_smmu_enable_clocks(struct arm_smmu_device *smmu)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < smmu->num_clks; ++i) {
+		ret = clk_prepare_enable(smmu->clocks[i]);
+		if (ret) {
+			dev_err(smmu->dev, "Couldn't enable %s clock\n",
+				smmu->clk_names[i]);
+			while (i--)
+				clk_disable_unprepare(smmu->clocks[i]);
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static void arm_smmu_disable_clocks(struct arm_smmu_device *smmu)
+{
+	int i = smmu->num_clks;
+
+	while (i--)
+		clk_disable_unprepare(smmu->clocks[i]);
 }
 
 static struct device_node *dev_get_dev_node(struct device *dev)
@@ -1068,9 +898,13 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
 	void __iomem *cb_base;
-	int irq;
+	int ret, irq;
 
 	if (!smmu || domain->type == IOMMU_DOMAIN_IDENTITY)
+		return;
+
+	ret = pm_runtime_get_sync(smmu->dev);
+	if (ret)
 		return;
 
 	/*
@@ -1087,6 +921,8 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 
 	free_io_pgtable_ops(smmu_domain->pgtbl_ops);
 	__arm_smmu_free_bitmap(smmu->context_map, cfg->cbndx);
+
+	pm_runtime_put_sync(smmu->dev);
 }
 
 static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)
@@ -1402,12 +1238,18 @@ static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 			     size_t size)
 {
-	struct io_pgtable_ops *ops = to_smmu_domain(domain)->pgtbl_ops;
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+	struct io_pgtable_ops *ops = smmu_domain->pgtbl_ops;
+	size_t ret;
 
 	if (!ops)
 		return 0;
 
-	return ops->unmap(ops, iova, size);
+	pm_runtime_get_sync(smmu_domain->smmu->dev);
+	ret = ops->unmap(ops, iova, size);
+	pm_runtime_put_sync(smmu_domain->smmu->dev);
+
+	return ret;
 }
 
 static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
@@ -1507,6 +1349,7 @@ static int arm_smmu_add_device(struct device *dev)
 	struct arm_smmu_device *smmu;
 	struct arm_smmu_master_cfg *cfg;
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct device_link *link = NULL;
 	int i, ret;
 
 	if (using_legacy_binding) {
@@ -1548,17 +1391,35 @@ static int arm_smmu_add_device(struct device *dev)
 	while (i--)
 		cfg->smendx[i] = INVALID_SMENDX;
 
-	ret = arm_smmu_master_alloc_smes(dev);
+	ret = pm_runtime_get_sync(smmu->dev);
 	if (ret)
-		goto out_free;
+		goto out_cfg_free;
+
+	ret = arm_smmu_master_alloc_smes(dev);
+	if (ret) {
+		pm_runtime_put_sync(smmu->dev);
+		goto out_cfg_free;
+	}
 
 	iommu_device_link(&smmu->iommu, dev);
 
+	pm_runtime_put_sync(smmu->dev);
+
+	/*
+	 * Establish the link between smmu and master, so that the
+	 * smmu gets runtime enabled/disabled as per the master's
+	 * needs.
+	 */
+	link = device_link_add(dev, smmu->dev, DL_FLAG_PM_RUNTIME);
+	if (!link)
+		dev_warn(smmu->dev, "Unable to create device link between %s and %s\n",
+			 dev_name(smmu->dev), dev_name(dev));
+
 	return 0;
 
+out_cfg_free:
+	kfree(cfg);
 out_free:
-	if (fwspec)
-		kfree(fwspec->iommu_priv);
 	iommu_fwspec_free(dev);
 	return ret;
 }
@@ -1568,7 +1429,7 @@ static void arm_smmu_remove_device(struct device *dev)
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
 	struct arm_smmu_master_cfg *cfg;
 	struct arm_smmu_device *smmu;
-
+	int ret;
 
 	if (!fwspec || fwspec->ops != &arm_smmu_ops)
 		return;
@@ -1576,8 +1437,21 @@ static void arm_smmu_remove_device(struct device *dev)
 	cfg  = fwspec->iommu_priv;
 	smmu = cfg->smmu;
 
+	/*
+	 * The device link between the master device and
+	 * smmu is already purged at this point.
+	 * So enable the power to smmu explicitly.
+	 */
+
+	ret = pm_runtime_get_sync(smmu->dev);
+	if (ret)
+		return;
+
 	iommu_device_unlink(&smmu->iommu, dev);
 	arm_smmu_master_free_smes(fwspec);
+
+	pm_runtime_put_sync(smmu->dev);
+
 	iommu_group_remove_device(dev);
 	kfree(fwspec->iommu_priv);
 	iommu_fwspec_free(dev);
@@ -1827,6 +1701,36 @@ static int arm_smmu_id_size_to_bits(int size)
 	}
 }
 
+static int arm_smmu_init_clocks(struct arm_smmu_device *smmu)
+{
+	int i, err;
+	struct device *dev = smmu->dev;
+
+	if (smmu->num_clks < 1)
+		return 0;
+
+	smmu->clocks = devm_kcalloc(dev, smmu->num_clks,
+				    sizeof(*smmu->clocks), GFP_KERNEL);
+	if (!smmu->clocks)
+		return -ENOMEM;
+
+	for (i = 0; i < smmu->num_clks; i++) {
+		const char *cname = smmu->clk_names[i];
+		struct clk *c = devm_clk_get(dev, cname);
+
+		if (IS_ERR(c)) {
+			err = PTR_ERR(c);
+			if (err != -EPROBE_DEFER)
+				dev_err(dev, "Couldn't get clock: %s", cname);
+
+			return err;
+		}
+		smmu->clocks[i] = c;
+	}
+
+	return 0;
+}
+
 static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 {
 	unsigned long size;
@@ -2034,16 +1938,39 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 struct arm_smmu_match_data {
 	enum arm_smmu_arch_version version;
 	enum arm_smmu_implementation model;
+	const char * const *clks;
+	int num_clks;
 };
 
 #define ARM_SMMU_MATCH_DATA(name, ver, imp)	\
-static struct arm_smmu_match_data name = { .version = ver, .model = imp }
+static const struct arm_smmu_match_data name = { .version = ver, .model = imp }
 
 ARM_SMMU_MATCH_DATA(smmu_generic_v1, ARM_SMMU_V1, GENERIC_SMMU);
 ARM_SMMU_MATCH_DATA(smmu_generic_v2, ARM_SMMU_V2, GENERIC_SMMU);
 ARM_SMMU_MATCH_DATA(arm_mmu401, ARM_SMMU_V1_64K, GENERIC_SMMU);
-ARM_SMMU_MATCH_DATA(arm_mmu500, ARM_SMMU_V2, ARM_MMU500);
 ARM_SMMU_MATCH_DATA(cavium_smmuv2, ARM_SMMU_V2, CAVIUM_SMMUV2);
+
+static const char * const arm_mmu500_clks[] = {
+	"tcu", "iface",
+};
+
+static const struct arm_smmu_match_data arm_mmu500 = {
+	.version = ARM_SMMU_V2,
+	.model = ARM_MMU500,
+	.clks = arm_mmu500_clks,
+	.num_clks = ARRAY_SIZE(arm_mmu500_clks),
+};
+
+static const char * const qcom_msm8996_smmuv2_clks[] = {
+	"bus", "iface",
+};
+
+static const struct arm_smmu_match_data qcom_msm8996_smmuv2 = {
+	.version = ARM_SMMU_V2,
+	.model = QCOM_MSM8996_SMMUV2,
+	.clks = qcom_msm8996_smmuv2_clks,
+	.num_clks = ARRAY_SIZE(qcom_msm8996_smmuv2_clks),
+};
 
 static const struct of_device_id arm_smmu_of_match[] = {
 	{ .compatible = "arm,smmu-v1", .data = &smmu_generic_v1 },
@@ -2052,6 +1979,7 @@ static const struct of_device_id arm_smmu_of_match[] = {
 	{ .compatible = "arm,mmu-401", .data = &arm_mmu401 },
 	{ .compatible = "arm,mmu-500", .data = &arm_mmu500 },
 	{ .compatible = "cavium,smmu-v2", .data = &cavium_smmuv2 },
+	{ .compatible = "qcom,msm8996-smmu-v2", .data = &qcom_msm8996_smmuv2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, arm_smmu_of_match);
@@ -2138,6 +2066,8 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev,
 	data = of_device_get_match_data(dev);
 	smmu->version = data->version;
 	smmu->model = data->model;
+	smmu->clk_names = data->clks;
+	smmu->num_clks = data->num_clks;
 
 	parse_driver_options(smmu);
 
@@ -2236,6 +2166,17 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		smmu->irqs[i] = irq;
 	}
 
+	err = arm_smmu_init_clocks(smmu);
+	if (err)
+		return err;
+
+	platform_set_drvdata(pdev, smmu);
+	pm_runtime_enable(dev);
+
+	err = pm_runtime_get_sync(dev);
+	if (err)
+		return err;
+
 	err = arm_smmu_device_cfg_probe(smmu);
 	if (err)
 		return err;
@@ -2277,9 +2218,9 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	platform_set_drvdata(pdev, smmu);
 	arm_smmu_device_reset(smmu);
 	arm_smmu_test_smr_masks(smmu);
+	pm_runtime_put_sync(dev);
 
 	/*
 	 * For ACPI and generic DT bindings, an SMMU will be probed before
@@ -2318,13 +2259,40 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 
 	/* Turn the thing off */
 	writel(sCR0_CLIENTPD, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
+	pm_runtime_force_suspend(smmu->dev);
+
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int arm_smmu_resume(struct device *dev)
+{
+	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
+
+	return arm_smmu_enable_clocks(smmu);
+}
+
+static int arm_smmu_suspend(struct device *dev)
+{
+	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
+
+	arm_smmu_disable_clocks(smmu);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops arm_smmu_pm_ops = {
+	SET_RUNTIME_PM_OPS(arm_smmu_suspend, arm_smmu_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+};
 
 static struct platform_driver arm_smmu_driver = {
 	.driver	= {
 		.name		= "arm-smmu",
 		.of_match_table	= of_match_ptr(arm_smmu_of_match),
+		.pm = &arm_smmu_pm_ops,
 	},
 	.probe	= arm_smmu_device_probe,
 	.remove	= arm_smmu_device_remove,
