@@ -2902,6 +2902,14 @@ static struct gdsc mmagic_video_gdsc = {
 	.pd = {
 		.name = "mmagic_video",
 	},
+	.clk_hws = {
+		&mmss_mmagic_ahb_clk.clkr.hw,
+		&mmss_mmagic_cfg_ahb_clk.clkr.hw,
+		&mmagic_video_axi_clk.clkr.hw,
+		&mmagic_video_noc_cfg_ahb_clk.clkr.hw,
+	},
+	.clk_count = 4,
+	.parent = &mmagic_bimc_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
@@ -2912,6 +2920,14 @@ static struct gdsc mmagic_mdss_gdsc = {
 	.pd = {
 		.name = "mmagic_mdss",
 	},
+	.clk_hws = {
+		&mmss_mmagic_ahb_clk.clkr.hw,
+		&mmss_mmagic_cfg_ahb_clk.clkr.hw,
+		&mmagic_mdss_axi_clk.clkr.hw,
+		&mmagic_mdss_noc_cfg_ahb_clk.clkr.hw,
+	},
+	.clk_count = 4,
+	.parent = &mmagic_bimc_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
@@ -2922,6 +2938,14 @@ static struct gdsc mmagic_camss_gdsc = {
 	.pd = {
 		.name = "mmagic_camss",
 	},
+	.clk_hws = {
+		&mmss_mmagic_ahb_clk.clkr.hw,
+		&mmss_mmagic_cfg_ahb_clk.clkr.hw,
+		&mmagic_camss_axi_clk.clkr.hw,
+		&mmagic_camss_noc_cfg_ahb_clk.clkr.hw,
+	},
+	.clk_count = 4,
+	.parent = &mmagic_bimc_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = VOTABLE,
 };
@@ -3038,16 +3062,6 @@ static struct gdsc mdss_gdsc = {
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
-static struct gdsc gpu_gdsc = {
-	.gdscr = 0x4034,
-	.gds_hw_ctrl = 0x4038,
-	.pd = {
-		.name = "gpu",
-	},
-	.pwrsts = PWRSTS_OFF_ON,
-	.flags = VOTABLE,
-};
-
 static struct gdsc gpu_gx_gdsc = {
 	.gdscr = 0x4024,
 	.clamp_io_ctrl = 0x4300,
@@ -3056,8 +3070,24 @@ static struct gdsc gpu_gx_gdsc = {
 	.pd = {
 		.name = "gpu_gx",
 	},
+	.clk_hws = {
+		&mmss_mmagic_ahb_clk.clkr.hw,
+		&mmss_mmagic_cfg_ahb_clk.clkr.hw,
+	},
+	.clk_count = 2,
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = CLAMP_IO,
+};
+
+static struct gdsc gpu_gdsc = {
+	.gdscr = 0x4034,
+	.gds_hw_ctrl = 0x4038,
+	.pd = {
+		.name = "gpu",
+	},
+	.parent = &gpu_gx_gdsc.pd,
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct clk_regmap *mmcc_msm8996_clocks[] = {

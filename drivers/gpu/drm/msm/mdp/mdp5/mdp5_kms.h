@@ -66,6 +66,7 @@ struct mdp5_kms {
 	struct clk *core_clk;
 	struct clk *lut_clk;
 	struct clk *vsync_clk;
+	struct clk *iommu_clk;
 
 	/*
 	 * lock to protect access to global resources: ie., following register:
@@ -76,6 +77,8 @@ struct mdp5_kms {
 	bool rpm_enabled;
 
 	struct mdp_irq error_handler;
+
+	int enable_count;
 };
 #define to_mdp5_kms(x) container_of(x, struct mdp5_kms, base)
 
@@ -167,11 +170,13 @@ struct mdp5_encoder {
 
 static inline void mdp5_write(struct mdp5_kms *mdp5_kms, u32 reg, u32 data)
 {
+	WARN_ON(mdp5_kms->enable_count <= 0);
 	msm_writel(data, mdp5_kms->mmio + reg);
 }
 
 static inline u32 mdp5_read(struct mdp5_kms *mdp5_kms, u32 reg)
 {
+	WARN_ON(mdp5_kms->enable_count <= 0);
 	return msm_readl(mdp5_kms->mmio + reg);
 }
 
