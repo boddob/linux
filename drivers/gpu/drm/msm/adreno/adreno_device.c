@@ -336,21 +336,39 @@ static const struct of_device_id dt_match[] = {
 	{}
 };
 
+static int count;
 #ifdef CONFIG_PM
 static int adreno_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct msm_gpu *gpu = platform_get_drvdata(pdev);
+	int ret;
 
-	return gpu->funcs->pm_resume(gpu);
+	printk(KERN_ERR "%s %d\n", __func__, ++count);
+
+	ret = gpu->funcs->pm_resume(gpu);
+
+	printk(KERN_ERR "%s completed %d\n", __func__, count);
+
+	return ret;
 }
 
 static int adreno_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct msm_gpu *gpu = platform_get_drvdata(pdev);
+	int ret;
 
-	return gpu->funcs->pm_suspend(gpu);
+	printk(KERN_ERR "%s %d\n", __func__, --count);
+
+	ret = gpu->funcs->pm_suspend(gpu);
+
+	printk(KERN_ERR "%s completed %d\n", __func__, count);
+
+	//if (count == 0)
+	//	WARN_ON(1);
+
+	return ret;
 }
 #endif
 

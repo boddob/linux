@@ -27,6 +27,7 @@
 #include "mdp5_mixer.h"
 #include "mdp5_ctl.h"
 #include "mdp5_smp.h"
+#include <linux/clk-provider.h>
 
 struct mdp5_state;
 

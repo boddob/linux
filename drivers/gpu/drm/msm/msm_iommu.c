@@ -40,6 +40,8 @@ static int msm_iommu_attach(struct msm_mmu *mmu, const char * const *names,
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
 	int ret;
 
+	printk(KERN_ERR "%s\n", __func__);
+
 	pm_runtime_get_sync(mmu->dev);
 	ret = iommu_attach_device(iommu->domain, mmu->dev);
 	pm_runtime_put_sync(mmu->dev);
@@ -51,6 +53,8 @@ static void msm_iommu_detach(struct msm_mmu *mmu, const char * const *names,
 			     int cnt)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
+
+	printk(KERN_ERR "%s\n", __func__);
 
 	pm_runtime_get_sync(mmu->dev);
 	iommu_detach_device(iommu->domain, mmu->dev);
@@ -65,7 +69,7 @@ static int msm_iommu_map(struct msm_mmu *mmu, uint64_t iova,
 
 	pm_runtime_get_sync(mmu->dev);
 	ret = iommu_map_sg(iommu->domain, iova, sgt->sgl, sgt->nents, prot);
-//	pm_runtime_put_sync(mmu->dev);
+	pm_runtime_put_sync(mmu->dev);
 	WARN_ON(ret < 0);
 
 	return (ret == len) ? 0 : -EINVAL;
@@ -78,7 +82,7 @@ static int msm_iommu_unmap(struct msm_mmu *mmu, uint64_t iova,
 
 	pm_runtime_get_sync(mmu->dev);
 	iommu_unmap(iommu->domain, iova, len);
-//	pm_runtime_put_sync(mmu->dev);
+	pm_runtime_put_sync(mmu->dev);
 
 	return 0;
 }

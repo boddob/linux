@@ -938,6 +938,7 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 
 	/* TODO: compute core clock rate at runtime */
 	clk_set_rate(mdp5_kms->core_clk, config->hw->max_clk);
+	clk_set_rate(mdp5_kms->axi_clk, 320000000);
 
 	/*
 	 * Some chipsets have a Shared Memory Pool (SMP), while others
@@ -1017,12 +1018,13 @@ static int mdp5_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int count;
 static int mdp5_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mdp5_kms *mdp5_kms = platform_get_drvdata(pdev);
 
-	DBG("");
+	printk(KERN_ERR "%s %d", __func__, --count);
 
 	return mdp5_disable(mdp5_kms);
 }
@@ -1032,7 +1034,7 @@ static int mdp5_runtime_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mdp5_kms *mdp5_kms = platform_get_drvdata(pdev);
 
-	DBG("");
+	printk(KERN_ERR "%s %d", __func__, ++count);
 
 	return mdp5_enable(mdp5_kms);
 }

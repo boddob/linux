@@ -206,6 +206,7 @@ struct arm_smmu_device {
 
 	/* IOMMU core code handle */
 	struct iommu_device		iommu;
+	int count;
 };
 
 enum arm_smmu_context_fmt {
@@ -2269,12 +2270,19 @@ static int arm_smmu_resume(struct device *dev)
 {
 	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
 
+	printk(KERN_ERR "%s %s %d\n", __func__, dev_name(smmu->dev), ++smmu->count);
+
+	//if (count == 2)
+	//	WARN_ON(1);
+
 	return arm_smmu_enable_clocks(smmu);
 }
 
 static int arm_smmu_suspend(struct device *dev)
 {
 	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
+
+	printk(KERN_ERR "%s %s %d\n", __func__, dev_name(smmu->dev), --smmu->count);
 
 	arm_smmu_disable_clocks(smmu);
 

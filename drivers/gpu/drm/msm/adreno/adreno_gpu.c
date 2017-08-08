@@ -28,6 +28,8 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 
+	DBG("param %u", param);
+
 	switch (param) {
 	case MSM_PARAM_GPU_ID:
 		*value = adreno_gpu->info->revn;
@@ -133,6 +135,8 @@ void adreno_recover(struct msm_gpu *gpu)
 
 	// XXX pm-runtime??  we *need* the device to be off after this
 	// so maybe continuing to call ->pm_suspend/resume() is better?
+
+	DBG("");
 
 	gpu->funcs->pm_suspend(gpu);
 	gpu->funcs->pm_resume(gpu);

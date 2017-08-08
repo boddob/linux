@@ -412,6 +412,8 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 {
 	int i;
 
+	//printk(KERN_ERR "%s\n", __func__);
+
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
 		/* move to inactive: */
@@ -451,6 +453,8 @@ static void retire_worker(struct work_struct *work)
 	struct drm_device *dev = gpu->dev;
 	uint32_t fence = gpu->funcs->last_fence(gpu);
 
+	//printk(KERN_ERR "%s\n", __func__);
+
 	msm_update_fence(gpu->fctx, fence);
 
 	mutex_lock(&dev->struct_mutex);
@@ -461,6 +465,8 @@ static void retire_worker(struct work_struct *work)
 /* call from irq handler to schedule work to retire bo's */
 void msm_gpu_retire(struct msm_gpu *gpu)
 {
+	//printk(KERN_ERR "%s\n", __func__);
+
 	struct msm_drm_private *priv = gpu->dev->dev_private;
 	queue_work(priv->wq, &gpu->retire_work);
 	update_sw_cntrs(gpu);
