@@ -249,6 +249,7 @@ msm_alloc_stolen_fb(struct drm_device *dev, int w, int h, int p, uint32_t format
 		.width = w,
 		.height = h,
 		.pitches = { p },
+		.offsets = { 0 },
 	};
 	struct drm_gem_object *bo;
 	struct drm_framebuffer *fb;
