@@ -1887,6 +1887,8 @@ void msm_dsi_hw_readback(struct msm_dsi *msm_dsi)
 	msm_dsi->connector->state->best_encoder = msm_dsi->encoder;
 	msm_dsi->encoder->crtc->state->connector_mask =
 		(1 << drm_connector_index(msm_dsi->connector));
+	msm_dsi_host_set_display_mode(&msm_host->base,
+				      &msm_dsi->encoder->crtc->state->mode);
 	msm_host->power_on = true;
 
 	/* also fixup refcnt on regulators: */
