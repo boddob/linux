@@ -268,6 +268,7 @@ mdp5_vid_encoder_readback_mode(struct drm_encoder *encoder)
 	// see what fits (although that sounds ugly and annoying)
 	mode->clock = 148500;
 	mode->vrefresh = 60;
+	mode->flags = DRM_MODE_FLAG_PVSYNC | DRM_MODE_FLAG_PHSYNC;
 
 	drm_mode_set_name(mode);
 
@@ -399,6 +400,13 @@ void mdp5_encoder_readback(struct drm_encoder *encoder)
 	DBG("got mixer=%u, pipe=%s", mixer->lm, pipe2name(pipe));
 
 	mdp5_cstate->pipeline.mixer = mixer;
+
+	/* some more mdp5_crtc_state stuff */
+	mdp5_cstate->err_irqmask = intf2err(mdp5_encoder->intf->num);
+	mdp5_cstate->vblank_irqmask = intf2vblank(mixer, mdp5_encoder->intf);
+	mdp5_cstate->pp_done_irqmask = 0;
+	mdp5_cstate->cmd_mode = false;
+
 	mdp5_kms->state->hwmixer.hwmixer_to_crtc[mixer->idx] = encoder->crtc;
 
 	mdp5_encoder->enabled = true;

@@ -199,7 +199,9 @@ void mdp5_plane_readback(struct drm_plane *plane, enum mdp5_pipe pipe)
 	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
 	struct msm_drm_private *priv = plane->dev->dev_private;
 	uint32_t reg, pitch, format;
+	u32 blkcfg;
 	unsigned i;
+	int ret;
 
 	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
 		struct mdp5_hw_pipe *hwpipe = mdp5_kms->hwpipes[i];
@@ -269,6 +271,17 @@ void mdp5_plane_readback(struct drm_plane *plane, enum mdp5_pipe pipe)
 
 	priv->stolen_fb = state->fb;
 	drm_framebuffer_get(priv->stolen_fb);
+
+	blkcfg = mdp5_smp_calculate(mdp5_kms->smp,
+			to_mdp_format(msm_framebuffer_format(state->fb)),
+			state->src_w >> 16, false);
+
+	ret = mdp5_smp_assign(mdp5_kms->smp, &mdp5_kms->state->smp,
+			mdp5_state->hwpipe->pipe, blkcfg);
+
+	mdp5_state->hwpipe->blkcfg = blkcfg;
+
+	DBG("ret = %d", ret);
 }
 
 static void mdp5_plane_reset(struct drm_plane *plane)
