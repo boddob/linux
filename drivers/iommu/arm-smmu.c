@@ -2352,7 +2352,8 @@ static int __maybe_unused arm_smmu_suspend(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(arm_smmu_pm_ops, arm_smmu_suspend, arm_smmu_pm_resume);
+static UNIVERSAL_DEV_PM_OPS(arm_smmu_pm_ops, arm_smmu_suspend,
+		arm_smmu_pm_resume, NULL);
 
 static struct platform_driver arm_smmu_driver = {
 	.driver	= {
