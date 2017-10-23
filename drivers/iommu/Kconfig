@@ -380,5 +380,4 @@ config QCOM_IOMMU
 	select ARM_DMA_USE_IOMMU
 	help
 	  Support for IOMMU on certain Qualcomm SoCs.
-
 endif # IOMMU_SUPPORT
