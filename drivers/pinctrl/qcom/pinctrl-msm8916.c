@@ -495,6 +495,9 @@ enum msm8916_functions {
 	MSM_MUX_wcss_fm,
 	MSM_MUX_wcss_wlan,
 	MSM_MUX_webcam1_rst,
+	MSM_MUX_gp_pdm0,
+	MSM_MUX_gp_pdm2_a,
+	MSM_MUX_gp_pdm2_b,
 	MSM_MUX_NA,
 };
 
@@ -689,6 +692,11 @@ static const char * const wcss_wlan_groups[] = {
 };
 static const char * const webcam1_rst_groups[] = { "gpio28" };
 
+static const char * const gp_pdm0_groups[] = { "gpio20", "gpio25" };
+
+static const char * const gp_pdm2_a_groups[] = { "gpio98", };
+static const char * const gp_pdm2_b_groups[] = { "gpio113", };
+
 static const struct msm_function msm8916_functions[] = {
 	FUNCTION(adsp_ext),
 	FUNCTION(alsp_int),
@@ -817,7 +825,10 @@ static const struct msm_function msm8916_functions[] = {
 	FUNCTION(wcss_bt),
 	FUNCTION(wcss_fm),
 	FUNCTION(wcss_wlan),
-	FUNCTION(webcam1_rst)
+	FUNCTION(webcam1_rst),
+	FUNCTION(gp_pdm0),
+	FUNCTION(gp_pdm2_a),
+	FUNCTION(gp_pdm2_b),
 };
 
 static const struct msm_pingroup msm8916_groups[] = {
@@ -841,12 +852,12 @@ static const struct msm_pingroup msm8916_groups[] = {
 	PINGROUP(17, blsp_spi5, blsp_spi2_cs2, NA, atest_bbrx0, NA, NA, NA, NA, NA),
 	PINGROUP(18, blsp_spi5, blsp_i2c5, NA, atest_gpsadc1, NA, NA, NA, NA, NA),
 	PINGROUP(19, blsp_spi5, blsp_i2c5, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(20, blsp_spi6, NA, NA, NA, NA, NA, NA, qdss_ctitrig_in_a0, NA),
+	PINGROUP(20, blsp_spi6, gp_pdm0, NA, NA, NA, NA, NA, qdss_ctitrig_in_a0, NA),
 	PINGROUP(21, blsp_spi6, NA, NA, NA, NA, NA, NA, qdss_ctitrig_in_b0, NA),
 	PINGROUP(22, blsp_spi6, blsp_i2c6, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(23, blsp_spi6, blsp_i2c6, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(24, mdp_vsync, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(25, mdp_vsync, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(25, mdp_vsync, gp_pdm0, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(26, cam_mclk0, NA, NA, NA, NA, NA, qdss_tracedata_b, NA, NA),
 	PINGROUP(27, cam_mclk1, NA, NA, NA, NA, NA, NA, NA, qdss_tracedata_b),
 	PINGROUP(28, pwr_modem_enabled_a, NA, NA, NA, NA, NA, qdss_tracedata_b, NA, atest_combodac),
@@ -919,7 +930,7 @@ static const struct msm_pingroup msm8916_groups[] = {
 	PINGROUP(95, NA, modem_tsync, nav_tsync, nav_pps, NA, NA, NA, NA, NA),
 	PINGROUP(96, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(97, gcc_gp1_clk_b, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(98, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(98, gp_pdm2_a, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(99, gsm0_tx0, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(100, gsm0_tx1, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(101, gsm1_tx0, NA, NA, NA, NA, NA, NA, NA, NA),
@@ -934,7 +945,7 @@ static const struct msm_pingroup msm8916_groups[] = {
 	PINGROUP(110, blsp_spi1_cs1, pri_mi2s_ws, NA, qdss_tracedata_b, NA, NA, NA, NA, NA),
 	PINGROUP(111, qdss_tracedata_b, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(112, sec_mi2s, NA, NA, NA, qdss_tracedata_a, NA, atest_tsens, NA, NA),
-	PINGROUP(113, pri_mi2s, NA, pwr_modem_enabled_b, NA, NA, NA, NA, NA, qdss_tracedata_a),
+	PINGROUP(113, pri_mi2s, gp_pdm2_b, pwr_modem_enabled_b, NA, NA, NA, NA, NA, qdss_tracedata_a),
 	PINGROUP(114, pri_mi2s, pwr_nav_enabled_b, NA, NA, NA, NA, NA, qdss_tracedata_a, NA),
 	PINGROUP(115, pri_mi2s, pwr_crypto_enabled_b, NA, NA, NA, NA, NA, qdss_tracedata_a, NA),
 	PINGROUP(116, pri_mi2s, NA, NA, NA, NA, NA, NA, NA, NA),
