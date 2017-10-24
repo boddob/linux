@@ -893,6 +893,12 @@ config MFD_SPMI_PMIC
 	  Say M here if you want to include support for the SPMI PMIC
 	  series as a module.  The module will be called "qcom-spmi-pmic".
 
+config MFD_QCOM_PDM
+	tristate "Qualcomm PDM"
+	depends on ARCH_QCOM && OF
+	help
+	  General purpose PDM driver.
+
 config MFD_RDC321X
 	tristate "RDC R-321x southbridge"
 	select MFD_CORE
