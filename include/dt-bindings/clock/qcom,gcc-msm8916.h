@@ -175,6 +175,7 @@
 #define GCC_ULTAUDIO_LPAIF_AUX_I2S_CLK		158
 #define GCC_CODEC_DIGCODEC_CLK			159
 #define GCC_MSS_Q6_BIMC_AXI_CLK			160
+#define GCC_PDM_XO4_CLK				161
 
 /* Indexes for GDSCs */
 #define BIMC_GDSC				0

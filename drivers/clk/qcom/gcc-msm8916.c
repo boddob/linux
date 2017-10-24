@@ -2678,6 +2678,23 @@ static struct clk_branch gcc_pdm_ahb_clk = {
 	},
 };
 
+static struct clk_branch gcc_pdm_xo4_clk = {
+	.halt_reg = 0x44008,
+	.clkr = {
+		.enable_reg = 0x44008,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_pdm_xo4_clk",
+			.parent_names = (const char *[]){
+				"xo",
+			},
+			.num_parents = 1, /* hack */
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_branch gcc_prng_ahb_clk = {
 	.halt_reg = 0x13004,
 	.halt_check = BRANCH_HALT_VOTED,
@@ -3208,6 +3225,7 @@ static struct clk_regmap *gcc_msm8916_clocks[] = {
 	[GCC_OXILI_GFX3D_CLK] = &gcc_oxili_gfx3d_clk.clkr,
 	[GCC_PDM2_CLK] = &gcc_pdm2_clk.clkr,
 	[GCC_PDM_AHB_CLK] = &gcc_pdm_ahb_clk.clkr,
+	[GCC_PDM_XO4_CLK] = &gcc_pdm_xo4_clk.clkr,
 	[GCC_PRNG_AHB_CLK] = &gcc_prng_ahb_clk.clkr,
 	[GCC_SDCC1_AHB_CLK] = &gcc_sdcc1_ahb_clk.clkr,
 	[GCC_SDCC1_APPS_CLK] = &gcc_sdcc1_apps_clk.clkr,
