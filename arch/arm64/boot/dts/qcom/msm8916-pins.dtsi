@@ -342,6 +342,80 @@
 		};
 	};
 
+	gp_pdm0_default: pdm0_default {
+		pinmux {
+			function = "gp_pdm0";
+			pins = "gpio20", "gpio25";
+		};
+
+		pinconf {
+			pins = "gpio20", "gpio25";
+			drive-strength = <16>;
+			bias-disable = <0>;
+		};
+	};
+
+	gp_pdm0_sleep: pdm0_sleep {
+		pinmux {
+			function = "gp_pdm0";
+			pins = "gpio20", "gpio25";
+		};
+
+		pinconf {
+			pins = "gpio20", "gpio25";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+	};
+
+	gp_pdm2_default: pdm2_default {
+		pinmux {
+			function = "gp_pdm2_a";
+			pins = "gpio98";
+		};
+
+		pinconf {
+			pins = "gpio98";
+			drive-strength = <8>;
+			bias-disable = <0>;
+		};
+
+		pinmux_b {
+			function = "gp_pdm2_b";
+			pins = "gpio113";
+		};
+
+		pinconf_b {
+			pins = "gpio113";
+			drive-strength = <8>;
+			bias-disable = <0>;
+		};
+	};
+
+	gp_pdm2_sleep: pdm2_sleep {
+		pinmux {
+			function = "gp_pdm2_a";
+			pins = "gpio98";
+		};
+
+		pinconf {
+			pins = "gpio98";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+
+		pinmux_b {
+			function = "gp_pdm2_b";
+			pins = "gpio113";
+		};
+
+		pinconf_b {
+			pins = "gpio113";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+	};
+
 	sdhc2_cd_pin {
 		sdc2_cd_on: cd_on {
 			pinmux {

@@ -559,6 +559,25 @@
 			status = "disabled";
 		};
 
+		pdm_web: pdm_web@68000 {
+			compatible = "qcom,pdm";
+			reg = <0x68000 0x3fff>;
+
+			clock-names = "iface", "pdm2", "tcxo";
+			clocks = <&gcc GCC_PDM_AHB_CLK>,
+				 <&gcc GCC_PDM2_CLK>,
+				 <&gcc GCC_PDM_XO4_CLK>;
+
+			resets = <&gcc GCC_PDM_BCR>;
+			reset-names = "core";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&gp_pdm0_default &gp_pdm2_default>;
+			pinctrl-1 = <&gp_pdm0_sleep &gp_pdm2_sleep>;
+
+			status = "okay";
+		};
+
 		lpass: lpass@07708000 {
 			status = "disabled";
 			compatible = "qcom,lpass-cpu-apq8016";
