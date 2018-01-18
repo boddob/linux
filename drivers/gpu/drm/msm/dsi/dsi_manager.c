@@ -53,20 +53,14 @@ static inline struct msm_dsi *dsi_mgr_get_other_dsi(int id)
 static int dsi_mgr_parse_dual_dsi(struct device_node *np, int id)
 {
 	struct msm_dsi_manager *msm_dsim = &msm_dsim_glb;
+	bool clock_master;
 
-	/* We assume 2 dsi nodes have the same information of dual-dsi and
-	 * sync-mode, and only one node specifies master in case of dual mode.
-	 */
-	if (!msm_dsim->is_dual_dsi)
-		msm_dsim->is_dual_dsi = of_property_read_bool(
-						np, "qcom,dual-dsi-mode");
-
-	if (msm_dsim->is_dual_dsi) {
-		if (of_property_read_bool(np, "qcom,master-dsi"))
-			msm_dsim->master_dsi_link_id = id;
-		if (!msm_dsim->is_sync_needed)
-			msm_dsim->is_sync_needed = of_property_read_bool(
-					np, "qcom,sync-dual-dsi");
+	clock_master = of_property_read_bool(np, "clock-master");
+	if (clock_master) {
+		msm_dsim->is_dual_dsi = true;
+		msm_dsim->master_dsi_link_id = id;
+		/* for now, assume sync is always needed in dual DSI mode */
+		msm_dsim->is_sync_needed = true;
 	}
 
 	return 0;
